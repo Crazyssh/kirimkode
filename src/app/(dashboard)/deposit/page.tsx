@@ -1,0 +1,601 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { formatRupiah } from "@/lib/utils";
+import { useUserStore } from "@/store/user";
+import {
+  Wallet,
+  QrCode,
+  Smartphone,
+  Building2,
+  CheckCircle,
+  Clock,
+  ArrowRight,
+  Loader2,
+  ExternalLink,
+  RefreshCw,
+  AlertCircle,
+  Ticket,
+} from "lucide-react";
+
+interface PaymentChannel {
+  code: string;
+  name: string;
+  type: string;
+  type_label: string;
+  icon: string | null;
+  fee: { flat: number; percent: number; display: string };
+}
+
+interface DepositResult {
+  trx_id: string;
+  reference_id: string;
+  amount: string;
+  status: string;
+  pay_url: string;
+  payment_info: {
+    transaction_id?: string;
+    transaction_status?: string;
+    bank?: string;
+    va_number?: string;
+    checkout_url?: string;
+    qr_url?: string;
+    payment_page?: string;
+    expiration_date?: string;
+  };
+}
+
+interface DepositHistoryItem {
+  id: string;
+  amount: number;
+  method: string;
+  status: string;
+  time: string;
+}
+
+const presetAmounts = [10000, 25000, 50000, 100000, 250000, 500000];
+
+export default function DepositPage() {
+  const { user, fetchUser } = useUserStore();
+  const [amount, setAmount] = useState<number>(50000);
+  const [channels, setChannels] = useState<{ va: PaymentChannel[]; ewallet: PaymentChannel[]; qris: PaymentChannel[] } | null>(null);
+  const [selectedChannel, setSelectedChannel] = useState<string>("qris");
+  const [depositHistory, setDepositHistory] = useState<DepositHistoryItem[]>([]);
+  const [step, setStep] = useState<"amount" | "payment" | "done">("amount");
+  const [loading, setLoading] = useState(false);
+  const [loadingChannels, setLoadingChannels] = useState(true);
+  const [depositResult, setDepositResult] = useState<DepositResult | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<string>("pending");
+  const [error, setError] = useState<string>("");
+  const [voucherCode, setVoucherCode] = useState("");
+  const [voucherApplied, setVoucherApplied] = useState<{ code: string; bonus: number; description: string } | null>(null);
+  const [applyingVoucher, setApplyingVoucher] = useState(false);
+  const [voucherError, setVoucherError] = useState("");
+
+  // Fetch payment channels & deposit history
+  useEffect(() => {
+    async function fetchChannels() {
+      try {
+        const res = await fetch("/api/deposit/channels");
+        const data = await res.json();
+        if (data.status === "success") {
+          setChannels(data.data);
+        }
+      } catch {
+        console.error("Gagal fetch channels");
+      } finally {
+        setLoadingChannels(false);
+      }
+    }
+    async function fetchHistory() {
+      try {
+        const res = await fetch("/api/dashboard");
+        if (res.ok) {
+          const json = await res.json();
+          setDepositHistory(
+            (json.data.recentDeposits || []).map((d: { id: string; amount: number; method: string; status: string; time: string }) => ({
+              id: d.id,
+              amount: d.amount,
+              method: d.method,
+              status: d.status,
+              time: new Date(d.time).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+            }))
+          );
+        }
+      } catch {
+        // silent
+      }
+    }
+    fetchChannels();
+    fetchHistory();
+  }, []);
+
+  // Polling status pembayaran setiap 5 detik
+  const checkStatus = useCallback(async () => {
+    if (!depositResult) return;
+    try {
+      const res = await fetch(`/api/deposit/status?order_id=${depositResult.trx_id}`);
+      const data = await res.json();
+      if (data.status === "success") {
+        setPaymentStatus(data.data.status);
+        if (data.data.status === "paid") {
+          setStep("done");
+          fetchUser(); // Refresh balance
+        }
+      }
+    } catch {
+      // silent fail
+    }
+  }, [depositResult]);
+
+  useEffect(() => {
+    if (step !== "payment" || !depositResult) return;
+    const interval = setInterval(checkStatus, 5000);
+    return () => clearInterval(interval);
+  }, [step, depositResult, checkStatus]);
+
+  // Buat deposit ke Paymenku
+  async function handleCreateDeposit() {
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/deposit/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          channel_code: selectedChannel,
+          customer_name: "KirimKode User",
+          customer_email: "user@kirimkode.com",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.status === "success") {
+        setDepositResult(data.data);
+        setPaymentStatus("pending");
+        setStep("payment");
+      } else {
+        setError(data.error || "Gagal membuat deposit");
+      }
+    } catch {
+      setError("Terjadi kesalahan jaringan");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Ambil semua channels dalam satu flat list untuk ditampilkan
+  const allChannels: (PaymentChannel & { group: string })[] = channels
+    ? [
+        ...(channels.qris || []).map((c) => ({ ...c, group: "QRIS" })),
+        ...(channels.ewallet || []).map((c) => ({ ...c, group: "E-Wallet" })),
+        ...(channels.va || []).map((c) => ({ ...c, group: "Virtual Account" })),
+      ]
+    : [];
+
+  const selectedChannelObj = allChannels.find((c) => c.code === selectedChannel);
+
+  function getChannelIcon(type: string) {
+    switch (type) {
+      case "qris": return QrCode;
+      case "ewallet": return Smartphone;
+      case "va": return Building2;
+      default: return Wallet;
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)]">
+          Deposit Saldo
+        </h1>
+        <p className="text-sm text-muted">Top-up saldo untuk membeli nomor OTP</p>
+      </div>
+
+      {/* Balance Card */}
+      <Card className="border-primary/30">
+        <CardContent className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Wallet className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <div className="text-xs text-muted">Saldo Saat Ini</div>
+              <div className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-primary">
+                {formatRupiah(user?.balance ?? 0)}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* Step 1: Pilih Nominal & Channel */}
+          {step === "amount" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Jumlah Deposit</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {error && (
+                  <div className="p-3 rounded-xl bg-error/10 border border-error/20 flex items-center gap-2 text-sm text-error">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {error}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-3">
+                  {presetAmounts.map((preset) => (
+                    <button
+                      key={preset}
+                      onClick={() => setAmount(preset)}
+                      className={`px-4 py-3 rounded-xl text-sm font-medium font-[family-name:var(--font-jetbrains-mono)] transition-all ${
+                        amount === preset
+                          ? "bg-primary text-background shadow-[0_0_15px_rgba(0,230,118,0.3)]"
+                          : "bg-background border border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {formatRupiah(preset)}
+                    </button>
+                  ))}
+                </div>
+
+                <div>
+                  <label className="text-sm text-muted mb-1.5 block">
+                    Atau masukkan nominal custom
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">Rp</span>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      className="pl-10 font-[family-name:var(--font-jetbrains-mono)]"
+                      value={amount}
+                      onChange={(e) => setAmount(Number(e.target.value))}
+                      min={1000}
+                    />
+                  </div>
+                  <p className="text-xs text-muted mt-1">Minimum deposit Rp 1.000</p>
+                </div>
+
+                {/* Payment Channels dari Paymenku */}
+                <div className="space-y-3">
+                  <label className="text-sm text-muted block">Metode Pembayaran</label>
+
+                  {loadingChannels ? (
+                    <div className="flex items-center justify-center py-8 text-muted">
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                      Memuat metode pembayaran...
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {allChannels.map((channel) => {
+                        const Icon = getChannelIcon(channel.type);
+                        return (
+                          <button
+                            key={channel.code}
+                            onClick={() => setSelectedChannel(channel.code)}
+                            className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
+                              selectedChannel === channel.code
+                                ? "border-primary/50 bg-primary/5"
+                                : "border-border hover:border-primary/30"
+                            }`}
+                          >
+                            <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center shrink-0">
+                              {channel.icon ? (
+                                <img src={channel.icon} alt={channel.name} className="w-6 h-6 rounded" />
+                              ) : (
+                                <Icon className="w-5 h-5 text-primary" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{channel.name}</span>
+                                <Badge variant="default">{channel.type_label}</Badge>
+                              </div>
+                              <div className="text-xs text-muted">
+                                Fee: {channel.fee.display}
+                              </div>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                              selectedChannel === channel.code ? "border-primary" : "border-border"
+                            }`}>
+                              {selectedChannel === channel.code && (
+                                <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Summary */}
+                {selectedChannelObj && (
+                  <div className="p-4 rounded-xl bg-background/50 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted">Nominal</span>
+                      <span className="font-[family-name:var(--font-jetbrains-mono)]">{formatRupiah(amount)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted">Fee ({selectedChannelObj.name})</span>
+                      <span className="font-[family-name:var(--font-jetbrains-mono)] text-muted">
+                        {selectedChannelObj.fee.display}
+                      </span>
+                    </div>
+                    <div className="border-t border-border pt-2 flex justify-between text-sm font-bold">
+                      <span>Total Bayar</span>
+                      <span className="font-[family-name:var(--font-jetbrains-mono)] text-primary">
+                        ~{formatRupiah(
+                          amount +
+                          selectedChannelObj.fee.flat +
+                          Math.ceil((amount * selectedChannelObj.fee.percent) / 100)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Voucher */}
+                <div className="p-3 rounded-xl bg-background/50 border border-border space-y-2">
+                  <label className="text-xs text-muted flex items-center gap-1">
+                    <Ticket className="w-3 h-3" /> Kode Voucher (opsional)
+                  </label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={voucherCode}
+                      onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherError(""); setVoucherApplied(null); }}
+                      placeholder="Masukkan kode voucher"
+                      className="flex-1"
+                      disabled={!!voucherApplied}
+                    />
+                    {voucherApplied ? (
+                      <Button variant="ghost" size="sm" onClick={() => { setVoucherApplied(null); setVoucherCode(""); }}>
+                        Hapus
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={!voucherCode || applyingVoucher}
+                        onClick={async () => {
+                          setApplyingVoucher(true); setVoucherError("");
+                          try {
+                            const res = await fetch("/api/voucher/apply", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ code: voucherCode, depositAmount: amount }),
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.success) {
+                              setVoucherApplied(data.data);
+                              fetchUser();
+                            } else {
+                              setVoucherError(data.error || "Voucher tidak valid");
+                            }
+                          } catch { setVoucherError("Gagal menggunakan voucher"); }
+                          finally { setApplyingVoucher(false); }
+                        }}
+                      >
+                        {applyingVoucher ? <Loader2 className="w-3 h-3 animate-spin" /> : "Pakai"}
+                      </Button>
+                    )}
+                  </div>
+                  {voucherError && <p className="text-[10px] text-error">{voucherError}</p>}
+                  {voucherApplied && (
+                    <p className="text-[10px] text-success">
+                      Voucher {voucherApplied.code} diterapkan! Bonus Rp {voucherApplied.bonus.toLocaleString("id-ID")} sudah ditambahkan ke saldo.
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleCreateDeposit}
+                  disabled={amount < 1000 || loading || loadingChannels}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      Bayar Sekarang <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 2: Pembayaran */}
+          {step === "payment" && depositResult && (
+            <Card className="animate-fade-in">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <div className={`w-2 h-2 rounded-full ${paymentStatus === "pending" ? "bg-accent animate-pulse" : "bg-success"}`} />
+                  {paymentStatus === "pending" ? "Menunggu Pembayaran" : "Pembayaran Berhasil"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Info Transaksi */}
+                <div className="p-4 rounded-xl bg-background/50 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted">ID Transaksi</span>
+                    <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs">{depositResult.trx_id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Total Bayar</span>
+                    <span className="font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary">
+                      Rp {parseFloat(depositResult.amount).toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Status</span>
+                    <Badge variant={paymentStatus === "paid" ? "success" : "warning"}>
+                      {paymentStatus === "paid" ? "Lunas" : "Menunggu"}
+                    </Badge>
+                  </div>
+                  {depositResult.payment_info.expiration_date && (
+                    <div className="flex justify-between">
+                      <span className="text-muted">Batas Waktu</span>
+                      <span className="text-xs text-accent flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {new Date(depositResult.payment_info.expiration_date).toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Virtual Account Number */}
+                {depositResult.payment_info.va_number && (
+                  <div className="text-center p-6 rounded-xl bg-surface border border-border">
+                    <div className="text-xs text-muted mb-1">
+                      Transfer ke {depositResult.payment_info.bank} Virtual Account
+                    </div>
+                    <div className="text-2xl font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary tracking-wider">
+                      {depositResult.payment_info.va_number}
+                    </div>
+                  </div>
+                )}
+
+                {/* QRIS QR Code */}
+                {depositResult.payment_info.qr_url && (
+                  <div className="text-center">
+                    <div className="w-64 h-64 mx-auto bg-white rounded-2xl p-4 flex items-center justify-center">
+                      <img
+                        src={depositResult.payment_info.qr_url}
+                        alt="QRIS QR Code"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <p className="text-xs text-muted mt-2">Scan QR dengan e-wallet atau mobile banking</p>
+                  </div>
+                )}
+
+                {/* Pay URL / Checkout URL */}
+                {(depositResult.pay_url || depositResult.payment_info.checkout_url) && (
+                  <a
+                    href={depositResult.payment_info.checkout_url || depositResult.pay_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button variant="secondary" className="w-full">
+                      <ExternalLink className="w-4 h-4" />
+                      Buka Halaman Pembayaran
+                    </Button>
+                  </a>
+                )}
+
+                {paymentStatus === "pending" && (
+                  <div className="flex items-center justify-center gap-2 text-xs text-muted">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    Status otomatis diperbarui setiap 5 detik...
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={() => {
+                      setStep("amount");
+                      setDepositResult(null);
+                      setError("");
+                    }}
+                  >
+                    Buat Deposit Baru
+                  </Button>
+                  <Button className="flex-1" onClick={checkStatus}>
+                    <RefreshCw className="w-4 h-4" />
+                    Cek Status
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 3: Berhasil */}
+          {step === "done" && (
+            <Card className="animate-fade-in border-success/30">
+              <CardContent className="text-center py-12">
+                <div className="w-16 h-16 mx-auto rounded-full bg-success/20 flex items-center justify-center mb-4">
+                  <CheckCircle className="w-8 h-8 text-success" />
+                </div>
+                <h2 className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] mb-2">
+                  Pembayaran Berhasil!
+                </h2>
+                <p className="text-sm text-muted mb-2">
+                  Saldo sebesar {formatRupiah(amount)} telah ditambahkan ke akun Anda.
+                </p>
+                {depositResult && (
+                  <p className="text-xs text-muted font-[family-name:var(--font-jetbrains-mono)] mb-6">
+                    TRX: {depositResult.trx_id}
+                  </p>
+                )}
+                <div className="flex gap-3 justify-center">
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setStep("amount");
+                      setDepositResult(null);
+                    }}
+                  >
+                    Deposit Lagi
+                  </Button>
+                  <Button onClick={() => (window.location.href = "/buy")}>
+                    Beli Nomor OTP
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Deposit History */}
+        <div className="lg:col-span-1">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Riwayat Deposit</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {depositHistory.map((dep) => (
+                  <div
+                    key={dep.id}
+                    className="flex items-center justify-between p-3 rounded-xl bg-background/50"
+                  >
+                    <div>
+                      <div className="text-sm font-medium font-[family-name:var(--font-jetbrains-mono)]">
+                        +{formatRupiah(dep.amount)}
+                      </div>
+                      <div className="text-xs text-muted">
+                        {dep.method} &middot; {dep.time}
+                      </div>
+                    </div>
+                    <Badge variant={dep.status === "success" ? "success" : "warning"}>
+                      {dep.status === "success" ? "Berhasil" : "Pending"}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,79 @@
+import { NextRequest, NextResponse } from "next/server";
+import { authenticateApiKey } from "@/lib/api-auth";
+import { db } from "@/lib/db";
+import { checkSms } from "@/lib/otp";
+
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await authenticateApiKey(req);
+  if (!user) {
+    return NextResponse.json({ status: "error", message: "Invalid API key" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const order = await db.order.findFirst({
+    where: { id, userId: user.id },
+  });
+
+  if (!order) {
+    return NextResponse.json({ status: "error", message: "Order not found" }, { status: 404 });
+  }
+
+  // If still waiting, poll for OTP
+  if (order.status === "waiting" && !order.code) {
+    try {
+      const data = await checkSms(order.server as "api1" | "api2", order.orderId);
+      const otp = extractOtp(data as Record<string, unknown>);
+      if (otp) {
+        await db.order.update({
+          where: { id: order.id },
+          data: { code: otp, status: "success" },
+        });
+        return NextResponse.json({
+          status: "success",
+          data: {
+            order_id: order.id,
+            number: order.number,
+            code: otp,
+            status: "success",
+            received_at: new Date().toISOString(),
+          },
+        });
+      }
+    } catch {
+      // poll failed, return current status
+    }
+  }
+
+  return NextResponse.json({
+    status: "success",
+    data: {
+      order_id: order.id,
+      number: order.number,
+      code: order.code,
+      status: order.status,
+      received_at: order.code ? order.updatedAt.toISOString() : null,
+    },
+  });
+}
+
+const WAITING_STATUSES = ["menunggu", "waiting", "pending", "processing"];
+
+function isRealOtp(otp: unknown): otp is string {
+  if (typeof otp !== "string" || !otp.trim()) return false;
+  return !WAITING_STATUSES.includes(otp.trim().toLowerCase());
+}
+
+function extractOtp(data: Record<string, unknown>): string | null {
+  const candidates = [
+    data?.otp, data?.sms, data?.code,
+    (data?.data as Record<string, unknown>)?.otp,
+    (data?.data as Record<string, unknown>)?.sms,
+    (data?.data as Record<string, unknown>)?.code,
+    (data?.data as Record<string, unknown>)?.full_sms,
+  ];
+  for (const val of candidates) {
+    if (isRealOtp(val)) return val;
+  }
+  return null;
+}

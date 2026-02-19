@@ -1,0 +1,200 @@
+/**
+ * Paymenku Payment Gateway API Client
+ * Docs: https://paymenku.com (API Documentation)
+ *
+ * Endpoints:
+ * - POST /transaction/create  → Buat transaksi baru
+ * - GET  /check-status/{id}   → Cek status transaksi
+ * - GET  /payment-channels    → List payment channels
+ *
+ * Webhook: POST callback ke URL yang diset di dashboard merchant
+ */
+
+const PAYMENKU_BASE_URL =
+  process.env.PAYMENKU_BASE_URL || "https://paymenku.com/api/v1";
+const PAYMENKU_API_KEY = process.env.PAYMENKU_API_KEY || "";
+
+// ==================== TYPES ====================
+
+export interface CreateTransactionParams {
+  reference_id: string;
+  amount: number;
+  customer_name: string;
+  customer_email: string;
+  customer_phone?: string;
+  channel_code: string;
+  return_url: string;
+}
+
+export interface PaymentInfo {
+  transaction_id: string;
+  transaction_status: string;
+  // Virtual Account
+  bank?: string;
+  va_number?: string;
+  // E-Wallet
+  checkout_url?: string;
+  // QRIS
+  qr_url?: string;
+  payment_page?: string;
+  // Common
+  expiration_date: string;
+}
+
+export interface TransactionResponse {
+  status: "success" | "error";
+  data: {
+    trx_id: string;
+    reference_id: string;
+    amount: string;
+    status: "pending" | "paid" | "expired" | "cancelled";
+    pay_url: string;
+    payment_info: PaymentInfo;
+  };
+  message?: string;
+}
+
+export interface CheckStatusResponse {
+  status: "success" | "error";
+  data: {
+    trx_id: string;
+    reference_id: string;
+    amount: string;
+    total_fee: string;
+    amount_received: string;
+    status: "pending" | "paid" | "expired" | "cancelled";
+    is_sandbox: boolean;
+    customer_name: string;
+    customer_email: string;
+    payment_channel: {
+      code: string;
+      name: string;
+      type: string;
+    };
+    pay_url: string;
+    paid_at: string | null;
+    created_at: string;
+    updated_at: string;
+  };
+}
+
+export interface ChannelFee {
+  flat: number;
+  percent: number;
+  display: string;
+}
+
+export interface PaymentChannel {
+  code: string;
+  name: string;
+  type: string;
+  type_label: string;
+  icon: string | null;
+  description: string | null;
+  fee: ChannelFee;
+}
+
+export interface PaymentChannelsResponse {
+  status: "success" | "error";
+  data: {
+    va: PaymentChannel[];
+    ewallet: PaymentChannel[];
+    qris: PaymentChannel[];
+  };
+}
+
+export interface WebhookPayload {
+  event: "payment.status_updated";
+  trx_id: string;
+  reference_id: string;
+  status: "pending" | "paid" | "expired" | "cancelled";
+  amount: string;
+  total_fee: string;
+  amount_received: string;
+  payment_channel: string;
+  customer_name: string;
+  customer_email: string;
+  paid_at: string;
+  created_at: string;
+}
+
+// ==================== API CLIENT ====================
+
+async function paymentRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${PAYMENKU_BASE_URL}${endpoint}`;
+
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${PAYMENKU_API_KEY}`,
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.message || `Paymenku API error: ${res.status}`);
+  }
+
+  return data as T;
+}
+
+// ==================== FUNCTIONS ====================
+
+/**
+ * Buat transaksi pembayaran baru
+ */
+export async function createTransaction(
+  params: CreateTransactionParams
+): Promise<TransactionResponse> {
+  return paymentRequest<TransactionResponse>("/transaction/create", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
+/**
+ * Cek status transaksi
+ * @param orderId - bisa TRX-xxx (trx_id) atau reference_id
+ */
+export async function checkTransactionStatus(
+  orderId: string
+): Promise<CheckStatusResponse> {
+  return paymentRequest<CheckStatusResponse>(`/check-status/${orderId}`);
+}
+
+/**
+ * Ambil daftar payment channels yang tersedia
+ */
+export async function getPaymentChannels(): Promise<PaymentChannelsResponse> {
+  return paymentRequest<PaymentChannelsResponse>("/payment-channels");
+}
+
+/**
+ * Generate reference ID unik untuk deposit
+ */
+export function generateReferenceId(userId: string): string {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 1000)
+    .toString()
+    .padStart(3, "0");
+  return `DEP-${userId}-${timestamp}-${random}`;
+}
+
+/**
+ * Hitung total amount termasuk fee
+ */
+export function calculateTotalWithFee(
+  amount: number,
+  channel: PaymentChannel
+): { total: number; fee: number } {
+  const flatFee = channel.fee.flat;
+  const percentFee = (amount * channel.fee.percent) / 100;
+  const fee = Math.ceil(flatFee + percentFee);
+  return { total: amount + fee, fee };
+}

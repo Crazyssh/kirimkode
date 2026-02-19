@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ==================== AUTH (NextAuth.js) ====================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // hashed, null for OAuth-only users
+  phone         String?   // WhatsApp number
+  balance       Int       @default(0) // saldo in IDR
+  role          String    @default("user") // user | admin
+  status        String    @default("active") // active | banned
+  banReason     String?   // alasan banned
+  apiKey        String?   @unique // API key for developer access
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  webhookUrl    String?   // webhook URL for OTP notifications
+  favorites     String    @default("") // comma-separated favorite service codes
+  theme         String    @default("dark") // dark | light
+  referralCode  String?   @unique // kode referral unik user ini
+  referredBy    String?   // userId yang mereferensikan
+
+  accounts      Account[]
+  sessions      Session[]
+  orders        Order[]
+  deposits      Deposit[]
+  auditLogs     AuditLog[]
+  voucherUsages VoucherUsage[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ==================== BUSINESS ====================
+
+model Order {
+  id          String   @id @default(cuid())
+  userId      String
+  server      String   // api1 | api2
+  orderId     Int      // JasaOTP order ID
+  service     String   // e.g. "wa", "tg"
+  serviceName String   // e.g. "WhatsApp", "Telegram"
+  country     String   // e.g. "indonesia"
+  countryId   Int      // JasaOTP negara ID
+  number      String   // virtual number
+  code        String?  // OTP code received
+  price       Int      // price in IDR
+  status      String   @default("waiting") // waiting | success | cancelled | timeout | refunded
+  operator    String   @default("any")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("orders")
+}
+
+model Deposit {
+  id            String   @id @default(cuid())
+  userId        String
+  trxId         String   @unique // Paymenku trx_id
+  referenceId   String   @unique // our reference ID
+  amount        Int      // deposit amount in IDR
+  fee           Int      @default(0) // payment fee
+  totalPaid     Int      @default(0) // amount + fee
+  channelCode   String   // payment channel code
+  channelName   String   // payment channel name
+  status        String   @default("pending") // pending | paid | expired | cancelled
+  payUrl        String?  // payment URL
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("deposits")
+}
+
+// Aturan harga custom OTP (admin bisa markup/override harga dari provider)
+model PriceRule {
+  id          String   @id @default(cuid())
+  serviceCode String   // kode layanan (e.g. "wa", "tg") atau "*" untuk semua
+  countryId   Int      @default(0) // JasaOTP negara ID, 0 = semua negara
+  priceType   String   // "fixed" = harga tetap, "multiply" = kalikan, "markup" = tambah
+  value       Int      // fixed: harga IDR, multiply: persentase (150 = 1.5x), markup: tambahan IDR
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([serviceCode, countryId])
+  @@map("price_rules")
+}
+
+// Audit log untuk tracking aktivitas user
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String   // login | order | cancel | deposit | api_key_generate | settings_update
+  detail    String?  // JSON detail
+  ip        String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+// Pengumuman/broadcast dari admin
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  type      String   @default("info") // info | warning | success
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("announcements")
+}
+
+// Voucher system
+model Voucher {
+  id            String   @id @default(cuid())
+  code          String   @unique // kode voucher (uppercase)
+  description   String   // deskripsi voucher
+  bonusType     String   // "fixed" = bonus tetap, "percent" = persentase dari deposit
+  bonusValue    Int      // fixed: nominal IDR, percent: persentase (e.g. 10 = 10%)
+  maxBonus      Int      @default(0) // max bonus untuk percent type (0 = unlimited)
+  minDeposit    Int      @default(0) // minimal deposit untuk pakai voucher
+  maxUsage      Int      @default(0) // max total penggunaan (0 = unlimited)
+  maxPerUser    Int      @default(1) // max penggunaan per user
+  firstDeposit  Boolean  @default(false) // hanya untuk deposit pertama
+  active        Boolean  @default(true)
+  expiresAt     DateTime? // tanggal kadaluarsa (null = tidak expired)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  usages VoucherUsage[]
+
+  @@map("vouchers")
+}
+
+model VoucherUsage {
+  id        String   @id @default(cuid())
+  voucherId String
+  userId    String
+  depositId String?  // deposit yang dapat bonus
+  bonus     Int      // bonus yang didapat
+  createdAt DateTime @default(now())
+
+  voucher Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([voucherId])
+  @@index([userId])
+  @@map("voucher_usages")
+}
