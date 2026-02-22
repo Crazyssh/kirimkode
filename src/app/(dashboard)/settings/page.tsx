@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useUserStore } from "@/store/user";
+import { useLanguageStore } from "@/store/language";
 import { toast } from "sonner";
 import {
   User,
@@ -25,6 +26,7 @@ import {
 
 export default function SettingsPage() {
   const { user, fetchUser } = useUserStore();
+  const { t } = useLanguageStore();
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -141,9 +143,9 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)]">
-          Pengaturan
+          {t("settings.title")}
         </h1>
-        <p className="text-sm text-muted">Kelola profil dan keamanan akun Anda</p>
+        <p className="text-sm text-muted">{t("settings.desc")}</p>
       </div>
 
       {/* Profile */}
@@ -151,35 +153,35 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <User className="w-4 h-4 text-primary" />
-            Profil
+            {t("settings.profile")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-xs text-muted block mb-1">Nama</label>
+            <label className="text-xs text-muted block mb-1">{t("settings.name")}</label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama lengkap" />
           </div>
           <div>
-            <label className="text-xs text-muted block mb-1">Email</label>
+            <label className="text-xs text-muted block mb-1">{t("settings.email")}</label>
             <Input value={user?.email || ""} disabled className="opacity-60" />
-            <span className="text-[10px] text-muted">Email tidak bisa diubah</span>
+            <span className="text-[10px] text-muted">{t("settings.emailCantChange")}</span>
           </div>
           <div>
             <label className="text-xs text-muted block mb-1 flex items-center gap-1">
-              <Phone className="w-3 h-3" /> Nomor WhatsApp
+              <Phone className="w-3 h-3" /> {t("settings.whatsapp")}
             </label>
             <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="628xxxxxxxxxx" />
           </div>
           <div>
             <label className="text-xs text-muted block mb-1 flex items-center gap-1">
-              <Globe className="w-3 h-3" /> Webhook URL
+              <Globe className="w-3 h-3" /> {t("settings.webhookUrl")}
             </label>
             <Input value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://your-server.com/webhook" />
-            <span className="text-[10px] text-muted">Terima notifikasi OTP via HTTP POST</span>
+            <span className="text-[10px] text-muted">{t("settings.webhookDesc")}</span>
           </div>
           <Button onClick={handleSaveProfile} disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Simpan Profil
+            {t("settings.saveProfile")}
           </Button>
         </CardContent>
       </Card>
@@ -189,25 +191,25 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Lock className="w-4 h-4 text-primary" />
-            Ubah Password
+            {t("settings.changePassword")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <label className="text-xs text-muted block mb-1">Password Lama</label>
+            <label className="text-xs text-muted block mb-1">{t("settings.oldPassword")}</label>
             <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
           </div>
           <div>
-            <label className="text-xs text-muted block mb-1">Password Baru</label>
+            <label className="text-xs text-muted block mb-1">{t("settings.newPassword")}</label>
             <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
           </div>
           <div>
-            <label className="text-xs text-muted block mb-1">Konfirmasi Password Baru</label>
+            <label className="text-xs text-muted block mb-1">{t("settings.confirmPassword")}</label>
             <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
           </div>
           <Button onClick={handleChangePassword} disabled={saving || !currentPassword || !newPassword}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-            Ubah Password
+            {t("settings.changePassword")}
           </Button>
         </CardContent>
       </Card>
@@ -217,17 +219,17 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <CheckCircle className="w-4 h-4 text-primary" />
-            Info Akun
+            {t("settings.accountInfo")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex justify-between text-sm">
-            <span className="text-muted">Role</span>
+            <span className="text-muted">{t("settings.role")}</span>
             <Badge variant={user?.role === "admin" ? "primary" : "success"}>{user?.role || "user"}</Badge>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-muted">API Key</span>
-            <span>{user?.apiKey ? "Aktif" : "Belum dibuat"}</span>
+            <span className="text-muted">{t("settings.apiKey")}</span>
+            <span>{user?.apiKey ? t("settings.active") : t("settings.notCreated")}</span>
           </div>
         </CardContent>
       </Card>
@@ -237,12 +239,12 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Gift className="w-4 h-4 text-primary" />
-            Program Referral
+            {t("settings.referralProgram")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted">
-            Ajak teman daftar pakai kode referral kamu. Setiap kali temanmu deposit, kamu dapat komisi <strong className="text-primary">5%</strong> dari nominal deposit!
+            {t("settings.referralDesc")}
           </p>
           {referralCode ? (
             <div className="flex items-center gap-3">
@@ -259,7 +261,7 @@ export default function SettingsPage() {
                 }}
               >
                 {copiedRef ? <CheckCircle className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
-                {copiedRef ? "Tersalin!" : "Salin"}
+                {copiedRef ? t("common.copied") : t("common.copy")}
               </Button>
             </div>
           ) : (
@@ -267,7 +269,7 @@ export default function SettingsPage() {
           )}
           <div className="flex items-center gap-2 text-sm">
             <Users className="w-4 h-4 text-muted" />
-            <span className="text-muted">Teman yang diundang:</span>
+            <span className="text-muted">{t("settings.friendsInvited")}</span>
             <span className="font-bold text-primary">{referralCount}</span>
           </div>
         </CardContent>
@@ -278,12 +280,12 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Clock className="w-4 h-4 text-primary" />
-            Riwayat Login
+            {t("settings.loginHistory")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loginHistory.length === 0 ? (
-            <p className="text-sm text-muted text-center py-4">Belum ada riwayat login</p>
+            <p className="text-sm text-muted text-center py-4">{t("settings.noLoginHistory")}</p>
           ) : (
             <div className="space-y-2">
               {loginHistory.map((log) => (

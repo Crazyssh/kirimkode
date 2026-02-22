@@ -4,16 +4,19 @@ import Link from "next/link";
 import { useState } from "react";
 import { Menu, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const navLinks = [
-  { href: "#fitur", label: "Fitur" },
-  { href: "#layanan", label: "Layanan" },
-  { href: "#harga", label: "Harga" },
-  { href: "#faq", label: "FAQ" },
-];
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useLanguageStore } from "@/store/language";
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { t } = useLanguageStore();
+
+  const navLinks = [
+    { href: "#fitur", label: t("nav.features") },
+    { href: "#layanan", label: t("nav.services") },
+    { href: "#harga", label: t("nav.pricing") },
+    { href: "#faq", label: t("nav.faq") },
+  ];
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass">
@@ -40,11 +43,12 @@ export function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          <LanguageSwitcher />
           <Link href="/login">
-            <Button variant="ghost" size="sm">Masuk</Button>
+            <Button variant="ghost" size="sm">{t("common.login")}</Button>
           </Link>
           <Link href="/register">
-            <Button variant="primary" size="sm">Daftar Gratis</Button>
+            <Button variant="primary" size="sm">{t("common.register")}</Button>
           </Link>
         </div>
 
@@ -69,13 +73,16 @@ export function Navbar() {
                 {link.label}
               </a>
             ))}
-            <div className="flex gap-3 pt-2 border-t border-border">
-              <Link href="/login" className="flex-1">
-                <Button variant="secondary" size="sm" className="w-full">Masuk</Button>
-              </Link>
-              <Link href="/register" className="flex-1">
-                <Button variant="primary" size="sm" className="w-full">Daftar</Button>
-              </Link>
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <LanguageSwitcher />
+              <div className="flex gap-3">
+                <Link href="/login">
+                  <Button variant="secondary" size="sm">{t("common.login")}</Button>
+                </Link>
+                <Link href="/register">
+                  <Button variant="primary" size="sm">{t("common.register")}</Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>

@@ -9,11 +9,13 @@ import { useState, useRef, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { useLanguageStore } from "@/store/language";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const turnstileRef = useRef<TurnstileInstance>(null);
+  const { t } = useLanguageStore();
   const [showPassword, setShowPassword] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,12 +46,12 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setError("Email atau password salah");
+        setError(t("auth.loginError"));
       } else {
         router.push("/dashboard");
       }
     } catch {
-      setError("Terjadi kesalahan jaringan");
+      setError(t("auth.networkError"));
     } finally {
       setLoading(false);
       turnstileRef.current?.reset();
@@ -66,15 +68,15 @@ function LoginForm() {
     <Card>
       <CardContent>
         <h1 className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] mb-1">
-          Masuk ke Akun
+          {t("auth.loginTitle")}
         </h1>
         <p className="text-sm text-muted mb-6">
-          Masukkan email dan password untuk melanjutkan
+          {t("auth.loginDesc")}
         </p>
 
         {registered && (
           <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-sm text-success mb-4">
-            Registrasi berhasil! Silakan masuk dengan akun Anda.
+            {t("auth.registerSuccess")}
           </div>
         )}
 
@@ -86,7 +88,7 @@ function LoginForm() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm text-muted mb-1.5 block">Email</label>
+            <label className="text-sm text-muted mb-1.5 block">{t("auth.email")}</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
               <Input
@@ -104,9 +106,9 @@ function LoginForm() {
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm text-muted">Password</label>
+              <label className="text-sm text-muted">{t("auth.password")}</label>
               <a href="#" className="text-xs text-primary hover:underline">
-                Lupa password?
+                {t("auth.forgotPassword")}
               </a>
             </div>
             <div className="relative">
@@ -114,7 +116,7 @@ function LoginForm() {
               <Input
                 type={showPassword ? "text" : "password"}
                 name="password"
-                placeholder="Masukkan password"
+                placeholder={t("auth.password")}
                 className="pl-10 pr-10"
                 value={form.password}
                 onChange={handleChange}
@@ -148,12 +150,12 @@ function LoginForm() {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Memproses...
+                {t("common.processing")}
               </>
             ) : (
               <>
                 <LogIn className="w-4 h-4" />
-                Masuk
+                {t("common.login")}
               </>
             )}
           </Button>
@@ -164,7 +166,7 @@ function LoginForm() {
             <div className="w-full border-t border-border" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-surface px-3 text-muted">atau</span>
+            <span className="bg-surface px-3 text-muted">{t("auth.and")}</span>
           </div>
         </div>
 
@@ -197,13 +199,13 @@ function LoginForm() {
               />
             </svg>
           )}
-          Masuk dengan Google
+          {t("auth.loginWithGoogle")}
         </Button>
 
         <p className="text-center text-sm text-muted mt-6">
-          Belum punya akun?{" "}
+          {t("auth.noAccount")}{" "}
           <Link href="/register" className="text-primary hover:underline font-medium">
-            Daftar sekarang
+            {t("auth.registerNow")}
           </Link>
         </p>
       </CardContent>

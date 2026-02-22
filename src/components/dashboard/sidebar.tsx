@@ -4,24 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import { useLanguageStore } from "@/store/language";
 import {
   Zap,
   LayoutDashboard,
   ShoppingCart,
   Wallet,
-  History,
   Code,
   Settings,
   LogOut,
   X,
 } from "lucide-react";
-
-const menuItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/buy", label: "Beli Nomor", icon: ShoppingCart },
-  { href: "/deposit", label: "Deposit", icon: Wallet },
-  { href: "/api-docs", label: "API Docs", icon: Code },
-];
 
 interface SidebarProps {
   open: boolean;
@@ -30,6 +23,14 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { t } = useLanguageStore();
+
+  const menuItems = [
+    { href: "/dashboard", label: t("sidebar.dashboard"), icon: LayoutDashboard },
+    { href: "/buy", label: t("sidebar.buyNumber"), icon: ShoppingCart },
+    { href: "/deposit", label: t("sidebar.deposit"), icon: Wallet },
+    { href: "/api-docs", label: t("sidebar.apiDocs"), icon: Code },
+  ];
 
   return (
     <>
@@ -94,14 +95,14 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             )}
           >
             <Settings className="w-5 h-5" />
-            Pengaturan
+            {t("sidebar.settings")}
           </Link>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-error hover:bg-error/10 transition-all"
           >
             <LogOut className="w-5 h-5" />
-            Keluar
+            {t("common.logout")}
           </button>
         </div>
       </aside>

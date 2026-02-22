@@ -9,6 +9,7 @@ import { formatRupiah } from "@/lib/utils";
 import { servers } from "@/data/services";
 import type { OTPServer } from "@/data/services";
 import { useUserStore } from "@/store/user";
+import { useLanguageStore } from "@/store/language";
 import { playOtpSound } from "@/lib/sound";
 import { toast } from "sonner";
 import {
@@ -60,6 +61,7 @@ interface HistoryOrder {
 
 export default function BuyPage() {
   const { user, fetchUser } = useUserStore();
+  const { t } = useLanguageStore();
   const [selectedServer, setSelectedServer] = useState<OTPServer>(servers[0]);
 
   // Riwayat order state
@@ -286,7 +288,7 @@ export default function BuyPage() {
 
       if (gotNewOtp) {
         playOtpSound();
-        toast.success("OTP Diterima!", {
+        toast.success(t("buy.otpReceived"), {
           description: "Kode OTP baru telah masuk. Cek tabel riwayat order.",
         });
       }
@@ -424,10 +426,10 @@ export default function BuyPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)]">
-          Beli Nomor OTP
+          {t("buy.title")}
         </h1>
         <p className="text-sm text-muted">
-          Pilih server, negara, dan layanan untuk mendapatkan nomor virtual
+          {t("buy.desc")}
         </p>
       </div>
 
@@ -449,7 +451,7 @@ export default function BuyPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Server className="w-4 h-4 text-primary" />
-                Pilih Server
+                {t("buy.selectServer")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -501,14 +503,14 @@ export default function BuyPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Globe className="w-4 h-4 text-primary" />
-                Pilih Negara
+                {t("buy.selectCountry")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {loadingNegara ? (
                 <div className="flex items-center justify-center py-6 text-muted">
                   <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  <span className="text-sm">Memuat negara...</span>
+                  <span className="text-sm">{t("buy.loadingCountries")}</span>
                 </div>
               ) : (
                 <>
@@ -523,7 +525,7 @@ export default function BuyPage() {
                       <span>
                         {selectedNegara
                           ? capitalizeFirst(selectedNegara.nama_negara)
-                          : "Pilih negara"}
+                          : t("buy.selectCountry")}
                       </span>
                       <ChevronDown className="w-4 h-4 text-muted" />
                     </button>
@@ -535,7 +537,7 @@ export default function BuyPage() {
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
                             <input
                               type="text"
-                              placeholder="Cari negara..."
+                              placeholder={t("buy.searchCountry")}
                               value={countrySearch}
                               onChange={(e) => setCountrySearch(e.target.value)}
                               className="w-full pl-8 pr-3 py-2 rounded-lg bg-background border border-border text-sm focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted"
@@ -574,7 +576,7 @@ export default function BuyPage() {
                               .includes(countrySearch.toLowerCase())
                           ).length === 0 && (
                             <div className="px-3 py-4 text-sm text-muted text-center">
-                              Negara tidak ditemukan
+                              {t("buy.countryNotFound")}
                             </div>
                           )}
                         </div>
@@ -593,18 +595,18 @@ export default function BuyPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Globe className="w-4 h-4 text-primary" />
-                Provider
+                {t("buy.provider")}
               </CardTitle>
             </CardHeader>
             <CardContent style={{ overflow: "visible" }}>
               {loadingOperator ? (
                 <div className="flex items-center justify-center py-4 text-muted">
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  <span className="text-sm">Memuat provider...</span>
+                  <span className="text-sm">{t("buy.loadingProviders")}</span>
                 </div>
               ) : operatorList.length === 0 ? (
                 <div className="text-center py-4 text-xs text-muted">
-                  Pilih negara terlebih dahulu
+                  {t("buy.selectCountryFirst")}
                 </div>
               ) : (
                 <div className="relative" ref={operatorDropdownRef}>
@@ -612,7 +614,7 @@ export default function BuyPage() {
                     onClick={() => setShowOperatorDropdown(!showOperatorDropdown)}
                     className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-background border border-border text-sm hover:border-primary/50 transition-colors"
                   >
-                    <span>{selectedOperator === "any" ? "Semua Provider" : capitalizeFirst(selectedOperator)}</span>
+                    <span>{selectedOperator === "any" ? t("buy.allProviders") : capitalizeFirst(selectedOperator)}</span>
                     <ChevronDown className="w-4 h-4 text-muted" />
                   </button>
                   {showOperatorDropdown && (
@@ -623,7 +625,7 @@ export default function BuyPage() {
                           onClick={() => { setSelectedOperator(op); setShowOperatorDropdown(false); }}
                           className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-hover transition-colors ${selectedOperator === op ? "bg-primary/10 text-primary" : ""}`}
                         >
-                          {op === "any" ? "Semua Provider" : capitalizeFirst(op)}
+                          {op === "any" ? t("buy.allProviders") : capitalizeFirst(op)}
                         </button>
                       ))}
                     </div>
@@ -639,18 +641,18 @@ export default function BuyPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <ShoppingCart className="w-4 h-4 text-primary" />
-                Pilih Layanan
+                {t("buy.selectService")}
               </CardTitle>
             </CardHeader>
             <CardContent style={{ overflow: "visible" }}>
               {loadingLayanan ? (
                 <div className="flex items-center justify-center py-4 text-muted">
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  <span className="text-sm">Memuat layanan...</span>
+                  <span className="text-sm">{t("buy.loadingServices")}</span>
                 </div>
               ) : serviceList.length === 0 ? (
                 <div className="text-center py-4 text-xs text-muted">
-                  Pilih negara terlebih dahulu
+                  {t("buy.selectCountryFirst")}
                 </div>
               ) : (
                 <div className="relative" ref={serviceDropdownRef}>
@@ -658,7 +660,7 @@ export default function BuyPage() {
                     onClick={() => { setShowServiceDropdown(!showServiceDropdown); setSearchQuery(""); }}
                     className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-background border border-border text-sm hover:border-primary/50 transition-colors"
                   >
-                    <span>{selectedService ? capitalizeFirst(selectedService.name) : "Pilih layanan"}</span>
+                    <span>{selectedService ? capitalizeFirst(selectedService.name) : t("buy.selectService")}</span>
                     <ChevronDown className="w-4 h-4 text-muted" />
                   </button>
                   {showServiceDropdown && (
@@ -668,7 +670,7 @@ export default function BuyPage() {
                           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
                           <input
                             type="text"
-                            placeholder="Cari layanan..."
+                            placeholder={t("buy.searchService")}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-8 pr-3 py-2 rounded-lg bg-background border border-border text-sm focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted"
@@ -707,7 +709,7 @@ export default function BuyPage() {
                           </button>
                         ))}
                         {filteredServices.length === 0 && (
-                          <div className="px-3 py-4 text-sm text-muted text-center">Layanan tidak ditemukan</div>
+                          <div className="px-3 py-4 text-sm text-muted text-center">{t("buy.serviceNotFound")}</div>
                         )}
                       </div>
                     </div>
@@ -717,15 +719,15 @@ export default function BuyPage() {
                   {selectedService && (
                     <div className="mt-3 p-3 rounded-xl bg-background/50 space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted">Layanan</span>
+                        <span className="text-muted">{t("buy.service")}</span>
                         <span className="font-medium">{capitalizeFirst(selectedService.name)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted">Harga</span>
+                        <span className="text-muted">{t("buy.price")}</span>
                         <span className="font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary">{formatRupiah(selectedService.price)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted">Stok</span>
+                        <span className="text-muted">{t("buy.stock")}</span>
                         <span className="flex items-center gap-1">
                           <div className={`w-1.5 h-1.5 rounded-full ${selectedService.stock > 100 ? "bg-success" : selectedService.stock > 20 ? "bg-accent" : "bg-error"}`} />
                           {selectedService.stock} tersedia
@@ -738,9 +740,9 @@ export default function BuyPage() {
                           disabled={ordering !== null || bulkOrdering || selectedService.stock === 0}
                         >
                           {ordering ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" /> Memproses...</>
+                            <><Loader2 className="w-4 h-4 animate-spin" /> {t("common.processing")}</>
                           ) : (
-                            <><ShoppingCart className="w-4 h-4" /> Beli — {formatRupiah(selectedService.price)}</>
+                            <><ShoppingCart className="w-4 h-4" /> {t("buy.buyButton")} — {formatRupiah(selectedService.price)}</>
                           )}
                         </Button>
                         <Button
@@ -749,7 +751,7 @@ export default function BuyPage() {
                           disabled={ordering !== null || bulkOrdering || selectedService.stock < 5}
                         >
                           {bulkOrdering ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" /> Memproses...</>
+                            <><Loader2 className="w-4 h-4 animate-spin" /> {t("common.processing")}</>
                           ) : (
                             <><ShoppingCart className="w-4 h-4" /> 5x — {formatRupiah(selectedService.price * 5)}</>
                           )}
@@ -770,7 +772,7 @@ export default function BuyPage() {
           <div className="flex items-center justify-between w-full">
             <CardTitle className="flex items-center gap-2 text-base">
               <Clock className="w-4 h-4 text-primary" />
-              Riwayat Order
+              {t("buy.orderHistory")}
               {historyTotal > 0 && (
                 <span className="text-muted font-normal text-sm">({historyTotal})</span>
               )}
@@ -782,7 +784,7 @@ export default function BuyPage() {
               onClick={() => window.open(`/api/orders/export${historyFilter !== "all" ? `?status=${historyFilter}` : ""}`, "_blank")}
             >
               <Download className="w-3.5 h-3.5" />
-              Export CSV
+              {t("common.exportCsv")}
             </Button>
           </div>
         </CardHeader>
@@ -801,11 +803,11 @@ export default function BuyPage() {
             </div>
             <Button size="sm" onClick={() => fetchHistory(1)}>
               <Search className="w-4 h-4" />
-              Cari
+              {t("common.search")}
             </Button>
             {historySearch && (
               <Button variant="ghost" size="sm" onClick={() => { setHistorySearch(""); }}>
-                Reset
+                {t("common.reset")}
               </Button>
             )}
           </div>
@@ -814,10 +816,10 @@ export default function BuyPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex gap-1.5">
               {[
-                { label: "Semua", value: "all" },
-                { label: "Sukses", value: "success" },
-                { label: "Menunggu", value: "waiting" },
-                { label: "Batal", value: "cancelled" },
+                { label: t("common.all"), value: "all" },
+                { label: t("status.order.success"), value: "success" },
+                { label: t("status.order.waiting"), value: "waiting" },
+                { label: t("status.order.cancelled"), value: "cancelled" },
               ].map((f) => (
                 <button
                   key={f.value}
@@ -855,7 +857,7 @@ export default function BuyPage() {
           ) : historyOrders.length === 0 ? (
             <div className="text-center py-8 text-muted">
               <ShoppingCart className="w-6 h-6 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Belum ada order</p>
+              <p className="text-sm">{t("buy.noOrders")}</p>
             </div>
           ) : (
             <>
@@ -864,12 +866,12 @@ export default function BuyPage() {
                   <thead>
                     <tr className="text-left text-xs sm:text-sm text-muted border-b border-border">
                       <th className="pb-3 font-medium hidden md:table-cell">Waktu</th>
-                      <th className="pb-3 font-medium">Layanan</th>
-                      <th className="pb-3 font-medium hidden sm:table-cell">Harga</th>
-                      <th className="pb-3 font-medium">Nomor</th>
-                      <th className="pb-3 font-medium hidden lg:table-cell">Negara</th>
+                      <th className="pb-3 font-medium">{t("buy.service")}</th>
+                      <th className="pb-3 font-medium hidden sm:table-cell">{t("buy.price")}</th>
+                      <th className="pb-3 font-medium">{t("buy.number")}</th>
+                      <th className="pb-3 font-medium hidden lg:table-cell">{t("buy.selectCountry")}</th>
                       <th className="pb-3 font-medium">OTP</th>
-                      <th className="pb-3 font-medium">Status</th>
+                      <th className="pb-3 font-medium">{t("buy.status")}</th>
                       <th className="pb-3 font-medium"></th>
                     </tr>
                   </thead>
@@ -928,7 +930,7 @@ export default function BuyPage() {
                           <Badge
                             variant={o.status === "success" ? "success" : o.status === "waiting" ? "warning" : "error"}
                           >
-                            {o.status === "success" ? "Sukses" : o.status === "waiting" ? "Menunggu" : "Batal"}
+                            {o.status === "success" ? t("status.order.success") : o.status === "waiting" ? t("status.order.waiting") : t("status.order.cancelled")}
                           </Badge>
                         </td>
                         <td className="py-3">
@@ -940,7 +942,7 @@ export default function BuyPage() {
                               disabled={cancellingId === o.id}
                             >
                               {cancellingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                              Batal
+                              {t("status.order.cancelled")}
                             </Button>
                           )}
                         </td>
@@ -963,7 +965,7 @@ export default function BuyPage() {
                     disabled={historyPage <= 1}
                     onClick={() => fetchHistory(historyPage - 1)}
                   >
-                    Prev
+                    {t("common.prev")}
                   </Button>
                   {Array.from({ length: Math.min(5, historyTotalPages) }, (_, i) => {
                     let page: number;
@@ -997,7 +999,7 @@ export default function BuyPage() {
                     disabled={historyPage >= historyTotalPages}
                     onClick={() => fetchHistory(historyPage + 1)}
                   >
-                    Next
+                    {t("common.next")}
                   </Button>
                 </div>
               </div>

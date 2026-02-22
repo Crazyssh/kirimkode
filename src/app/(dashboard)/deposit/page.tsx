@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { formatRupiah } from "@/lib/utils";
 import { useUserStore } from "@/store/user";
+import { useLanguageStore } from "@/store/language";
 import {
   Wallet,
   QrCode,
@@ -61,6 +62,7 @@ const presetAmounts = [10000, 25000, 50000, 100000, 250000, 500000];
 
 export default function DepositPage() {
   const { user, fetchUser } = useUserStore();
+  const { t } = useLanguageStore();
   const [amount, setAmount] = useState<number>(50000);
   const [channels, setChannels] = useState<{ va: PaymentChannel[]; ewallet: PaymentChannel[]; qris: PaymentChannel[] } | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string>("qris");
@@ -195,9 +197,9 @@ export default function DepositPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)]">
-          Deposit Saldo
+          {t("deposit.title")}
         </h1>
-        <p className="text-sm text-muted">Top-up saldo untuk membeli nomor OTP</p>
+        <p className="text-sm text-muted">{t("deposit.desc")}</p>
       </div>
 
       {/* Balance Card */}
@@ -208,7 +210,7 @@ export default function DepositPage() {
               <Wallet className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <div className="text-xs text-muted">Saldo Saat Ini</div>
+              <div className="text-xs text-muted">{t("deposit.currentBalance")}</div>
               <div className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-primary">
                 {formatRupiah(user?.balance ?? 0)}
               </div>
@@ -224,7 +226,7 @@ export default function DepositPage() {
           {step === "amount" && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Jumlah Deposit</CardTitle>
+                <CardTitle className="text-base">{t("deposit.amount")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {error && (
@@ -252,7 +254,7 @@ export default function DepositPage() {
 
                 <div>
                   <label className="text-sm text-muted mb-1.5 block">
-                    Atau masukkan nominal custom
+                    {t("deposit.customAmount")}
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">Rp</span>
@@ -265,17 +267,17 @@ export default function DepositPage() {
                       min={1000}
                     />
                   </div>
-                  <p className="text-xs text-muted mt-1">Minimum deposit Rp 1.000</p>
+                  <p className="text-xs text-muted mt-1">{t("deposit.minDeposit")}</p>
                 </div>
 
                 {/* Payment Channels dari Paymenku */}
                 <div className="space-y-3">
-                  <label className="text-sm text-muted block">Metode Pembayaran</label>
+                  <label className="text-sm text-muted block">{t("deposit.paymentMethod")}</label>
 
                   {loadingChannels ? (
                     <div className="flex items-center justify-center py-8 text-muted">
                       <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                      Memuat metode pembayaran...
+                      {t("deposit.loadingMethods")}
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -304,7 +306,7 @@ export default function DepositPage() {
                                 <Badge variant="default">{channel.type_label}</Badge>
                               </div>
                               <div className="text-xs text-muted">
-                                Fee: {channel.fee.display}
+                                {t("deposit.fee")}: {channel.fee.display}
                               </div>
                             </div>
                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
@@ -325,17 +327,17 @@ export default function DepositPage() {
                 {selectedChannelObj && (
                   <div className="p-4 rounded-xl bg-background/50 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted">Nominal</span>
+                      <span className="text-muted">{t("deposit.nominal")}</span>
                       <span className="font-[family-name:var(--font-jetbrains-mono)]">{formatRupiah(amount)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted">Fee ({selectedChannelObj.name})</span>
+                      <span className="text-muted">{t("deposit.fee")} ({selectedChannelObj.name})</span>
                       <span className="font-[family-name:var(--font-jetbrains-mono)] text-muted">
                         {selectedChannelObj.fee.display}
                       </span>
                     </div>
                     <div className="border-t border-border pt-2 flex justify-between text-sm font-bold">
-                      <span>Total Bayar</span>
+                      <span>{t("deposit.totalPay")}</span>
                       <span className="font-[family-name:var(--font-jetbrains-mono)] text-primary">
                         ~{formatRupiah(
                           amount +
@@ -350,19 +352,19 @@ export default function DepositPage() {
                 {/* Voucher */}
                 <div className="p-3 rounded-xl bg-background/50 border border-border space-y-2">
                   <label className="text-xs text-muted flex items-center gap-1">
-                    <Ticket className="w-3 h-3" /> Kode Voucher (opsional)
+                    <Ticket className="w-3 h-3" /> {t("deposit.voucherCode")}
                   </label>
                   <div className="flex gap-2">
                     <Input
                       value={voucherCode}
                       onChange={(e) => { setVoucherCode(e.target.value.toUpperCase()); setVoucherError(""); setVoucherApplied(null); }}
-                      placeholder="Masukkan kode voucher"
+                      placeholder={t("deposit.enterVoucher")}
                       className="flex-1"
                       disabled={!!voucherApplied}
                     />
                     {voucherApplied ? (
                       <Button variant="ghost" size="sm" onClick={() => { setVoucherApplied(null); setVoucherCode(""); }}>
-                        Hapus
+                        {t("deposit.removeVoucher")}
                       </Button>
                     ) : (
                       <Button
@@ -388,7 +390,7 @@ export default function DepositPage() {
                           finally { setApplyingVoucher(false); }
                         }}
                       >
-                        {applyingVoucher ? <Loader2 className="w-3 h-3 animate-spin" /> : "Pakai"}
+                        {applyingVoucher ? <Loader2 className="w-3 h-3 animate-spin" /> : t("deposit.useVoucher")}
                       </Button>
                     )}
                   </div>
@@ -409,11 +411,11 @@ export default function DepositPage() {
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Memproses...
+                      {t("common.processing")}
                     </>
                   ) : (
                     <>
-                      Bayar Sekarang <ArrowRight className="w-4 h-4" />
+                      {t("deposit.payNow")} <ArrowRight className="w-4 h-4" />
                     </>
                   )}
                 </Button>
@@ -427,31 +429,31 @@ export default function DepositPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <div className={`w-2 h-2 rounded-full ${paymentStatus === "pending" ? "bg-accent animate-pulse" : "bg-success"}`} />
-                  {paymentStatus === "pending" ? "Menunggu Pembayaran" : "Pembayaran Berhasil"}
+                  {paymentStatus === "pending" ? t("deposit.waitingPayment") : t("deposit.paymentSuccess")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Info Transaksi */}
                 <div className="p-4 rounded-xl bg-background/50 space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted">ID Transaksi</span>
+                    <span className="text-muted">{t("deposit.transactionId")}</span>
                     <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs">{depositResult.trx_id}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted">Total Bayar</span>
+                    <span className="text-muted">{t("deposit.totalPay")}</span>
                     <span className="font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary">
                       Rp {parseFloat(depositResult.amount).toLocaleString("id-ID")}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted">Status</span>
+                    <span className="text-muted">{t("deposit.status")}</span>
                     <Badge variant={paymentStatus === "paid" ? "success" : "warning"}>
-                      {paymentStatus === "paid" ? "Lunas" : "Menunggu"}
+                      {paymentStatus === "paid" ? t("status.deposit.paid") : t("status.deposit.pending")}
                     </Badge>
                   </div>
                   {depositResult.payment_info.expiration_date && (
                     <div className="flex justify-between">
-                      <span className="text-muted">Batas Waktu</span>
+                      <span className="text-muted">{t("deposit.deadline")}</span>
                       <span className="text-xs text-accent flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {new Date(depositResult.payment_info.expiration_date).toLocaleString("id-ID")}
@@ -495,7 +497,7 @@ export default function DepositPage() {
                   >
                     <Button variant="secondary" className="w-full">
                       <ExternalLink className="w-4 h-4" />
-                      Buka Halaman Pembayaran
+                      {t("deposit.openPaymentPage")}
                     </Button>
                   </a>
                 )}
@@ -503,7 +505,7 @@ export default function DepositPage() {
                 {paymentStatus === "pending" && (
                   <div className="flex items-center justify-center gap-2 text-xs text-muted">
                     <RefreshCw className="w-3 h-3 animate-spin" />
-                    Status otomatis diperbarui setiap 5 detik...
+                    {t("deposit.autoUpdateStatus")}
                   </div>
                 )}
 
@@ -517,11 +519,11 @@ export default function DepositPage() {
                       setError("");
                     }}
                   >
-                    Buat Deposit Baru
+                    {t("deposit.newDeposit")}
                   </Button>
                   <Button className="flex-1" onClick={checkStatus}>
                     <RefreshCw className="w-4 h-4" />
-                    Cek Status
+                    {t("deposit.checkStatus")}
                   </Button>
                 </div>
               </CardContent>
@@ -536,10 +538,10 @@ export default function DepositPage() {
                   <CheckCircle className="w-8 h-8 text-success" />
                 </div>
                 <h2 className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] mb-2">
-                  Pembayaran Berhasil!
+                  {t("deposit.paymentSuccess")}!
                 </h2>
                 <p className="text-sm text-muted mb-2">
-                  Saldo sebesar {formatRupiah(amount)} telah ditambahkan ke akun Anda.
+                  {t("deposit.balanceAdded")}
                 </p>
                 {depositResult && (
                   <p className="text-xs text-muted font-[family-name:var(--font-jetbrains-mono)] mb-6">
@@ -554,10 +556,10 @@ export default function DepositPage() {
                       setDepositResult(null);
                     }}
                   >
-                    Deposit Lagi
+                    {t("deposit.depositAgain")}
                   </Button>
                   <Button onClick={() => (window.location.href = "/buy")}>
-                    Beli Nomor OTP
+                    {t("deposit.buyOtp")}
                   </Button>
                 </div>
               </CardContent>
@@ -569,7 +571,7 @@ export default function DepositPage() {
         <div className="lg:col-span-1">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Riwayat Deposit</CardTitle>
+              <CardTitle className="text-base">{t("deposit.depositHistory")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -587,7 +589,7 @@ export default function DepositPage() {
                       </div>
                     </div>
                     <Badge variant={dep.status === "success" ? "success" : "warning"}>
-                      {dep.status === "success" ? "Berhasil" : "Pending"}
+                      {dep.status === "success" ? t("status.deposit.paid") : t("status.deposit.pending")}
                     </Badge>
                   </div>
                 ))}

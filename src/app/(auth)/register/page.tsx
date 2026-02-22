@@ -9,9 +9,11 @@ import { useState, useRef } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { useLanguageStore } from "@/store/language";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useLanguageStore();
   const turnstileRef = useRef<TurnstileInstance>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -41,17 +43,17 @@ export default function RegisterPage() {
     setError("");
 
     if (!form.terms) {
-      setError("Anda harus menyetujui syarat & ketentuan");
+      setError(t("auth.mustAgreeTerms"));
       return;
     }
 
     if (form.password.length < 8) {
-      setError("Password minimal 8 karakter");
+      setError(t("auth.passwordMin"));
       return;
     }
 
     if (!captchaToken) {
-      setError("Mohon selesaikan verifikasi captcha");
+      setError(t("auth.completeCaptcha"));
       return;
     }
 
@@ -74,7 +76,7 @@ export default function RegisterPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Registrasi gagal");
+        setError(data.error || t("auth.registerFailed"));
         return;
       }
 
@@ -91,7 +93,7 @@ export default function RegisterPage() {
         router.push("/dashboard");
       }
     } catch {
-      setError("Terjadi kesalahan jaringan");
+      setError(t("auth.networkError"));
     } finally {
       setLoading(false);
       turnstileRef.current?.reset();
@@ -108,10 +110,10 @@ export default function RegisterPage() {
     <Card>
       <CardContent>
         <h1 className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] mb-1">
-          Buat Akun Baru
+          {t("auth.registerTitle")}
         </h1>
         <p className="text-sm text-muted mb-6">
-          Daftar gratis dan mulai gunakan layanan KirimKode
+          {t("auth.registerDesc")}
         </p>
 
         {error && (
@@ -122,13 +124,13 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-sm text-muted mb-1.5 block">Nama Lengkap</label>
+            <label className="text-sm text-muted mb-1.5 block">{t("auth.fullName")}</label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
               <Input
                 type="text"
                 name="name"
-                placeholder="Nama lengkap"
+                placeholder={t("auth.fullName")}
                 className="pl-10"
                 value={form.name}
                 onChange={handleChange}
@@ -139,7 +141,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="text-sm text-muted mb-1.5 block">Email</label>
+            <label className="text-sm text-muted mb-1.5 block">{t("auth.email")}</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
               <Input
@@ -156,13 +158,13 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="text-sm text-muted mb-1.5 block">Password</label>
+            <label className="text-sm text-muted mb-1.5 block">{t("auth.password")}</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
               <Input
                 type={showPassword ? "text" : "password"}
                 name="password"
-                placeholder="Minimal 8 karakter"
+                placeholder={t("auth.passwordMin")}
                 className="pl-10 pr-10"
                 value={form.password}
                 onChange={handleChange}
@@ -184,7 +186,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="text-sm text-muted mb-1.5 block">No. WhatsApp (opsional)</label>
+            <label className="text-sm text-muted mb-1.5 block">{t("auth.phone")}</label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted">+62</span>
               <Input
@@ -203,7 +205,7 @@ export default function RegisterPage() {
             <Input
               type="text"
               name="referralCode"
-              placeholder="Kode referral (opsional)"
+              placeholder={t("auth.referralCode")}
               value={form.referralCode}
               onChange={handleChange}
               disabled={loading}
@@ -220,13 +222,13 @@ export default function RegisterPage() {
               className="mt-1 rounded border-border accent-primary"
             />
             <label htmlFor="terms" className="text-xs text-muted">
-              Saya setuju dengan{" "}
+              {t("auth.agreeTerms")}{" "}
               <a href="#" className="text-primary hover:underline">
-                Syarat & Ketentuan
+                {t("auth.termsAndConditions")}
               </a>{" "}
-              dan{" "}
+              {t("auth.and")}{" "}
               <a href="#" className="text-primary hover:underline">
-                Kebijakan Privasi
+                {t("auth.privacyPolicy")}
               </a>
             </label>
           </div>
@@ -244,12 +246,12 @@ export default function RegisterPage() {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Mendaftar...
+                {t("common.processing")}
               </>
             ) : (
               <>
                 <UserPlus className="w-4 h-4" />
-                Daftar Sekarang
+                {t("common.register")}
               </>
             )}
           </Button>
@@ -260,7 +262,7 @@ export default function RegisterPage() {
             <div className="w-full border-t border-border" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-surface px-3 text-muted">atau</span>
+            <span className="bg-surface px-3 text-muted">{t("common.or")}</span>
           </div>
         </div>
 
@@ -281,13 +283,13 @@ export default function RegisterPage() {
               <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
           )}
-          Daftar dengan Google
+          {t("auth.registerWithGoogle")}
         </Button>
 
         <p className="text-center text-sm text-muted mt-6">
-          Sudah punya akun?{" "}
+          {t("auth.hasAccount")}{" "}
           <Link href="/login" className="text-primary hover:underline font-medium">
-            Masuk
+            {t("auth.loginNow")}
           </Link>
         </p>
       </CardContent>

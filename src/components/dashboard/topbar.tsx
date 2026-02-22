@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Menu, Bell, Wallet, Moon, Sun } from "lucide-react";
 import { formatRupiah } from "@/lib/utils";
 import { useUserStore } from "@/store/user";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -56,10 +57,12 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           </span>
         </div>
 
+        <LanguageSwitcher />
+
         <button
           onClick={toggleTheme}
           className="p-2 text-muted hover:text-foreground transition-colors"
-          title={theme === "dark" ? "Mode terang" : "Mode gelap"}
+          title={theme === "dark" ? "Light mode" : "Dark mode"}
         >
           {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatRupiah } from "@/lib/utils";
 import { useUserStore } from "@/store/user";
+import { useLanguageStore } from "@/store/language";
 import Link from "next/link";
 import {
   Wallet,
@@ -47,6 +48,7 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const { user, updateBalance } = useUserStore();
+  const { t } = useLanguageStore();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -96,45 +98,45 @@ export default function DashboardPage() {
 
   const stats = [
     {
-      label: "Saldo",
+      label: t("dashboard.balance"),
       value: formatRupiah(data?.balance ?? user?.balance ?? 0),
       icon: Wallet,
-      change: "Saldo aktif",
+      change: t("dashboard.activeBalance"),
       trend: "up" as const,
     },
     {
-      label: "Total Pembelian",
+      label: t("dashboard.totalOrders"),
       value: String(data?.stats.totalOrders ?? 0),
       icon: ShoppingCart,
-      change: `${data?.stats.todayCount ?? 0} hari ini`,
+      change: `${data?.stats.todayCount ?? 0} ${t("dashboard.today")}`,
       trend: "up" as const,
     },
     {
-      label: "OTP Berhasil",
+      label: t("dashboard.successOrders"),
       value: String(data?.stats.successOrders ?? 0),
       icon: CheckCircle,
-      change: `${data?.stats.successRate ?? 0}% success rate`,
+      change: `${data?.stats.successRate ?? 0}% ${t("dashboard.successRate")}`,
       trend: "up" as const,
     },
     {
-      label: "OTP Gagal/Batal",
+      label: t("dashboard.failedOrders"),
       value: String(data?.stats.failedOrders ?? 0),
       icon: XCircle,
-      change: "Refund otomatis",
+      change: t("dashboard.autoRefund"),
       trend: "down" as const,
     },
     {
-      label: "Pengeluaran Bulan Ini",
+      label: t("dashboard.monthlySpent"),
       value: formatRupiah(data?.stats.monthlySpent ?? 0),
       icon: TrendingUp,
       change: new Date().toLocaleString("id-ID", { month: "long" }),
       trend: "up" as const,
     },
     {
-      label: "Layanan Favorit",
+      label: t("dashboard.favoriteService"),
       value: data?.stats.topService ?? "-",
       icon: Star,
-      change: data?.stats.topServiceCount ? `${data.stats.topServiceCount}x order` : "Belum ada",
+      change: data?.stats.topServiceCount ? `${data.stats.topServiceCount}x order` : t("dashboard.notYet"),
       trend: "up" as const,
     },
   ];
@@ -144,10 +146,10 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold font-[family-name:var(--font-space-grotesk)]">
-            Dashboard
+            {t("dashboard.title")}
           </h1>
           <p className="text-sm text-muted">
-            Selamat datang kembali, {user?.name || "User"}!
+            {t("dashboard.welcome")} {user?.name || "User"}!
           </p>
         </div>
         <Link href="/buy">
@@ -184,10 +186,10 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Transaksi Terakhir</CardTitle>
+            <CardTitle>{t("dashboard.recentTransactions")}</CardTitle>
             <Link href="/history">
               <Button variant="ghost" size="sm">
-                Lihat Semua <ArrowRight className="w-4 h-4 ml-1" />
+                {t("common.viewAll")} <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
           </div>
@@ -242,12 +244,12 @@ export default function DashboardPage() {
                         }
                       >
                         {order.status === "success"
-                          ? "Berhasil"
+                          ? t("status.order.success")
                           : order.status === "waiting"
-                          ? "Menunggu"
+                          ? t("status.order.waiting")
                           : order.status === "cancelled"
-                          ? "Dibatalkan"
-                          : "Gagal"}
+                          ? t("status.order.cancelled")
+                          : t("status.order.timeout")}
                       </Badge>
                     </td>
                     <td className="py-2 sm:py-3 font-[family-name:var(--font-jetbrains-mono)] text-xs hidden md:table-cell">
@@ -264,8 +266,8 @@ export default function DashboardPage() {
           {(!data?.recentOrders || data.recentOrders.length === 0) && (
             <div className="text-center py-12 text-muted">
               <ShoppingCart className="w-8 h-8 mx-auto mb-3 opacity-50" />
-              <p>Belum ada transaksi</p>
-              <p className="text-xs mt-1">Mulai beli nomor OTP untuk melihat riwayat di sini</p>
+              <p>{t("dashboard.noTransactions")}</p>
+              <p className="text-xs mt-1">{t("dashboard.startBuying")}</p>
             </div>
           )}
         </CardContent>
