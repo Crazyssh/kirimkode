@@ -1,6 +1,11 @@
+"use client";
+
 import { Zap } from "lucide-react";
+import { useLanguageStore } from "@/store/language";
 
 export function Footer() {
+  const { t } = useLanguageStore();
+
   return (
     <footer className="border-t border-border bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -15,12 +20,12 @@ export function Footer() {
               </span>
             </div>
             <p className="text-sm text-muted">
-              Platform nomor virtual terpercaya untuk verifikasi OTP instan.
+              {t("footer.tagline")}
             </p>
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold mb-4">Layanan</h4>
+            <h4 className="text-sm font-semibold mb-4">{t("footer.services")}</h4>
             <ul className="space-y-2 text-sm text-muted">
               <li><a href="#" className="hover:text-foreground transition-colors">WhatsApp OTP</a></li>
               <li><a href="#" className="hover:text-foreground transition-colors">Telegram OTP</a></li>
@@ -30,32 +35,32 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold mb-4">Perusahaan</h4>
+            <h4 className="text-sm font-semibold mb-4">{t("footer.company")}</h4>
             <ul className="space-y-2 text-sm text-muted">
-              <li><a href="/about" className="hover:text-foreground transition-colors">Tentang Kami</a></li>
+              <li><a href="/about" className="hover:text-foreground transition-colors">{t("footer.aboutUs")}</a></li>
               <li><a href="/api-docs" className="hover:text-foreground transition-colors">API Docs</a></li>
-              <li><a href="/contact" className="hover:text-foreground transition-colors">Kontak</a></li>
+              <li><a href="/contact" className="hover:text-foreground transition-colors">{t("footer.contact")}</a></li>
             </ul>
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold mb-4">Legal</h4>
+            <h4 className="text-sm font-semibold mb-4">{t("footer.legal")}</h4>
             <ul className="space-y-2 text-sm text-muted">
-              <li><a href="/terms" className="hover:text-foreground transition-colors">Syarat & Ketentuan</a></li>
-              <li><a href="/privacy" className="hover:text-foreground transition-colors">Kebijakan Privasi</a></li>
-              <li><a href="/refund" className="hover:text-foreground transition-colors">Refund Policy</a></li>
+              <li><a href="/terms" className="hover:text-foreground transition-colors">{t("footer.terms")}</a></li>
+              <li><a href="/privacy" className="hover:text-foreground transition-colors">{t("footer.privacy")}</a></li>
+              <li><a href="/refund" className="hover:text-foreground transition-colors">{t("footer.refund")}</a></li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-border mt-8 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-sm text-muted">
-            &copy; 2026 KirimKode. Semua hak dilindungi.
+            {t("footer.copyright")}
           </p>
           <div className="flex items-center gap-4 text-sm text-muted">
-            <span>200+ negara</span>
+            <span>{t("footer.countries")}</span>
             <span className="text-border">|</span>
-            <span>500+ layanan</span>
+            <span>{t("footer.servicesCount")}</span>
             <span className="text-border">|</span>
             <span>99.9% uptime</span>
           </div>

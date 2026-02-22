@@ -1,4 +1,109 @@
+"use client";
+
+import { useLanguageStore } from "@/store/language";
+
 export default function PrivacyPage() {
+  const { locale } = useLanguageStore();
+
+  if (locale === "en") {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold font-[family-name:var(--font-space-grotesk)] mb-2">
+            Privacy Policy
+          </h1>
+          <p className="text-sm text-muted">Last updated: February 19, 2026</p>
+        </div>
+
+        <div className="space-y-6 text-sm text-muted leading-relaxed">
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">1. Information We Collect</h2>
+            <p>We collect the following information when you use our services:</p>
+            <ul className="list-disc list-inside space-y-1 mt-2">
+              <li><strong className="text-foreground">Account Data:</strong> Name, email address, and password (encrypted).</li>
+              <li><strong className="text-foreground">Transaction Data:</strong> Number purchase history, deposits, and service usage.</li>
+              <li><strong className="text-foreground">Technical Data:</strong> IP address, browser type, and device information for security.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">2. Use of Information</h2>
+            <p>The collected information is used to:</p>
+            <ul className="list-disc list-inside space-y-1 mt-2">
+              <li>Provide and improve our services.</li>
+              <li>Process transactions and manage user accounts.</li>
+              <li>Send service-related notifications (OTP received, order status).</li>
+              <li>Prevent fraud and service abuse.</li>
+              <li>Comply with applicable legal obligations.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">3. Data Storage</h2>
+            <p>
+              User data is stored securely using industry-standard encryption. Passwords are stored in hashed form (bcrypt) and are never stored in plain text. We retain data as long as the account is active and will delete it upon user request.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">4. Virtual Numbers & OTP</h2>
+            <ul className="list-disc list-inside space-y-1">
+              <li>Purchased virtual numbers are temporary (active for a maximum of 20 minutes).</li>
+              <li>Received OTP codes are stored in the user account for reference.</li>
+              <li>We do not store SMS content other than the relevant OTP codes.</li>
+              <li>Expired numbers cannot be accessed again.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">5. Data Sharing</h2>
+            <p>
+              We <strong className="text-foreground">do not sell</strong> user data to third parties. Data is only shared under the following conditions:
+            </p>
+            <ul className="list-disc list-inside space-y-1 mt-2">
+              <li>To process payments through trusted payment gateways.</li>
+              <li>If required by law or court order.</li>
+              <li>To prevent fraud or protect service security.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">6. Security</h2>
+            <p>
+              We implement appropriate technical and organizational security measures to protect user data, including SSL/TLS encryption, JWT authentication, and role-based access control.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">7. User Rights</h2>
+            <p>Users have the right to:</p>
+            <ul className="list-disc list-inside space-y-1 mt-2">
+              <li>Access and download their personal data.</li>
+              <li>Update or correct account information.</li>
+              <li>Request deletion of their account and related data.</li>
+              <li>Withdraw consent for data usage at any time.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">8. Cookies</h2>
+            <p>
+              We use cookies to store user preferences (such as display theme) and login sessions. These cookies are necessary for basic service functionality and are not used for third-party tracking.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">9. Contact</h2>
+            <p>
+              For questions about this privacy policy, contact us at{" "}
+              <a href="mailto:privacy@kirimkode.com" className="text-primary hover:underline">privacy@kirimkode.com</a>.
+            </p>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>

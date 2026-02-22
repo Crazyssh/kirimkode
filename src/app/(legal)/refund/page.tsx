@@ -1,4 +1,80 @@
+"use client";
+
+import { useLanguageStore } from "@/store/language";
+
 export default function RefundPage() {
+  const { locale } = useLanguageStore();
+
+  if (locale === "en") {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold font-[family-name:var(--font-space-grotesk)] mb-2">
+            Refund Policy
+          </h1>
+          <p className="text-sm text-muted">Last updated: February 19, 2026</p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 text-sm">
+          <strong className="text-foreground">Key Point:</strong>{" "}
+          <span className="text-muted">
+            Balance is automatically refunded if OTP is not received within 20 minutes. No need to submit a manual refund request for this case.
+          </span>
+        </div>
+
+        <div className="space-y-6 text-sm text-muted leading-relaxed">
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">1. Automatic Refund (Balance)</h2>
+            <p>Balance will be automatically refunded under the following conditions:</p>
+            <ul className="list-disc list-inside space-y-1 mt-2">
+              <li><strong className="text-foreground">OTP not received:</strong> If the OTP code is not received within 20 minutes after purchase, the balance will be automatically returned to your account.</li>
+              <li><strong className="text-foreground">Manual cancellation:</strong> You can cancel an order at any time before OTP is received, and the balance will be immediately returned.</li>
+              <li><strong className="text-foreground">Invalid number:</strong> If the system detects that the provided number cannot receive SMS, the balance will be refunded.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">2. Deposit Refund</h2>
+            <p>For balance topped up through deposits:</p>
+            <ul className="list-disc list-inside space-y-1 mt-2">
+              <li>Deposited balance is generally <strong className="text-foreground">non-refundable</strong>.</li>
+              <li>Exception: If a system error causes the balance not to arrive or to be deducted without an order, please contact the support team.</li>
+              <li>Deposit refunds are only processed via bank transfer to the same name as the KirimKode account.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">3. Conditions Not Eligible for Refund</h2>
+            <ul className="list-disc list-inside space-y-1">
+              <li>OTP was successfully received but the user did not use it.</li>
+              <li>User selected the wrong service or country.</li>
+              <li>The platform being verified rejected the virtual number (not our responsibility).</li>
+              <li>Accounts blocked for violating the Terms & Conditions.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">4. Refund Process</h2>
+            <ul className="list-disc list-inside space-y-1">
+              <li><strong className="text-foreground">Automatic refund:</strong> Credited to account balance within 1-5 seconds.</li>
+              <li><strong className="text-foreground">Manual refund:</strong> Submit via support email, processed within 1-3 business days.</li>
+              <li><strong className="text-foreground">Deposit refund:</strong> Processed within 3-7 business days after verification.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-2">5. How to Request a Refund</h2>
+            <p>If you need to submit a manual refund request, send an email to:</p>
+            <div className="mt-2 p-3 rounded-lg bg-surface border border-border">
+              <p className="text-foreground font-medium">support@kirimkode.com</p>
+              <p className="text-xs mt-1">Include: Account ID, transaction details, and reason for refund.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
