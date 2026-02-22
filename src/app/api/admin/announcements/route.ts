@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 
 // GET: List announcements (admin)
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { role: true } });
-  if (user?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   const announcements = await db.announcement.findMany({ orderBy: { createdAt: "desc" } });
   return NextResponse.json({ data: announcements });
@@ -16,19 +13,20 @@ export async function GET() {
 
 // POST: Create announcement
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { role: true } });
-  if (user?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   const { title, content, type } = await req.json();
-  if (!title || !content) {
+
+  if (!title?.trim() || !content?.trim()) {
     return NextResponse.json({ error: "Title dan content diperlukan" }, { status: 400 });
   }
 
+  const validTypes = ["info", "warning", "success"];
+  const safeType = validTypes.includes(type) ? type : "info";
+
   const announcement = await db.announcement.create({
-    data: { title, content, type: type || "info" },
+    data: { title: title.trim(), content: content.trim(), type: safeType },
   });
 
   return NextResponse.json({ success: true, data: announcement });
@@ -36,13 +34,15 @@ export async function POST(req: NextRequest) {
 
 // DELETE: Delete announcement
 export async function DELETE(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const user = await db.user.findUnique({ where: { id: session.user.id }, select: { role: true } });
-  if (user?.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { error } = await requireAdmin();
+  if (error) return error;
 
   const { id } = await req.json();
+
+  if (!id) {
+    return NextResponse.json({ error: "ID diperlukan" }, { status: 400 });
+  }
+
   await db.announcement.delete({ where: { id } });
 
   return NextResponse.json({ success: true });

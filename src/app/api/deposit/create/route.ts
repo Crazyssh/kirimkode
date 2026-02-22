@@ -23,10 +23,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (amount > 10_000_000) {
+      return NextResponse.json(
+        { error: "Maksimum deposit Rp 10.000.000 per transaksi" },
+        { status: 400 }
+      );
+    }
+
     if (!channel_code) {
       return NextResponse.json(
         { error: "Pilih metode pembayaran" },
         { status: 400 }
+      );
+    }
+
+    // Anti double charge: cek apakah ada deposit pending yang masih aktif
+    const pendingCount = await db.deposit.count({
+      where: { userId: session.user.id, status: "pending" },
+    });
+
+    if (pendingCount >= 3) {
+      return NextResponse.json(
+        { error: "Anda sudah memiliki 3 deposit pending. Selesaikan atau batalkan terlebih dahulu." },
+        { status: 429 }
       );
     }
 

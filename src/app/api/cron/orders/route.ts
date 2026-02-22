@@ -7,7 +7,12 @@ const EXPIRE_MINUTES = 20;
 
 // Vercel Cron or manual trigger: polls OTP for waiting orders & auto-cancels expired ones
 export async function GET(req: NextRequest) {
-  // Auth: either CRON_SECRET header or no secret configured (dev mode)
+  // CRON_SECRET wajib di production — tanpa secret, siapapun bisa trigger cron
+  if (!CRON_SECRET && process.env.NODE_ENV === "production") {
+    console.error("[CRON] CRON_SECRET not set in production!");
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 });
+  }
+
   const authHeader = req.headers.get("authorization");
   if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
