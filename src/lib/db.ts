@@ -6,7 +6,11 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  const dbPath = process.env.DATABASE_URL?.replace("file:", "") || "./prisma/dev.db";
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    throw new Error("DATABASE_URL is not set in environment variables");
+  }
+  const dbPath = dbUrl.replace("file:", "");
   const adapter = new PrismaBetterSqlite3({ url: dbPath });
   return new PrismaClient({ adapter });
 }

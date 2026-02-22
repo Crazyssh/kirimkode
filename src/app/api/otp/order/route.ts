@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { createOrder } from "@/lib/otp";
+import { createOrder, getLayanan } from "@/lib/otp";
+import { applyPricing } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
+
+/**
+ * Ambil harga dari server JasaOTP + apply pricing rules.
+ * TIDAK BOLEH percaya harga dari client.
+ */
+async function getServerPrice(server: "api1" | "api2", negara: number, layanan: string): Promise<number> {
+  const data = await getLayanan(server, negara);
+  const negaraKey = String(negara);
+
+  const serviceData = data?.[negaraKey] ?? data?.data?.[negaraKey];
+  const serviceInfo = serviceData?.[layanan];
+
+  if (!serviceInfo || typeof serviceInfo.harga !== "number") {
+    throw new Error("Layanan tidak ditemukan atau harga tidak tersedia");
+  }
+
+  return applyPricing(serviceInfo.harga, layanan, negara);
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,8 +30,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userId = session.user.id;
+
     const body = await req.json();
-    const { server, negara, layanan, operator, serviceName, countryName, price } = body;
+    const { server, negara, layanan, operator, serviceName, countryName } = body;
 
     if (!server || !["api1", "api2"].includes(server)) {
       return NextResponse.json({ error: "Server parameter required (api1 or api2)" }, { status: 400 });
@@ -22,47 +43,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Parameter negara, layanan, dan operator diperlukan" }, { status: 400 });
     }
 
-    // Check user balance
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { balance: true },
-    });
+    // Harga WAJIB dari server, bukan dari client
+    const orderPrice = await getServerPrice(server as "api1" | "api2", Number(negara), layanan);
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    // Atomic balance check + deduct dalam interactive transaction
+    const result = await db.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { balance: true },
+      });
 
-    const orderPrice = price || 0;
+      if (!user) throw new Error("User not found");
 
-    if (orderPrice > 0 && user.balance < orderPrice) {
-      return NextResponse.json(
-        { error: "Saldo tidak cukup. Silakan deposit terlebih dahulu." },
-        { status: 402 }
-      );
-    }
+      if (user.balance < orderPrice) {
+        throw new Error("INSUFFICIENT_BALANCE");
+      }
 
-    const data = await createOrder(server, Number(negara), layanan, operator);
+      // Call JasaOTP untuk buat order
+      const data = await createOrder(server as "api1" | "api2", Number(negara), layanan, operator);
 
-    // Extract order info from JasaOTP response
-    const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
-    const number = data?.number ?? data?.data?.number ?? "";
+      const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
+      const number = data?.number ?? data?.data?.number ?? "";
 
-    if (!orderId || !number) {
-      return NextResponse.json({
-        success: false,
-        message: data?.message || "Gagal membuat pesanan, respons tidak valid",
-      }, { status: 400 });
-    }
+      if (!orderId || !number) {
+        throw new Error(data?.message || "Gagal membuat pesanan, respons tidak valid");
+      }
 
-    // Deduct balance and save order in a transaction
-    await db.$transaction([
-      db.user.update({
-        where: { id: session.user.id },
+      // Deduct balance dan simpan order (atomic)
+      await tx.user.update({
+        where: { id: userId },
         data: { balance: { decrement: orderPrice } },
-      }),
-      db.order.create({
+      });
+
+      const order = await tx.order.create({
         data: {
-          userId: session.user.id,
+          userId,
           server,
           orderId: Number(orderId),
           service: layanan,
@@ -74,21 +89,31 @@ export async function POST(req: NextRequest) {
           status: "waiting",
           operator: operator || "any",
         },
-      }),
-    ]);
+      });
 
-    logAction(session.user.id, "order", JSON.stringify({ orderId, service: layanan, server }));
+      return { orderId, number: String(number), order };
+    });
+
+    logAction(session.user.id, "order", JSON.stringify({ orderId: result.orderId, service: layanan, server }));
 
     return NextResponse.json({
       success: true,
       data: {
-        order_id: orderId,
-        number: String(number),
+        order_id: result.orderId,
+        number: result.number,
       },
     });
   } catch (error) {
     console.error("Order error:", error);
     const msg = error instanceof Error ? error.message : "Gagal membuat pesanan";
+
+    if (msg === "INSUFFICIENT_BALANCE") {
+      return NextResponse.json(
+        { error: "Saldo tidak cukup. Silakan deposit terlebih dahulu." },
+        { status: 402 }
+      );
+    }
+
     return NextResponse.json({ error: msg, message: msg }, { status: 500 });
   }
 }

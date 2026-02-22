@@ -3,6 +3,41 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 
+// Blacklist IP ranges yang tidak boleh dijadikan webhook URL (anti-SSRF)
+const BLOCKED_HOSTNAMES = ["localhost", "127.0.0.1", "0.0.0.0", "[::1]"];
+const BLOCKED_IP_PREFIXES = ["10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.",
+  "172.22.", "172.23.", "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
+  "172.30.", "172.31.", "192.168.", "169.254."];
+
+function isValidWebhookUrl(url: string): { valid: boolean; error?: string } {
+  if (!url) return { valid: true }; // empty = hapus webhook
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return { valid: false, error: "Format URL tidak valid" };
+  }
+
+  // Hanya izinkan https (http boleh untuk development)
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    return { valid: false, error: "URL harus http atau https" };
+  }
+
+  // Block internal hostnames
+  const hostname = parsed.hostname.toLowerCase();
+  if (BLOCKED_HOSTNAMES.includes(hostname)) {
+    return { valid: false, error: "URL tidak boleh mengarah ke localhost" };
+  }
+
+  // Block private IP ranges
+  if (BLOCKED_IP_PREFIXES.some((prefix) => hostname.startsWith(prefix))) {
+    return { valid: false, error: "URL tidak boleh mengarah ke jaringan internal" };
+  }
+
+  return { valid: true };
+}
+
 export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -16,7 +51,16 @@ export async function PATCH(req: NextRequest) {
 
   if (name !== undefined) updateData.name = name;
   if (phone !== undefined) updateData.phone = phone;
-  if (webhookUrl !== undefined) updateData.webhookUrl = webhookUrl;
+
+  // Validasi webhook URL anti-SSRF
+  if (webhookUrl !== undefined) {
+    const urlCheck = isValidWebhookUrl(webhookUrl);
+    if (!urlCheck.valid) {
+      return NextResponse.json({ error: urlCheck.error }, { status: 400 });
+    }
+    updateData.webhookUrl = webhookUrl || null;
+  }
+
   if (favorites !== undefined) updateData.favorites = favorites;
   if (theme !== undefined && ["dark", "light"].includes(theme)) updateData.theme = theme;
 
@@ -40,8 +84,8 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Password lama salah" }, { status: 400 });
     }
 
-    if (newPassword.length < 6) {
-      return NextResponse.json({ error: "Password minimal 6 karakter" }, { status: 400 });
+    if (newPassword.length < 8) {
+      return NextResponse.json({ error: "Password minimal 8 karakter" }, { status: 400 });
     }
 
     updateData.password = await bcrypt.hash(newPassword, 12);

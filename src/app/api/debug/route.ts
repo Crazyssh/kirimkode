@@ -3,6 +3,11 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export async function GET() {
+  // Hanya bisa diakses di development mode
+  if (process.env.NODE_ENV !== "development") {
+    return NextResponse.json({ error: "Not available" }, { status: 404 });
+  }
+
   try {
     const session = await auth();
 
