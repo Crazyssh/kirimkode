@@ -147,7 +147,7 @@ export default function BuyPage() {
           setNegaraList([]);
         }
       } catch {
-        setError("Gagal memuat daftar negara");
+        setError(t("buy.failedLoadCountries"));
         setNegaraList([]);
       } finally {
         setLoadingNegara(false);
@@ -227,7 +227,7 @@ export default function BuyPage() {
 
         setServiceList(mapped);
       } catch {
-        setError("Gagal memuat daftar layanan");
+        setError(t("buy.failedLoadServices"));
         setServiceList([]);
       } finally {
         setLoadingLayanan(false);
@@ -485,7 +485,7 @@ export default function BuyPage() {
                         />
                       </div>
                       <span className="text-xs text-muted">
-                        {server.description}
+                        {server.id === "api1" ? t("buy.serverMainDesc") : t("buy.serverBackupDesc")}
                       </span>
                     </div>
                     {selectedServer.id === server.id && (
@@ -730,7 +730,7 @@ export default function BuyPage() {
                         <span className="text-muted">{t("buy.stock")}</span>
                         <span className="flex items-center gap-1">
                           <div className={`w-1.5 h-1.5 rounded-full ${selectedService.stock > 100 ? "bg-success" : selectedService.stock > 20 ? "bg-accent" : "bg-error"}`} />
-                          {selectedService.stock} tersedia
+                          {selectedService.stock} {t("buy.available")}
                         </span>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2">
@@ -794,7 +794,7 @@ export default function BuyPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
               <Input
-                placeholder="Cari nomor..."
+                placeholder={t("buy.searchNumber")}
                 value={historySearch}
                 onChange={(e) => setHistorySearch(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") fetchHistory(1); }}
@@ -835,7 +835,7 @@ export default function BuyPage() {
               ))}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted">Tampilkan</span>
+              <span className="text-xs text-muted">{t("common.show")}</span>
               <select
                 value={historyLimit}
                 onChange={(e) => { setHistoryLimit(Number(e.target.value)); setHistoryPage(1); }}
@@ -845,7 +845,7 @@ export default function BuyPage() {
                   <option key={n} value={n}>{n}</option>
                 ))}
               </select>
-              <span className="text-xs text-muted">entri</span>
+              <span className="text-xs text-muted">{t("common.entries")}</span>
             </div>
           </div>
 
@@ -865,7 +865,7 @@ export default function BuyPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="text-left text-xs sm:text-sm text-muted border-b border-border">
-                      <th className="pb-3 font-medium hidden md:table-cell">Waktu</th>
+                      <th className="pb-3 font-medium hidden md:table-cell">{t("buy.time")}</th>
                       <th className="pb-3 font-medium">{t("buy.service")}</th>
                       <th className="pb-3 font-medium hidden sm:table-cell">{t("buy.price")}</th>
                       <th className="pb-3 font-medium">{t("buy.number")}</th>
@@ -955,7 +955,7 @@ export default function BuyPage() {
               {/* Pagination */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-3 pt-3 border-t border-border">
                 <span className="text-xs text-muted">
-                  Halaman {historyPage} dari {historyTotalPages}
+                  {t("common.pageOf", { page: historyPage, total: historyTotalPages })}
                 </span>
                 <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap justify-center">
                   <Button

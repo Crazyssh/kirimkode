@@ -48,7 +48,7 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const { user, updateBalance } = useUserStore();
-  const { t } = useLanguageStore();
+  const { t, locale } = useLanguageStore();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -81,11 +81,11 @@ export default function DashboardPage() {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return "Baru saja";
-    if (diffMins < 60) return `${diffMins} menit lalu`;
-    if (diffHours < 24) return `${diffHours} jam lalu`;
-    if (diffDays < 7) return `${diffDays} hari lalu`;
-    return date.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
+    if (diffMins < 1) return t("dashboard.justNow");
+    if (diffMins < 60) return t("dashboard.minutesAgo", { n: diffMins });
+    if (diffHours < 24) return t("dashboard.hoursAgo", { n: diffHours });
+    if (diffDays < 7) return t("dashboard.daysAgo", { n: diffDays });
+    return date.toLocaleDateString(locale === "id" ? "id-ID" : "en-US", { day: "numeric", month: "short", year: "numeric" });
   };
 
   if (loading) {
@@ -155,7 +155,7 @@ export default function DashboardPage() {
         <Link href="/buy">
           <Button>
             <ShoppingCart className="w-4 h-4" />
-            Beli Nomor
+            {t("dashboard.buyNumber")}
           </Button>
         </Link>
       </div>
@@ -199,12 +199,12 @@ export default function DashboardPage() {
             <table className="w-full">
               <thead>
                 <tr className="text-left text-[10px] sm:text-xs text-muted border-b border-border">
-                  <th className="pb-3 font-medium">Layanan</th>
-                  <th className="pb-3 font-medium hidden sm:table-cell">Nomor</th>
-                  <th className="pb-3 font-medium">OTP</th>
+                  <th className="pb-3 font-medium">{t("dashboard.service")}</th>
+                  <th className="pb-3 font-medium hidden sm:table-cell">{t("dashboard.number")}</th>
+                  <th className="pb-3 font-medium">{t("dashboard.otp")}</th>
                   <th className="pb-3 font-medium">Status</th>
-                  <th className="pb-3 font-medium hidden md:table-cell">Harga</th>
-                  <th className="pb-3 font-medium hidden md:table-cell">Waktu</th>
+                  <th className="pb-3 font-medium hidden md:table-cell">{t("dashboard.price")}</th>
+                  <th className="pb-3 font-medium hidden md:table-cell">{t("dashboard.time")}</th>
                 </tr>
               </thead>
               <tbody className="text-xs sm:text-sm">

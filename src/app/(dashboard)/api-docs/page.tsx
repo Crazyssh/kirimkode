@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useUserStore } from "@/store/user";
+import { useLanguageStore } from "@/store/language";
 import {
   Key,
   Copy,
@@ -19,133 +20,9 @@ import {
   Gauge,
 } from "lucide-react";
 
-const sections = [
-  { id: "api-key", label: "API Key", icon: Key },
-  { id: "quick-start", label: "Quick Start", icon: Zap },
-  { id: "endpoints", label: "Endpoints", icon: Book },
-  { id: "rate-limit", label: "Rate Limit", icon: Gauge },
-  { id: "errors", label: "Kode Error", icon: AlertTriangle },
-];
-
-const apiEndpoints = [
-  {
-    method: "GET",
-    path: "/api/v1/balance",
-    description: "Cek saldo akun",
-    example: `{
-  "status": "success",
-  "data": {
-    "balance": 125000,
-    "currency": "IDR"
-  }
-}`,
-  },
-  {
-    method: "GET",
-    path: "/api/v1/services",
-    description: "Daftar semua layanan tersedia",
-    example: `{
-  "status": "success",
-  "data": [
-    {
-      "id": "whatsapp",
-      "name": "WhatsApp",
-      "category": "Messenger",
-      "price": 1500,
-      "available": 342
-    }
-  ]
-}`,
-  },
-  {
-    method: "GET",
-    path: "/api/v1/countries",
-    description: "Daftar negara tersedia",
-    example: `{
-  "status": "success",
-  "data": [
-    {
-      "code": "ID",
-      "name": "Indonesia",
-      "flag": "\ud83c\uddee\ud83c\udde9",
-      "price_multiplier": 1.0
-    }
-  ]
-}`,
-  },
-  {
-    method: "POST",
-    path: "/api/v1/order",
-    description: "Beli nomor virtual baru",
-    example: `// Request
-{
-  "service": "whatsapp",
-  "country": "ID"
-}
-
-// Response
-{
-  "status": "success",
-  "data": {
-    "order_id": "ORD-048",
-    "number": "+6281234567890",
-    "service": "whatsapp",
-    "expires_at": "2026-02-19T15:00:00Z"
-  }
-}`,
-  },
-  {
-    method: "GET",
-    path: "/api/v1/order/{id}/status",
-    description: "Cek status order & kode OTP",
-    example: `{
-  "status": "success",
-  "data": {
-    "order_id": "ORD-048",
-    "number": "+6281234567890",
-    "code": "482916",
-    "status": "completed",
-    "received_at": "2026-02-19T14:42:15Z"
-  }
-}`,
-  },
-  {
-    method: "POST",
-    path: "/api/v1/order/{id}/cancel",
-    description: "Batalkan order (sebelum OTP masuk)",
-    example: `{
-  "status": "success",
-  "message": "Order dibatalkan, saldo dikembalikan"
-}`,
-  },
-  {
-    method: "GET",
-    path: "/api/v1/history",
-    description: "Riwayat semua order",
-    example: `{
-  "status": "success",
-  "data": [...],
-  "pagination": {
-    "page": 1,
-    "per_page": 20,
-    "total": 47
-  }
-}`,
-  },
-];
-
-const errorCodes = [
-  { code: 200, status: "OK", desc: "Request berhasil" },
-  { code: 400, status: "Bad Request", desc: "Parameter tidak valid" },
-  { code: 401, status: "Unauthorized", desc: "API key tidak valid" },
-  { code: 402, status: "Payment Required", desc: "Saldo tidak cukup" },
-  { code: 404, status: "Not Found", desc: "Resource tidak ditemukan" },
-  { code: 429, status: "Too Many Requests", desc: "Rate limit exceeded" },
-  { code: 503, status: "Service Unavailable", desc: "Nomor tidak tersedia" },
-];
-
 export default function ApiDocsPage() {
   const { user, fetchUser } = useUserStore();
+  const { t } = useLanguageStore();
   const [showKey, setShowKey] = useState(false);
   const [expandedEndpoint, setExpandedEndpoint] = useState<number | null>(0);
   const [copied, setCopied] = useState<string | null>(null);
@@ -153,11 +30,43 @@ export default function ApiDocsPage() {
 
   const apiKey = user?.apiKey || "";
 
+  const sections = [
+    { id: "api-key", label: "API Key", icon: Key },
+    { id: "quick-start", label: t("apiDocs.quickStart"), icon: Zap },
+    { id: "endpoints", label: t("apiDocs.endpoints"), icon: Book },
+    { id: "rate-limit", label: t("apiDocs.rateLimit"), icon: Gauge },
+    { id: "errors", label: t("apiDocs.errorCodes"), icon: AlertTriangle },
+  ];
+
+  const apiEndpoints = [
+    { method: "GET", path: "/api/v1/balance", description: t("apiDocs.descBalance"), example: `{\n  "status": "success",\n  "data": {\n    "balance": 125000,\n    "currency": "IDR"\n  }\n}` },
+    { method: "GET", path: "/api/v1/services", description: t("apiDocs.descServices"), example: `{\n  "status": "success",\n  "data": [\n    {\n      "id": "whatsapp",\n      "name": "WhatsApp",\n      "category": "Messenger",\n      "price": 1500,\n      "available": 342\n    }\n  ]\n}` },
+    { method: "GET", path: "/api/v1/countries", description: t("apiDocs.descCountries"), example: `{\n  "status": "success",\n  "data": [\n    {\n      "code": "ID",\n      "name": "Indonesia",\n      "flag": "\ud83c\uddee\ud83c\udde9",\n      "price_multiplier": 1.0\n    }\n  ]\n}` },
+    { method: "POST", path: "/api/v1/order", description: t("apiDocs.descOrder"), example: `// Request\n{\n  "service": "whatsapp",\n  "country": "ID"\n}\n\n// Response\n{\n  "status": "success",\n  "data": {\n    "order_id": "ORD-048",\n    "number": "+6281234567890",\n    "service": "whatsapp",\n    "expires_at": "2026-02-19T15:00:00Z"\n  }\n}` },
+    { method: "GET", path: "/api/v1/order/{id}/status", description: t("apiDocs.descStatus"), example: `{\n  "status": "success",\n  "data": {\n    "order_id": "ORD-048",\n    "number": "+6281234567890",\n    "code": "482916",\n    "status": "completed",\n    "received_at": "2026-02-19T14:42:15Z"\n  }\n}` },
+    { method: "POST", path: "/api/v1/order/{id}/cancel", description: t("apiDocs.descCancel"), example: `{\n  "status": "success",\n  "message": "Order cancelled, balance refunded"\n}` },
+    { method: "GET", path: "/api/v1/history", description: t("apiDocs.descHistory"), example: `{\n  "status": "success",\n  "data": [...],\n  "pagination": {\n    "page": 1,\n    "per_page": 20,\n    "total": 47\n  }\n}` },
+  ];
+
+  const errorCodes = [
+    { code: 200, status: "OK", desc: t("apiDocs.err200") },
+    { code: 400, status: "Bad Request", desc: t("apiDocs.err400") },
+    { code: 401, status: "Unauthorized", desc: t("apiDocs.err401") },
+    { code: 402, status: "Payment Required", desc: t("apiDocs.err402") },
+    { code: 404, status: "Not Found", desc: t("apiDocs.err404") },
+    { code: 429, status: "Too Many Requests", desc: t("apiDocs.err429") },
+    { code: 503, status: "Service Unavailable", desc: t("apiDocs.err503") },
+  ];
+
   const handleRegenerate = async () => {
-    if (!confirm("Regenerate API key? Key lama akan tidak berlaku.")) return;
+    if (!confirm(t("apiDocs.regenerateConfirm"))) return;
     setRegenerating(true);
     try {
-      const res = await fetch("/api/user/api-key", { method: "POST" });
+      const res = await fetch("/api/user/api-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: prompt("Password:") }),
+      });
       if (res.ok) {
         await fetchUser();
         setShowKey(true);
@@ -176,10 +85,10 @@ export default function ApiDocsPage() {
     <div className="max-w-[860px] mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)]">
-            API Documentation
+            {t("apiDocs.title")}
           </h1>
           <p className="text-sm text-muted">
-            Integrasikan layanan KirimKode ke aplikasi Anda
+            {t("apiDocs.desc")}
           </p>
         </div>
 
@@ -195,10 +104,10 @@ export default function ApiDocsPage() {
             <CardContent>
               {!apiKey ? (
                 <div className="space-y-3 w-full">
-                  <p className="text-sm text-muted">Belum punya API key. Generate sekarang untuk mulai integrasi.</p>
+                  <p className="text-sm text-muted">{t("apiDocs.noApiKey")}</p>
                   <Button onClick={handleRegenerate} disabled={regenerating}>
                     {regenerating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
-                    Generate API Key
+                    {t("apiDocs.generateKey")}
                   </Button>
                 </div>
               ) : (
@@ -222,12 +131,12 @@ export default function ApiDocsPage() {
                   </div>
                   <Button variant="secondary" size="sm" className="shrink-0" onClick={handleRegenerate} disabled={regenerating}>
                     {regenerating ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                    Regenerate
+                    {t("apiDocs.regenerate")}
                   </Button>
                 </div>
               )}
               <p className="text-xs text-muted mt-2">
-                Gunakan header <code className="text-primary bg-primary/10 px-1.5 py-0.5 rounded">X-API-Key</code> untuk autentikasi.
+                {t("apiDocs.authHeader")} <code className="text-primary bg-primary/10 px-1.5 py-0.5 rounded">X-API-Key</code> {t("apiDocs.forAuth")}
               </p>
             </CardContent>
           </Card>
@@ -238,19 +147,19 @@ export default function ApiDocsPage() {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div>
-                <div className="text-xs text-muted mb-1">Base URL</div>
+                <div className="text-xs text-muted mb-1">{t("apiDocs.baseUrl")}</div>
                 <code className="text-xs sm:text-sm font-[family-name:var(--font-jetbrains-mono)] text-primary break-all">
                   https://api.kirimkode.com/v1
                 </code>
               </div>
               <div>
-                <div className="text-xs text-muted mb-1">Autentikasi</div>
+                <div className="text-xs text-muted mb-1">{t("apiDocs.authentication")}</div>
                 <code className="text-xs sm:text-sm font-[family-name:var(--font-jetbrains-mono)] text-muted">
                   Header: X-API-Key
                 </code>
               </div>
               <div>
-                <div className="text-xs text-muted mb-1">Format</div>
+                <div className="text-xs text-muted mb-1">{t("apiDocs.format")}</div>
                 <Badge variant="primary">JSON</Badge>
               </div>
             </div>
@@ -264,14 +173,14 @@ export default function ApiDocsPage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Zap className="w-4 h-4 text-primary" />
-                  Quick Start
+                  {t("apiDocs.quickStart")}
                 </CardTitle>
                 <button
                   onClick={() => handleCopy(`curl -H "X-API-Key: YOUR_API_KEY" https://api.kirimkode.com/v1/balance`, "quickstart")}
                   className="text-xs text-muted hover:text-foreground flex items-center gap-1"
                 >
                   {copied === "quickstart" ? <CheckCircle className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
-                  {copied === "quickstart" ? "Copied!" : "Copy"}
+                  {copied === "quickstart" ? t("common.copied") : t("common.copy")}
                 </button>
               </div>
             </CardHeader>
@@ -279,10 +188,10 @@ export default function ApiDocsPage() {
               <div className="bg-background rounded-xl p-2 sm:p-4 overflow-x-auto">
                 <pre className="text-[10px] sm:text-sm font-[family-name:var(--font-jetbrains-mono)] leading-relaxed">
                   <code>
-                    <span className="text-muted"># Cek saldo</span>
+                    <span className="text-muted"># {t("apiDocs.checkBalance")}</span>
                     {"\n"}<span className="text-accent">curl</span> -H <span className="text-primary">{'"X-API-Key: YOUR_API_KEY"'}</span>
                     {"\n  "}https://api.kirimkode.com/v1/balance
-                    {"\n\n"}<span className="text-muted"># Beli nomor WhatsApp Indonesia</span>
+                    {"\n\n"}<span className="text-muted"># {t("apiDocs.buyWhatsapp")}</span>
                     {"\n"}<span className="text-accent">curl</span> -X POST{"\n  "}-H <span className="text-primary">{'"X-API-Key: YOUR_API_KEY"'}</span>
                     {"\n  "}-H <span className="text-primary">{'"Content-Type: application/json"'}</span>
                     {"\n  "}-d <span className="text-primary">{"'{\"service\":\"whatsapp\",\"country\":\"ID\"}"}</span><span className="text-primary">{"'"}</span>
@@ -297,7 +206,7 @@ export default function ApiDocsPage() {
         {/* Endpoints */}
         <section id="endpoints" className="space-y-3">
           <h2 className="text-lg font-bold font-[family-name:var(--font-space-grotesk)]">
-            Endpoints
+            {t("apiDocs.endpoints")}
           </h2>
 
           {apiEndpoints.map((endpoint, index) => (
@@ -359,7 +268,7 @@ export default function ApiDocsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Gauge className="w-4 h-4 text-primary" />
-                Rate Limiting
+                {t("apiDocs.rateLimit")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -373,7 +282,7 @@ export default function ApiDocsPage() {
                     <div className="text-lg sm:text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-primary">
                       {r.limit}
                     </div>
-                    <div className="text-[10px] sm:text-xs text-muted">Request/menit ({r.plan})</div>
+                    <div className="text-[10px] sm:text-xs text-muted">{t("apiDocs.requestPerMin")} ({r.plan})</div>
                   </div>
                 ))}
               </div>
@@ -387,7 +296,7 @@ export default function ApiDocsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <AlertTriangle className="w-4 h-4 text-primary" />
-                Kode Error
+                {t("apiDocs.errorCodes")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -395,9 +304,9 @@ export default function ApiDocsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-muted border-b border-border">
-                      <th className="pb-3 font-medium w-20">Code</th>
-                      <th className="pb-3 font-medium w-40">Status</th>
-                      <th className="pb-3 font-medium">Deskripsi</th>
+                      <th className="pb-3 font-medium w-20">{t("apiDocs.code")}</th>
+                      <th className="pb-3 font-medium w-40">{t("apiDocs.status")}</th>
+                      <th className="pb-3 font-medium">{t("apiDocs.description")}</th>
                     </tr>
                   </thead>
                   <tbody>
