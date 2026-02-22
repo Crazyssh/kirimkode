@@ -67,11 +67,23 @@ export async function GET() {
       .map(([name, count]) => ({ name, count }));
 
     // Revenue (sum of successful order prices)
-    const revenueResult = await db.order.aggregate({
-      where: { status: "success" },
-      _sum: { price: true },
-    });
+    const [revenueResult, revenueTodayResult, depositsTodayResult] = await Promise.all([
+      db.order.aggregate({
+        where: { status: "success" },
+        _sum: { price: true },
+      }),
+      db.order.aggregate({
+        where: { status: "success", createdAt: { gte: todayStart } },
+        _sum: { price: true },
+      }),
+      db.deposit.aggregate({
+        where: { status: "paid", paidAt: { gte: todayStart } },
+        _sum: { amount: true },
+      }),
+    ]);
     const totalRevenue = revenueResult._sum.price ?? 0;
+    const revenueToday = revenueTodayResult._sum.price ?? 0;
+    const depositsTodayTotal = depositsTodayResult._sum.amount ?? 0;
 
     // Orders per day (last 7 days)
     const ordersPerDay: { date: string; count: number }[] = [];
@@ -103,6 +115,8 @@ export async function GET() {
         newUsersToday,
         activeUsersWeek: activeUsersWeek.length,
         totalRevenue,
+        revenueToday,
+        depositsTodayTotal,
         ordersPerDay,
         totalOrders,
         ordersToday,

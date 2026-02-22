@@ -21,6 +21,9 @@ interface StatsData {
   ordersToday: number;
   depositsToday: number;
   totalRevenue: number;
+  revenueToday: number;
+  depositsTodayTotal: number;
+  depositsPaidTotal: number;
   ordersPerDay: { date: string; count: number }[];
   topServices: { name: string; count: number }[];
   recentOrders: {
@@ -97,11 +100,25 @@ export default function AdminOverviewPage() {
       bg: "bg-accent/10",
     },
     {
-      label: "Deposit Masuk",
-      value: formatRupiah(data?.depositsToday ?? 0),
+      label: "Deposit Hari Ini",
+      value: formatRupiah(data?.depositsTodayTotal ?? 0),
       icon: Wallet,
       color: "text-success",
       bg: "bg-success/10",
+    },
+    {
+      label: "Total Deposit Masuk",
+      value: formatRupiah(data?.depositsPaidTotal ?? 0),
+      icon: Wallet,
+      color: "text-success",
+      bg: "bg-success/10",
+    },
+    {
+      label: "Revenue Hari Ini",
+      value: formatRupiah(data?.revenueToday ?? 0),
+      icon: TrendingUp,
+      color: "text-accent",
+      bg: "bg-accent/10",
     },
     {
       label: "Total Revenue",
