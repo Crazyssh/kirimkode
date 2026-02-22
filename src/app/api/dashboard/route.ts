@@ -23,7 +23,7 @@ export async function GET() {
     db.order.findMany({
       where: {
         userId,
-        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+        createdAt: { gte: new Date(new Date().toISOString().split("T")[0] + "T00:00:00.000Z") },
       },
     }),
     db.deposit.findMany({

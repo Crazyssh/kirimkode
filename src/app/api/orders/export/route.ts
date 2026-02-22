@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const orders = await db.order.findMany({
     where,
     orderBy: { createdAt: "desc" },
+    take: 10000, // max 10.000 records untuk prevent memory overload
   });
 
   // Build CSV

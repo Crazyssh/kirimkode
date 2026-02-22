@@ -117,6 +117,9 @@ export async function PATCH(
     const data: Record<string, unknown> = {};
 
     if (typeof balance === "number") {
+      if (balance < 0) {
+        return NextResponse.json({ error: "Balance tidak boleh negatif" }, { status: 400 });
+      }
       data.balance = balance;
     }
 

@@ -31,16 +31,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Semua field wajib diisi" }, { status: 400 });
     }
 
+    // Validasi bonusType
+    if (!["fixed", "percent"].includes(bonusType)) {
+      return NextResponse.json({ error: "bonusType harus 'fixed' atau 'percent'" }, { status: 400 });
+    }
+
+    // Validasi bonusValue > 0
+    if (Number(bonusValue) <= 0) {
+      return NextResponse.json({ error: "bonusValue harus lebih dari 0" }, { status: 400 });
+    }
+
+    // Validasi percent max 100%
+    if (bonusType === "percent" && Number(bonusValue) > 100) {
+      return NextResponse.json({ error: "Bonus persen maksimal 100%" }, { status: 400 });
+    }
+
+    // Validasi expiresAt tidak boleh di masa lalu
+    if (expiresAt && new Date(expiresAt) < new Date()) {
+      return NextResponse.json({ error: "Tanggal kadaluarsa tidak boleh di masa lalu" }, { status: 400 });
+    }
+
     const voucher = await db.voucher.create({
       data: {
-        code: code.toUpperCase(),
-        description,
+        code: code.toUpperCase().trim(),
+        description: description.trim(),
         bonusType,
         bonusValue: Number(bonusValue),
-        maxBonus: Number(maxBonus) || 0,
-        minDeposit: Number(minDeposit) || 0,
-        maxUsage: Number(maxUsage) || 0,
-        maxPerUser: Number(maxPerUser) || 1,
+        maxBonus: Math.max(0, Number(maxBonus) || 0),
+        minDeposit: Math.max(0, Number(minDeposit) || 0),
+        maxUsage: Math.max(0, Number(maxUsage) || 0),
+        maxPerUser: Math.max(1, Number(maxPerUser) || 1),
         firstDeposit: Boolean(firstDeposit),
         expiresAt: expiresAt ? new Date(expiresAt) : null,
       },
