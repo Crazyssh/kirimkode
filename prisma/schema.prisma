@@ -30,6 +30,7 @@ model User {
   theme         String    @default("dark") // dark | light
   referralCode  String?   @unique // kode referral unik user ini
   referredBy    String?   // userId yang mereferensikan
+  fingerprint   String?   // browser fingerprint untuk deteksi device
 
   accounts      Account[]
   sessions      Session[]

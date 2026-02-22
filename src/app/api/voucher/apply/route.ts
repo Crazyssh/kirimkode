@@ -43,6 +43,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Kamu sudah pernah menggunakan voucher ini" }, { status: 400 });
     }
 
+    // Cek per device — voucher hanya bisa dipakai 1x per perangkat (fingerprint)
+    const currentUser = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { fingerprint: true },
+    });
+    if (currentUser?.fingerprint) {
+      const usersWithSameDevice = await db.user.findMany({
+        where: { fingerprint: currentUser.fingerprint },
+        select: { id: true },
+      });
+      const deviceUserIds = usersWithSameDevice.map((u) => u.id);
+      const deviceUsageCount = await db.voucherUsage.count({
+        where: { voucherId: voucher.id, userId: { in: deviceUserIds } },
+      });
+      if (deviceUsageCount > 0) {
+        return NextResponse.json({ error: "Voucher sudah pernah digunakan di perangkat ini" }, { status: 400 });
+      }
+    }
+
     // Cek first deposit only
     if (voucher.firstDeposit) {
       const paidDeposits = await db.deposit.count({

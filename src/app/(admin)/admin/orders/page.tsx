@@ -38,6 +38,7 @@ const statusFilters = [
   { label: "Waiting", value: "waiting" },
   { label: "Success", value: "success" },
   { label: "Cancelled", value: "cancelled" },
+  { label: "Timeout", value: "timeout" },
 ];
 
 export default function AdminOrdersPage() {
@@ -194,6 +195,8 @@ export default function AdminOrdersPage() {
                               ? "Menunggu"
                               : order.status === "cancelled"
                               ? "Dibatalkan"
+                              : order.status === "timeout"
+                              ? "Time Out"
                               : "Gagal"}
                           </Badge>
                         </td>

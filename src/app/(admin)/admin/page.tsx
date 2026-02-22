@@ -266,6 +266,8 @@ export default function AdminOverviewPage() {
                               ? "Berhasil"
                               : order.status === "waiting"
                               ? "Menunggu"
+                              : order.status === "timeout"
+                              ? "Time Out"
                               : "Dibatalkan"}
                           </Badge>
                         </td>

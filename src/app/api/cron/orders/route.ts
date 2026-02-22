@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
       await db.$transaction([
         db.order.update({
           where: { id: order.id },
-          data: { status: "cancelled" },
+          data: { status: "timeout" },
         }),
         db.user.update({
           where: { id: order.userId },

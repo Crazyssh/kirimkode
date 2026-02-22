@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
+    "@fingerprintjs/fingerprintjs": "^5.0.1",
     "@marsidev/react-turnstile": "^1.4.2",
     "@prisma/adapter-better-sqlite3": "^7.4.0",
     "@prisma/client": "^7.4.0",

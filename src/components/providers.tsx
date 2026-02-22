@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { SessionProvider } from "next-auth/react";
 import { Toaster } from "sonner";
+import { FingerprintTracker } from "./fingerprint-tracker";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -22,6 +23,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
+      <FingerprintTracker />
       {children}
       <Toaster
         theme={theme}

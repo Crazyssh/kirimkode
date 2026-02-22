@@ -41,6 +41,7 @@ const statusFilters = [
   { label: "Berhasil", value: "success" },
   { label: "Menunggu", value: "waiting" },
   { label: "Dibatalkan", value: "cancelled" },
+  { label: "Time Out", value: "timeout" },
 ];
 
 export default function HistoryPage() {
@@ -241,6 +242,8 @@ export default function HistoryPage() {
                               ? "Menunggu"
                               : order.status === "cancelled"
                               ? "Dibatalkan"
+                              : order.status === "timeout"
+                              ? "Time Out"
                               : "Gagal"}
                           </Badge>
                         </td>
