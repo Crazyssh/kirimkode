@@ -242,7 +242,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted">
-            Ajak teman daftar pakai kode referral kamu. Kamu dan temanmu masing-masing dapat bonus <strong className="text-primary">Rp 1.000</strong> saldo!
+            Ajak teman daftar pakai kode referral kamu. Setiap kali temanmu deposit, kamu dapat komisi <strong className="text-primary">5%</strong> dari nominal deposit!
           </p>
           {referralCode ? (
             <div className="flex items-center gap-3">

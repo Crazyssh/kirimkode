@@ -40,7 +40,17 @@ export async function GET(req: NextRequest) {
     ]);
 
     return NextResponse.json({
-      data: orders,
+      data: orders.map((o) => ({
+        id: o.id,
+        service: o.serviceName,
+        country: o.country,
+        number: o.number,
+        code: o.code,
+        status: o.status,
+        price: o.price,
+        userEmail: o.user?.email ?? "-",
+        time: o.createdAt.toISOString(),
+      })),
       pagination: {
         page,
         limit,

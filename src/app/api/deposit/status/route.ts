@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkTransactionStatus } from "@/lib/paymenku";
+import { giveReferralCommission } from "@/lib/referral";
 
 export async function GET(req: NextRequest) {
   try {
@@ -47,6 +48,9 @@ export async function GET(req: NextRequest) {
             data: { balance: { increment: deposit.amount } },
           }),
         ]);
+
+        // Komisi referral 5% untuk inviter
+        await giveReferralCommission(deposit.userId, deposit.amount);
       }
     }
 

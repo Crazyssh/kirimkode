@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { giveReferralCommission } from "@/lib/referral";
 
 export async function POST(
   _req: NextRequest,
@@ -44,6 +45,9 @@ export async function POST(
 
       return { deposit: updatedDeposit, user: updatedUser };
     });
+
+    // Komisi referral 5% untuk inviter
+    await giveReferralCommission(deposit.userId, deposit.amount);
 
     return NextResponse.json({
       data: {

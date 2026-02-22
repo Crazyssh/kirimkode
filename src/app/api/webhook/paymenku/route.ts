@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { WebhookPayload } from "@/lib/paymenku";
+import { giveReferralCommission } from "@/lib/referral";
 
 /**
  * Webhook handler untuk Paymenku
@@ -45,6 +46,9 @@ export async function POST(req: NextRequest) {
           data: { balance: { increment: deposit.amount } },
         }),
       ]);
+
+      // Komisi referral 5% untuk inviter
+      await giveReferralCommission(deposit.userId, deposit.amount);
 
       console.log(`[Paymenku] PAID: ${trx_id} | +${deposit.amount} for user ${deposit.userId}`);
     } else if ((status === "expired" || status === "cancelled") && deposit.status === "pending") {

@@ -32,7 +32,15 @@ export async function GET(req: NextRequest) {
     ]);
 
     return NextResponse.json({
-      data: deposits,
+      data: deposits.map((d) => ({
+        id: d.id,
+        userEmail: d.user?.email ?? "-",
+        amount: d.amount,
+        channel: d.channelName,
+        trxId: d.trxId ?? "-",
+        status: d.status,
+        time: d.createdAt.toISOString(),
+      })),
       pagination: {
         page,
         limit,
