@@ -295,7 +295,7 @@ export default function DepositPage() {
                           >
                             <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center shrink-0">
                               {channel.icon ? (
-                                <img src={channel.icon} alt={channel.name} className="w-6 h-6 rounded" />
+                                <img src={channel.icon} alt={channel.name} className="w-6 h-6 rounded" width={24} height={24} loading="lazy" />
                               ) : (
                                 <Icon className="w-5 h-5 text-primary" />
                               )}
@@ -482,6 +482,8 @@ export default function DepositPage() {
                         src={depositResult.payment_info.qr_url}
                         alt="QRIS QR Code"
                         className="w-full h-full object-contain"
+                        width={224}
+                        height={224}
                       />
                     </div>
                     <p className="text-xs text-muted mt-2">Scan QR dengan e-wallet atau mobile banking</p>
