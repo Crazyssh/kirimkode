@@ -47,10 +47,6 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://kirimkode.com"),
   alternates: {
     canonical: "/",
-    languages: {
-      "id-ID": "/",
-      "en-US": "/",
-    },
   },
   openGraph: {
     type: "website",
