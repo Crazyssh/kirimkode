@@ -14,6 +14,7 @@ export default function AuthLayout({
       </div>
 
       <div className="w-full max-w-md relative">
+        <h1 className="sr-only">KirimKode — Nomor Virtual OTP Instan</h1>
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
