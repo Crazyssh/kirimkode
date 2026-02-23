@@ -12,10 +12,10 @@ export function Navbar() {
   const { t } = useLanguageStore();
 
   const navLinks = [
-    { href: "#fitur", label: t("nav.features") },
-    { href: "#layanan", label: t("nav.services") },
-    { href: "#harga", label: t("nav.pricing") },
-    { href: "#faq", label: t("nav.faq") },
+    { href: "/#fitur", label: t("nav.features") },
+    { href: "/#layanan", label: t("nav.services") },
+    { href: "/#harga", label: t("nav.pricing") },
+    { href: "/#faq", label: t("nav.faq") },
   ];
 
   return (
