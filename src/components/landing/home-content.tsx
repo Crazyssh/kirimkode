@@ -333,7 +333,7 @@ export function HomeContent() {
                       <th className="pb-3 font-medium">{t("landing.country")}</th>
                       <th className="pb-3 font-medium">{t("landing.pricePerOtp")}</th>
                       <th className="pb-3 font-medium">{t("landing.stock")}</th>
-                      <th className="pb-3 font-medium"></th>
+                      <th className="pb-3 font-medium"><span className="sr-only">Action</span></th>
                     </tr>
                   </thead>
                   <tbody className="text-sm">

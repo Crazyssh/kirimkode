@@ -179,6 +179,7 @@ export default function RegisterPage() {
               />
               <button
                 type="button"
+                aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
               >
@@ -229,11 +230,11 @@ export default function RegisterPage() {
             />
             <label htmlFor="terms" className="text-xs text-muted">
               {t("auth.agreeTerms")}{" "}
-              <a href="#" className="text-primary hover:underline">
+              <a href="/terms" className="text-primary underline hover:no-underline">
                 {t("auth.termsAndConditions")}
               </a>{" "}
               {t("auth.and")}{" "}
-              <a href="#" className="text-primary hover:underline">
+              <a href="/privacy" className="text-primary underline hover:no-underline">
                 {t("auth.privacyPolicy")}
               </a>
             </label>
