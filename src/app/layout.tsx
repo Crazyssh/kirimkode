@@ -19,6 +19,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  verification: {
+    google: "pq7S4zy3Qhj9JcvXDMtbNynFvL1FuOIrc6MO0ilkd3w",
+  },
   title: {
     default: "KirimKode - Nomor Virtual OTP Instan | Verifikasi Cepat & Aman",
     template: "%s | KirimKode",
