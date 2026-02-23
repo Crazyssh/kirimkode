@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Menu, X, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { useLanguageStore } from "@/store/language";
 
@@ -44,11 +43,11 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-3">
           <LanguageSwitcher />
-          <Link href="/login">
-            <Button variant="ghost" size="sm">{t("common.login")}</Button>
+          <Link href="/login" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-transparent text-foreground hover:bg-surface px-4 py-1.5 text-xs">
+            {t("common.login")}
           </Link>
-          <Link href="/register">
-            <Button variant="primary" size="sm">{t("common.register")}</Button>
+          <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-4 py-1.5 text-xs">
+            {t("common.register")}
           </Link>
         </div>
 
@@ -76,11 +75,11 @@ export function Navbar() {
             <div className="flex items-center justify-between pt-2 border-t border-border">
               <LanguageSwitcher />
               <div className="flex gap-3">
-                <Link href="/login">
-                  <Button variant="secondary" size="sm">{t("common.login")}</Button>
+                <Link href="/login" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-surface text-foreground border border-border hover:bg-surface-hover px-4 py-1.5 text-xs">
+                  {t("common.login")}
                 </Link>
-                <Link href="/register">
-                  <Button variant="primary" size="sm">{t("common.register")}</Button>
+                <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-4 py-1.5 text-xs">
+                  {t("common.register")}
                 </Link>
               </div>
             </div>

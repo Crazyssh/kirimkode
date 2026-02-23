@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -148,15 +147,11 @@ export function HomeContent() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-              <Link href="/register">
-                <Button size="lg" className="gap-2">
+              <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-8 py-3 text-base">
                   {t("landing.startNow")} <ArrowRight className="w-4 h-4" />
-                </Button>
               </Link>
-              <Link href="#fitur">
-                <Button variant="secondary" size="lg">
+              <Link href="#fitur" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-surface text-foreground border border-border hover:bg-surface-hover px-8 py-3 text-base">
                   {t("landing.viewFeatures")}
-                </Button>
               </Link>
             </div>
 
@@ -247,10 +242,8 @@ export function HomeContent() {
           </div>
 
           <div className="text-center mt-8">
-            <Link href="/register">
-              <Button variant="secondary">
+            <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-surface text-foreground border border-border hover:bg-surface-hover px-4 py-2 text-sm">
                 {t("landing.viewAllServices")} <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
             </Link>
           </div>
         </div>
@@ -365,8 +358,8 @@ export function HomeContent() {
                           </div>
                         </td>
                         <td className="py-3 text-right">
-                          <Link href="/register">
-                            <Button size="sm" className="text-xs">{t("landing.buy")}</Button>
+                          <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-4 py-1.5 text-xs">
+                            {t("landing.buy")}
                           </Link>
                         </td>
                       </tr>
@@ -379,10 +372,8 @@ export function HomeContent() {
                 <p className="text-xs text-muted mb-3">
                   {t("landing.priceDisclaimer")}
                 </p>
-                <Link href="/register">
-                  <Button variant="secondary">
+                <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-surface text-foreground border border-border hover:bg-surface-hover px-4 py-2 text-sm">
                     {t("landing.viewAllPrices")} <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
                 </Link>
               </div>
             </CardContent>
@@ -427,10 +418,8 @@ export function HomeContent() {
           <p className="text-lg text-muted mb-8">
             {t("landing.ctaDesc")}
           </p>
-          <Link href="/register">
-            <Button size="lg" className="animate-pulse-glow">
+          <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-8 py-3 text-base animate-pulse-glow">
               {t("landing.ctaButton")} <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
           </Link>
         </div>
       </section>

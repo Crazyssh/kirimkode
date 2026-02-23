@@ -113,15 +113,11 @@ export function UseCaseContent({ data }: { data: UseCaseData }) {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/register" onClick={handleCtaClick}>
-              <Button size="lg" className="gap-2">
+            <Link href="/register" onClick={handleCtaClick} className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-8 py-3 text-base">
                 {ctaText} <ArrowRight className="w-4 h-4" />
-              </Button>
             </Link>
-            <Link href="#cara-kerja">
-              <Button variant="secondary" size="lg">
+            <Link href="#cara-kerja" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-surface text-foreground border border-border hover:bg-surface-hover px-8 py-3 text-base">
                 Lihat Cara Kerja
-              </Button>
             </Link>
           </div>
         </div>
@@ -318,10 +314,8 @@ export function UseCaseContent({ data }: { data: UseCaseData }) {
           <p className="text-lg text-muted mb-8">
             Daftar sekarang dan dapatkan nomor virtual pertama Anda dalam hitungan detik.
           </p>
-          <Link href="/register" onClick={handleCtaClick}>
-            <Button size="lg" className="animate-pulse-glow">
+          <Link href="/register" onClick={handleCtaClick} className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-8 py-3 text-base animate-pulse-glow">
               {ctaText} <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
           </Link>
         </div>
       </section>
