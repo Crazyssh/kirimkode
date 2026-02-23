@@ -114,6 +114,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Deteksi error stok habis dari JasaOTP
+    const isStock = /stok|stock|habis|unavailable|empty|sold.?out|not.?available|no.?number/i.test(msg);
+    if (isStock) {
+      return NextResponse.json(
+        { error: "Stok habis untuk layanan ini. Coba negara atau operator lain.", message: "Stok habis" },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json({ error: msg, message: msg }, { status: 500 });
   }
 }

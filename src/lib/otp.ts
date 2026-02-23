@@ -25,7 +25,12 @@ async function fetchApi(server: ServerId, endpoint: string, params?: Record<stri
   const data = await res.json();
 
   if (!res.ok) {
-    throw new Error(data?.message || `API error: ${res.status}`);
+    throw new Error(data?.message || data?.error || `API error: ${res.status}`);
+  }
+
+  // JasaOTP sometimes returns 200 with error in body
+  if (data?.success === false || data?.code === "error" || data?.status === "error") {
+    throw new Error(data?.message || data?.error || "Gagal memproses request ke provider");
   }
 
   return data;

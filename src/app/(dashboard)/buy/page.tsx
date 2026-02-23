@@ -332,6 +332,10 @@ export default function BuyPage() {
     finally { setCancellingId(null); }
   };
 
+  // Helper: cek apakah error terkait stok habis
+  const isStockError = (msg: string) =>
+    /stok|stock|habis|unavailable|empty|sold.?out|not.?available|no.?number/i.test(msg);
+
   const handleBuy = async (service: DisplayService) => {
     if (!selectedNegara) return;
     setOrdering(service.code);
@@ -365,7 +369,16 @@ export default function BuyPage() {
           });
         }
       } else {
-        setError(data.message || data.error || "Gagal membuat pesanan");
+        const errMsg = data.message || data.error || "Gagal membuat pesanan";
+        if (isStockError(errMsg)) {
+          setError("Stok habis untuk layanan ini. Coba negara atau operator lain.");
+          // Auto-refresh stock setelah gagal
+          setServiceList((prev) =>
+            prev.map((s) => (s.code === service.code ? { ...s, stock: 0 } : s))
+          );
+        } else {
+          setError(errMsg);
+        }
       }
     } catch {
       setError("Gagal membuat pesanan. Coba lagi.");
