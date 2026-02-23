@@ -26,6 +26,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })),
   ];
 
+  // Use case landing pages
+  const useCasePages = [
+    "nomor-virtual-whatsapp",
+    "nomor-virtual-telegram",
+    "nomor-virtual-qa-testing",
+    "nomor-virtual-shopee-tokopedia",
+    "nomor-virtual-kreator-sosmed",
+  ];
+
+  const useCaseEntries: MetadataRoute.Sitemap = useCasePages.map((slug) => ({
+    url: `${baseUrl}/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.85,
+  }));
+
   return [
     {
       url: baseUrl,
@@ -39,6 +55,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.9,
     },
+    ...useCaseEntries,
     ...blogEntries,
     {
       url: `${baseUrl}/login`,

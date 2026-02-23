@@ -27,10 +27,11 @@ export function Footer() {
           <div>
             <h4 className="text-sm font-semibold mb-4">{t("footer.services")}</h4>
             <ul className="space-y-2 text-sm text-muted">
-              <li><a href="#" className="hover:text-foreground transition-colors">WhatsApp OTP</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Telegram OTP</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Facebook OTP</a></li>
-              <li><a href="#" className="hover:text-foreground transition-colors">Instagram OTP</a></li>
+              <li><a href="/nomor-virtual-whatsapp" className="hover:text-foreground transition-colors">WhatsApp OTP</a></li>
+              <li><a href="/nomor-virtual-telegram" className="hover:text-foreground transition-colors">Telegram OTP</a></li>
+              <li><a href="/nomor-virtual-shopee-tokopedia" className="hover:text-foreground transition-colors">Shopee & Tokopedia</a></li>
+              <li><a href="/nomor-virtual-kreator-sosmed" className="hover:text-foreground transition-colors">Kreator Sosmed</a></li>
+              <li><a href="/nomor-virtual-qa-testing" className="hover:text-foreground transition-colors">QA Testing</a></li>
             </ul>
           </div>
 
