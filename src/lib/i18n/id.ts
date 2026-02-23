@@ -361,4 +361,18 @@ export const id = {
     countries: "200+ negara",
     servicesCount: "500+ layanan",
   },
+  blog: {
+    title: "Blog",
+    subtitle: "Tips, tutorial & panduan seputar nomor virtual",
+    allCategories: "Semua",
+    tutorial: "Tutorial",
+    tips: "Tips",
+    news: "Berita",
+    guide: "Panduan",
+    readMore: "Baca Selengkapnya",
+    backToBlog: "Kembali ke Blog",
+    publishedOn: "Diterbitkan pada",
+    views: "dilihat",
+    noPosts: "Belum ada artikel",
+  },
 } as const;

@@ -1,7 +1,30 @@
 import { MetadataRoute } from "next";
+import { db } from "@/lib/db";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://kirimkode.com";
+
+  // Fetch published blog posts
+  const posts = await db.blogPost.findMany({
+    where: { status: "published" },
+    select: { slug: true, updatedAt: true },
+    orderBy: { publishedAt: "desc" },
+  });
+
+  const blogEntries: MetadataRoute.Sitemap = [
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.8,
+    },
+    ...posts.map((post) => ({
+      url: `${baseUrl}/blog/${post.slug}`,
+      lastModified: post.updatedAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    })),
+  ];
 
   return [
     {
@@ -16,6 +39,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.9,
     },
+    ...blogEntries,
     {
       url: `${baseUrl}/login`,
       lastModified: new Date(),

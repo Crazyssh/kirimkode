@@ -14,6 +14,7 @@ import {
   Megaphone,
   ScrollText,
   Ticket,
+  FileText,
   ArrowLeft,
   LogOut,
   X,
@@ -27,6 +28,7 @@ const menuItems = [
   { href: "/admin/deposits", label: "Deposits", icon: Wallet },
   { href: "/admin/pricing", label: "Harga OTP", icon: DollarSign },
   { href: "/admin/vouchers", label: "Voucher", icon: Ticket },
+  { href: "/admin/blog", label: "Blog", icon: FileText },
   { href: "/admin/broadcast", label: "Broadcast", icon: Megaphone },
   { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText },
 ];

@@ -361,4 +361,18 @@ export const en = {
     countries: "200+ countries",
     servicesCount: "500+ services",
   },
+  blog: {
+    title: "Blog",
+    subtitle: "Tips, tutorials & guides about virtual numbers",
+    allCategories: "All",
+    tutorial: "Tutorial",
+    tips: "Tips",
+    news: "News",
+    guide: "Guide",
+    readMore: "Read More",
+    backToBlog: "Back to Blog",
+    publishedOn: "Published on",
+    views: "views",
+    noPosts: "No articles yet",
+  },
 } as const;

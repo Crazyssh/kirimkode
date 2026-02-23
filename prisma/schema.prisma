@@ -212,3 +212,44 @@ model VoucherUsage {
   @@index([userId])
   @@map("voucher_usages")
 }
+
+// ==================== BLOG ====================
+
+model BlogPost {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+
+  // Konten Bahasa Indonesia
+  titleId   String
+  excerptId String
+  contentId String
+
+  // Konten Bahasa Inggris
+  titleEn   String
+  excerptEn String
+  contentEn String
+
+  category    String   @default("tips") // tutorial | tips | news | guide
+  tags        String   @default("")
+  coverImage  String?
+
+  status      String   @default("draft") // draft | published
+  publishedAt DateTime?
+  views       Int      @default(0)
+
+  // SEO fields (optional override)
+  metaTitleId String?
+  metaTitleEn String?
+  metaDescId  String?
+  metaDescEn  String?
+
+  authorName String @default("KirimKode Team")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([publishedAt])
+  @@map("blog_posts")
+}
