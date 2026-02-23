@@ -24,7 +24,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   verification: {
-    google: "pq7S4zy3Qhj9JcvXDMtbNynFvL1FuOIrc6MO0ilkd3w",
+    google: "u49SGNQfnqcVh7dNHlZ99a9Gb4b6T4YOzTYrlJgTQNI",
   },
   title: {
     default: "KirimKode - Nomor Virtual OTP Instan | Verifikasi Cepat & Aman",
@@ -103,7 +103,7 @@ export default function RootLayout({
     <html lang="id">
       <head>
         <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-41NSN99N3S"
+          src="https://www.googletagmanager.com/gtag/js?id=G-V4DQ4WXS10"
           strategy="lazyOnload"
         />
         <Script id="google-analytics" strategy="lazyOnload">
@@ -111,7 +111,7 @@ export default function RootLayout({
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('config', 'G-41NSN99N3S');
+            gtag('config', 'G-V4DQ4WXS10');
           `}
         </Script>
       </head>
