@@ -257,20 +257,32 @@ export default function BuyPage() {
 
   useEffect(() => { fetchHistory(1); }, [fetchHistory]);
 
-  // Poll OTP untuk semua order "waiting" di history + refresh tabel
+  // Poll OTP untuk order "waiting" + order baru dapat OTP (< 3 menit) untuk tangkap OTP terbaru
   const otpPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevCodesRef = useRef<Record<string, string>>({});
   useEffect(() => {
-    const waitingOrders = historyOrders.filter(
-      (o) => o.status === "waiting" && !o.code && o.server && o.orderId
+    const threeMinAgo = Date.now() - 3 * 60 * 1000;
+    const pollableOrders = historyOrders.filter(
+      (o) => o.server && o.orderId && (
+        o.status === "waiting" ||
+        (o.status === "success" && new Date(o.date).getTime() > threeMinAgo)
+      )
     );
 
-    if (waitingOrders.length === 0) return;
+    if (pollableOrders.length === 0) return;
+
+    // Track current codes for change detection
+    for (const o of pollableOrders) {
+      if (o.code && !prevCodesRef.current[o.id]) {
+        prevCodesRef.current[o.id] = o.code;
+      }
+    }
 
     otpPollRef.current = setInterval(async () => {
       let gotNewOtp = false;
 
       await Promise.all(
-        waitingOrders.map(async (order) => {
+        pollableOrders.map(async (order) => {
           try {
             const res = await fetch(
               `/api/otp/sms?server=${order.server}&id=${order.orderId}`
@@ -278,7 +290,10 @@ export default function BuyPage() {
             const data = await res.json();
             const otp = data.success ? data.data?.otp : null;
             if (otp && typeof otp === "string" && !/^(menunggu|waiting|pending|processing)$/i.test(otp.trim())) {
-              gotNewOtp = true;
+              if (!prevCodesRef.current[order.id] || prevCodesRef.current[order.id] !== otp) {
+                prevCodesRef.current[order.id] = otp;
+                gotNewOtp = true;
+              }
             }
           } catch {
             // silently retry

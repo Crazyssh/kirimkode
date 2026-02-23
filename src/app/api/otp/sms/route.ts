@@ -59,14 +59,13 @@ export async function GET(req: NextRequest) {
 
     const otp = extractOtp(data as Record<string, unknown>);
 
-    // If OTP received, update order in DB
+    // If OTP received, update order in DB (always update to latest OTP)
     if (otp) {
       await db.order.updateMany({
         where: {
           orderId: Number(id),
           server,
           userId: session.user.id,
-          status: "waiting",
         },
         data: {
           code: otp,
