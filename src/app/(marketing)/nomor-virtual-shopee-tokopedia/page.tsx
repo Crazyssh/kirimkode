@@ -118,6 +118,13 @@ const useCaseData = {
       slug: "cara-menjaga-privasi-nomor-hp",
     },
   ],
+  abTestName: "mp-cta",
+  variantB: {
+    headline: "Buka Toko Baru di",
+    headlineHighlight: "Marketplace?",
+    subheadline: "Nomor virtual mulai Rp 1.200 untuk verifikasi Shopee & Tokopedia. Instan, aman, dan refund otomatis jika OTP gagal.",
+    ctaText: "Verifikasi Sekarang",
+  },
 };
 
 export default function MarketplaceLandingPage() {

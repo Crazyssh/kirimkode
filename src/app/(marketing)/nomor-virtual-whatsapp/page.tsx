@@ -117,6 +117,13 @@ const useCaseData = {
       slug: "cara-menjaga-privasi-nomor-hp",
     },
   ],
+  abTestName: "wa-cta",
+  variantB: {
+    headline: "Butuh Nomor untuk",
+    headlineHighlight: "WhatsApp?",
+    subheadline: "Dapatkan nomor virtual instan dari 200+ negara. Harga mulai Rp 1.500, refund otomatis jika gagal. Tanpa SIM card, tanpa ribet.",
+    ctaText: "Dapatkan Nomor Instan",
+  },
 };
 
 export default function WhatsAppLandingPage() {

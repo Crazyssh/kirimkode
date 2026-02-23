@@ -118,6 +118,13 @@ const useCaseData = {
       slug: "cara-menjaga-privasi-nomor-hp",
     },
   ],
+  abTestName: "creator-cta",
+  variantB: {
+    headline: "Nomor Virtual untuk",
+    headlineHighlight: "Kreator Konten",
+    subheadline: "Verifikasi TikTok, Instagram, YouTube tanpa nomor pribadi. Lindungi identitas Anda dari doxxing dan spam.",
+    ctaText: "Lindungi Privasi Saya",
+  },
 };
 
 export default function KreatorSosmedLandingPage() {

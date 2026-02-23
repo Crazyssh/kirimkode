@@ -117,6 +117,13 @@ const useCaseData = {
       slug: "nomor-virtual-untuk-digital-marketer",
     },
   ],
+  abTestName: "tg-cta",
+  variantB: {
+    headline: "Buat Akun Telegram",
+    headlineHighlight: "Tanpa Batas",
+    subheadline: "Nomor virtual mulai Rp 1.200 untuk verifikasi Telegram. Buat channel, grup, dan bot tanpa batasan nomor HP.",
+    ctaText: "Mulai Buat Akun",
+  },
 };
 
 export default function TelegramLandingPage() {

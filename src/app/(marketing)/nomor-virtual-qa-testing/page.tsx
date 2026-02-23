@@ -118,6 +118,13 @@ const useCaseData = {
       slug: "apa-itu-nomor-virtual",
     },
   ],
+  abTestName: "qa-cta",
+  variantB: {
+    headline: "Testing OTP?",
+    headlineHighlight: "Pakai API Kami",
+    subheadline: "REST API untuk beli nomor virtual dan terima OTP secara programmatic. Integrasi ke CI/CD dalam hitungan menit.",
+    ctaText: "Lihat API Docs",
+  },
 };
 
 export default function QATestingLandingPage() {

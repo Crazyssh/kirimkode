@@ -51,6 +51,13 @@ interface FAQ {
   a: string;
 }
 
+interface ABVariant {
+  headline: string;
+  headlineHighlight: string;
+  subheadline: string;
+  ctaText: string;
+}
+
 interface UseCaseData {
   badge: string;
   headline: string;
@@ -61,9 +68,27 @@ interface UseCaseData {
   steps: Step[];
   faqs: FAQ[];
   relatedBlog?: { title: string; slug: string }[];
+  abTestName?: string;
+  variantB?: ABVariant;
 }
 
 export function UseCaseContent({ data }: { data: UseCaseData }) {
+  // A/B test: if variantB is provided, use the hook
+  const abTest = data.abTestName
+    ? // eslint-disable-next-line react-hooks/rules-of-hooks
+      require("@/hooks/use-ab-test").useABTest(data.abTestName)
+    : null;
+
+  const isB = abTest?.variant === "B" && data.variantB;
+  const headline = isB ? data.variantB!.headline : data.headline;
+  const headlineHighlight = isB ? data.variantB!.headlineHighlight : data.headlineHighlight;
+  const subheadline = isB ? data.variantB!.subheadline : data.subheadline;
+  const ctaText = isB ? data.variantB!.ctaText : data.ctaText;
+
+  const handleCtaClick = () => {
+    abTest?.trackConversion();
+  };
+
   return (
     <>
       {/* Hero Section */}
@@ -79,18 +104,18 @@ export function UseCaseContent({ data }: { data: UseCaseData }) {
           </Badge>
 
           <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold font-[family-name:var(--font-space-grotesk)] leading-tight mb-6">
-            {data.headline}{" "}
-            <span className="gradient-text">{data.headlineHighlight}</span>
+            {headline}{" "}
+            <span className="gradient-text">{headlineHighlight}</span>
           </h1>
 
           <p className="text-lg text-muted mb-8 max-w-2xl mx-auto">
-            {data.subheadline}
+            {subheadline}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/register">
+            <Link href="/register" onClick={handleCtaClick}>
               <Button size="lg" className="gap-2">
-                {data.ctaText} <ArrowRight className="w-4 h-4" />
+                {ctaText} <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
             <Link href="#cara-kerja">
@@ -293,9 +318,9 @@ export function UseCaseContent({ data }: { data: UseCaseData }) {
           <p className="text-lg text-muted mb-8">
             Daftar sekarang dan dapatkan nomor virtual pertama Anda dalam hitungan detik.
           </p>
-          <Link href="/register">
+          <Link href="/register" onClick={handleCtaClick}>
             <Button size="lg" className="animate-pulse-glow">
-              {data.ctaText} <ArrowRight className="w-5 h-5 ml-2" />
+              {ctaText} <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </Link>
         </div>
