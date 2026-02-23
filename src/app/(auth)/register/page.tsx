@@ -90,6 +90,9 @@ export default function RegisterPage() {
       if (result?.error) {
         router.push("/login?registered=true");
       } else {
+        if (typeof window !== "undefined" && window.gtag) {
+          window.gtag("event", "sign_up", { method: "credentials" });
+        }
         router.push("/dashboard");
       }
     } catch {
@@ -103,6 +106,9 @@ export default function RegisterPage() {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", "sign_up", { method: "google" });
+    }
     await signIn("google", { callbackUrl: "/dashboard" });
   };
 

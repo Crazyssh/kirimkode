@@ -129,19 +129,31 @@ const useCaseData = {
 export default function WhatsAppLandingPage() {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Product",
-    name: "Nomor Virtual WhatsApp — KirimKode",
-    description:
-      "Nomor virtual untuk verifikasi akun WhatsApp dari 200+ negara. Harga mulai Rp 1.500.",
-    brand: { "@type": "Brand", name: "KirimKode" },
-    offers: {
-      "@type": "Offer",
-      price: "1500",
-      priceCurrency: "IDR",
-      availability: "https://schema.org/InStock",
-      url: "https://kirimkode.com/nomor-virtual-whatsapp",
-    },
-    url: "https://kirimkode.com/nomor-virtual-whatsapp",
+    "@graph": [
+      {
+        "@type": "Product",
+        name: "Nomor Virtual WhatsApp — KirimKode",
+        description:
+          "Nomor virtual untuk verifikasi akun WhatsApp dari 200+ negara. Harga mulai Rp 1.500.",
+        brand: { "@type": "Brand", name: "KirimKode" },
+        offers: {
+          "@type": "Offer",
+          price: "1500",
+          priceCurrency: "IDR",
+          availability: "https://schema.org/InStock",
+          url: "https://kirimkode.com/nomor-virtual-whatsapp",
+        },
+        url: "https://kirimkode.com/nomor-virtual-whatsapp",
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: useCaseData.faqs.map((faq) => ({
+          "@type": "Question",
+          name: faq.q,
+          acceptedAnswer: { "@type": "Answer", text: faq.a },
+        })),
+      },
+    ],
   };
 
   return (

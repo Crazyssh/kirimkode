@@ -341,6 +341,14 @@ export default function BuyPage() {
       if (data.success && data.data) {
         fetchUser();
         fetchHistory(1);
+        if (typeof window !== "undefined" && window.gtag) {
+          window.gtag("event", "purchase", {
+            transaction_id: data.data.order_id || data.data.id,
+            currency: "IDR",
+            value: service.price,
+            items: [{ item_id: service.code, item_name: service.name, price: service.price, quantity: 1 }],
+          });
+        }
       } else {
         setError(data.message || data.error || "Gagal membuat pesanan");
       }
@@ -389,6 +397,15 @@ export default function BuyPage() {
     fetchUser();
     fetchHistory(1);
     setBulkOrdering(false);
+
+    if (successCount > 0 && typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", "purchase", {
+        transaction_id: `bulk_${Date.now()}`,
+        currency: "IDR",
+        value: service.price * successCount,
+        items: [{ item_id: service.code, item_name: service.name, price: service.price, quantity: successCount }],
+      });
+    }
 
     if (successCount < count && lastError) {
       setError(`${successCount}/${count} berhasil. ${lastError}`);

@@ -130,22 +130,34 @@ const useCaseData = {
 export default function QATestingLandingPage() {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Service",
-    name: "Nomor Virtual QA Testing — KirimKode",
-    description:
-      "Layanan nomor virtual dengan REST API untuk QA testing aplikasi OTP. Untuk developer dan tester.",
-    provider: {
-      "@type": "Organization",
-      name: "KirimKode",
-      url: "https://kirimkode.com",
-    },
-    offers: {
-      "@type": "Offer",
-      price: "1200",
-      priceCurrency: "IDR",
-      availability: "https://schema.org/InStock",
-    },
-    url: "https://kirimkode.com/nomor-virtual-qa-testing",
+    "@graph": [
+      {
+        "@type": "Service",
+        name: "Nomor Virtual QA Testing — KirimKode",
+        description:
+          "Layanan nomor virtual dengan REST API untuk QA testing aplikasi OTP. Untuk developer dan tester.",
+        provider: {
+          "@type": "Organization",
+          name: "KirimKode",
+          url: "https://kirimkode.com",
+        },
+        offers: {
+          "@type": "Offer",
+          price: "1200",
+          priceCurrency: "IDR",
+          availability: "https://schema.org/InStock",
+        },
+        url: "https://kirimkode.com/nomor-virtual-qa-testing",
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: useCaseData.faqs.map((faq) => ({
+          "@type": "Question",
+          name: faq.q,
+          acceptedAnswer: { "@type": "Answer", text: faq.a },
+        })),
+      },
+    ],
   };
 
   return (

@@ -130,19 +130,31 @@ const useCaseData = {
 export default function MarketplaceLandingPage() {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Product",
-    name: "Nomor Virtual Shopee & Tokopedia — KirimKode",
-    description:
-      "Nomor virtual untuk verifikasi akun Shopee dan Tokopedia. Mulai Rp 1.200, refund otomatis.",
-    brand: { "@type": "Brand", name: "KirimKode" },
-    offers: {
-      "@type": "Offer",
-      price: "1200",
-      priceCurrency: "IDR",
-      availability: "https://schema.org/InStock",
-      url: "https://kirimkode.com/nomor-virtual-shopee-tokopedia",
-    },
-    url: "https://kirimkode.com/nomor-virtual-shopee-tokopedia",
+    "@graph": [
+      {
+        "@type": "Product",
+        name: "Nomor Virtual Shopee & Tokopedia — KirimKode",
+        description:
+          "Nomor virtual untuk verifikasi akun Shopee dan Tokopedia. Mulai Rp 1.200, refund otomatis.",
+        brand: { "@type": "Brand", name: "KirimKode" },
+        offers: {
+          "@type": "Offer",
+          price: "1200",
+          priceCurrency: "IDR",
+          availability: "https://schema.org/InStock",
+          url: "https://kirimkode.com/nomor-virtual-shopee-tokopedia",
+        },
+        url: "https://kirimkode.com/nomor-virtual-shopee-tokopedia",
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: useCaseData.faqs.map((faq) => ({
+          "@type": "Question",
+          name: faq.q,
+          acceptedAnswer: { "@type": "Answer", text: faq.a },
+        })),
+      },
+    ],
   };
 
   return (

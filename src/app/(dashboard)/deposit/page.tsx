@@ -127,6 +127,13 @@ export default function DepositPage() {
         if (data.data.status === "paid") {
           setStep("done");
           fetchUser(); // Refresh balance
+          if (typeof window !== "undefined" && window.gtag) {
+            window.gtag("event", "purchase", {
+              transaction_id: depositResult?.trx_id,
+              currency: "IDR",
+              value: depositResult ? parseFloat(String(depositResult.amount)) : 0,
+            });
+          }
         }
       }
     } catch {
@@ -163,6 +170,13 @@ export default function DepositPage() {
         setDepositResult(data.data);
         setPaymentStatus("pending");
         setStep("payment");
+        if (typeof window !== "undefined" && window.gtag) {
+          window.gtag("event", "begin_checkout", {
+            currency: "IDR",
+            value: amount,
+            payment_method: selectedChannel,
+          });
+        }
       } else {
         setError(data.error || "Gagal membuat deposit");
       }

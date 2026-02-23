@@ -18,6 +18,7 @@ import {
   Zap,
   AlertTriangle,
   Gauge,
+  Code,
 } from "lucide-react";
 
 export default function ApiDocsPage() {
@@ -27,16 +28,162 @@ export default function ApiDocsPage() {
   const [expandedEndpoint, setExpandedEndpoint] = useState<number | null>(0);
   const [copied, setCopied] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
+  const [sdkTab, setSdkTab] = useState<"node" | "python" | "php" | "curl">("node");
 
   const apiKey = user?.apiKey || "";
 
   const sections = [
     { id: "api-key", label: "API Key", icon: Key },
     { id: "quick-start", label: t("apiDocs.quickStart"), icon: Zap },
+    { id: "sdk-examples", label: "SDK Examples", icon: Code },
     { id: "endpoints", label: t("apiDocs.endpoints"), icon: Book },
     { id: "rate-limit", label: t("apiDocs.rateLimit"), icon: Gauge },
     { id: "errors", label: t("apiDocs.errorCodes"), icon: AlertTriangle },
   ];
+
+  const sdkExamples: Record<string, { label: string; code: string }> = {
+    node: {
+      label: "Node.js",
+      code: `const API_KEY = "YOUR_API_KEY";
+const BASE = "https://api.kirimkode.com/v1";
+
+// Cek saldo
+const balance = await fetch(\`\${BASE}/balance\`, {
+  headers: { "X-API-Key": API_KEY },
+}).then(r => r.json());
+console.log("Saldo:", balance.data.balance);
+
+// Order nomor virtual WhatsApp
+const order = await fetch(\`\${BASE}/order\`, {
+  method: "POST",
+  headers: {
+    "X-API-Key": API_KEY,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    service: "whatsapp",
+    country: "ID",
+  }),
+}).then(r => r.json());
+console.log("Nomor:", order.data.number);
+
+// Poll OTP (cek setiap 5 detik)
+const checkOtp = async (orderId) => {
+  const res = await fetch(
+    \`\${BASE}/order/\${orderId}/status\`,
+    { headers: { "X-API-Key": API_KEY } }
+  ).then(r => r.json());
+
+  if (res.data.code) {
+    console.log("OTP:", res.data.code);
+    return res.data.code;
+  }
+  // Coba lagi dalam 5 detik
+  await new Promise(r => setTimeout(r, 5000));
+  return checkOtp(orderId);
+};
+
+const otp = await checkOtp(order.data.order_id);`,
+    },
+    python: {
+      label: "Python",
+      code: `import requests
+import time
+
+API_KEY = "YOUR_API_KEY"
+BASE = "https://api.kirimkode.com/v1"
+headers = {"X-API-Key": API_KEY}
+
+# Cek saldo
+balance = requests.get(f"{BASE}/balance", headers=headers).json()
+print(f"Saldo: {balance['data']['balance']}")
+
+# Order nomor virtual WhatsApp
+order = requests.post(f"{BASE}/order", headers={
+    **headers, "Content-Type": "application/json"
+}, json={
+    "service": "whatsapp",
+    "country": "ID"
+}).json()
+print(f"Nomor: {order['data']['number']}")
+
+# Poll OTP (cek setiap 5 detik)
+order_id = order["data"]["order_id"]
+while True:
+    status = requests.get(
+        f"{BASE}/order/{order_id}/status",
+        headers=headers
+    ).json()
+    if status["data"].get("code"):
+        print(f"OTP: {status['data']['code']}")
+        break
+    time.sleep(5)`,
+    },
+    php: {
+      label: "PHP",
+      code: `<?php
+$apiKey = "YOUR_API_KEY";
+$base = "https://api.kirimkode.com/v1";
+
+// Cek saldo
+$ch = curl_init("$base/balance");
+curl_setopt($ch, CURLOPT_HTTPHEADER, ["X-API-Key: $apiKey"]);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$balance = json_decode(curl_exec($ch), true);
+echo "Saldo: " . $balance["data"]["balance"] . "\\n";
+
+// Order nomor virtual WhatsApp
+$ch = curl_init("$base/order");
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    "X-API-Key: $apiKey",
+    "Content-Type: application/json"
+]);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+    "service" => "whatsapp",
+    "country" => "ID"
+]));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$order = json_decode(curl_exec($ch), true);
+echo "Nomor: " . $order["data"]["number"] . "\\n";
+
+// Poll OTP
+$orderId = $order["data"]["order_id"];
+while (true) {
+    $ch = curl_init("$base/order/$orderId/status");
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ["X-API-Key: $apiKey"]);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $status = json_decode(curl_exec($ch), true);
+    if (!empty($status["data"]["code"])) {
+        echo "OTP: " . $status["data"]["code"] . "\\n";
+        break;
+    }
+    sleep(5);
+}`,
+    },
+    curl: {
+      label: "cURL",
+      code: `# Cek saldo
+curl -H "X-API-Key: YOUR_API_KEY" \\
+  https://api.kirimkode.com/v1/balance
+
+# Order nomor virtual WhatsApp
+curl -X POST \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"service":"whatsapp","country":"ID"}' \\
+  https://api.kirimkode.com/v1/order
+
+# Cek status OTP
+curl -H "X-API-Key: YOUR_API_KEY" \\
+  https://api.kirimkode.com/v1/order/ORDER_ID/status
+
+# Cancel order
+curl -X POST \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  https://api.kirimkode.com/v1/order/ORDER_ID/cancel`,
+    },
+  };
 
   const apiEndpoints = [
     { method: "GET", path: "/api/v1/balance", description: t("apiDocs.descBalance"), example: `{\n  "status": "success",\n  "data": {\n    "balance": 125000,\n    "currency": "IDR"\n  }\n}` },
@@ -197,6 +344,49 @@ export default function ApiDocsPage() {
                     {"\n  "}-d <span className="text-primary">{"'{\"service\":\"whatsapp\",\"country\":\"ID\"}"}</span><span className="text-primary">{"'"}</span>
                     {"\n  "}https://api.kirimkode.com/v1/order
                   </code>
+                </pre>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* SDK Examples */}
+        <section id="sdk-examples">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Code className="w-4 h-4 text-primary" />
+                  SDK Examples
+                </CardTitle>
+                <button
+                  onClick={() => handleCopy(sdkExamples[sdkTab].code, "sdk")}
+                  className="text-xs text-muted hover:text-foreground flex items-center gap-1"
+                >
+                  {copied === "sdk" ? <CheckCircle className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
+                  {copied === "sdk" ? t("common.copied") : t("common.copy")}
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-1 mb-4">
+                {(Object.keys(sdkExamples) as Array<keyof typeof sdkExamples>).map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => setSdkTab(key as typeof sdkTab)}
+                    className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
+                      sdkTab === key
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-muted hover:text-foreground"
+                    }`}
+                  >
+                    {sdkExamples[key].label}
+                  </button>
+                ))}
+              </div>
+              <div className="bg-background rounded-xl p-2 sm:p-4 overflow-x-auto">
+                <pre className="text-[10px] sm:text-xs font-[family-name:var(--font-jetbrains-mono)] leading-relaxed text-foreground/80">
+                  {sdkExamples[sdkTab].code}
                 </pre>
               </div>
             </CardContent>

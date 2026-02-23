@@ -130,22 +130,34 @@ const useCaseData = {
 export default function KreatorSosmedLandingPage() {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Service",
-    name: "Nomor Virtual Kreator Sosial Media — KirimKode",
-    description:
-      "Layanan nomor virtual untuk verifikasi akun sosial media kreator konten. TikTok, Instagram, YouTube, dan lainnya.",
-    provider: {
-      "@type": "Organization",
-      name: "KirimKode",
-      url: "https://kirimkode.com",
-    },
-    offers: {
-      "@type": "Offer",
-      price: "1200",
-      priceCurrency: "IDR",
-      availability: "https://schema.org/InStock",
-    },
-    url: "https://kirimkode.com/nomor-virtual-kreator-sosmed",
+    "@graph": [
+      {
+        "@type": "Service",
+        name: "Nomor Virtual Kreator Sosial Media — KirimKode",
+        description:
+          "Layanan nomor virtual untuk verifikasi akun sosial media kreator konten. TikTok, Instagram, YouTube, dan lainnya.",
+        provider: {
+          "@type": "Organization",
+          name: "KirimKode",
+          url: "https://kirimkode.com",
+        },
+        offers: {
+          "@type": "Offer",
+          price: "1200",
+          priceCurrency: "IDR",
+          availability: "https://schema.org/InStock",
+        },
+        url: "https://kirimkode.com/nomor-virtual-kreator-sosmed",
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: useCaseData.faqs.map((faq) => ({
+          "@type": "Question",
+          name: faq.q,
+          acceptedAnswer: { "@type": "Answer", text: faq.a },
+        })),
+      },
+    ],
   };
 
   return (
