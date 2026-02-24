@@ -2,6 +2,7 @@
 
 import { useState, useEffect, type ComponentType } from "react";
 import { SessionProvider } from "next-auth/react";
+import { useLanguageStore } from "@/store/language";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -12,6 +13,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }>({ Toaster: null, FP: null });
 
   useEffect(() => {
+    // Hydrate language store setelah hydration — cegah mismatch
+    useLanguageStore.getState().hydrate();
+
     const saved = localStorage.getItem("theme") as "dark" | "light" | null;
     if (saved) setTheme(saved);
 
