@@ -1,12 +1,29 @@
+// Static import default locale (id) — selalu dibutuhkan
 import { id } from "./id";
-import { en } from "./en";
 
 export type Locale = "id" | "en";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Translations = Record<string, any>;
 
-export const translations: Record<Locale, Translations> = { id, en };
+// Default: 'en' pakai id sebagai placeholder, di-lazy load saat dibutuhkan
+export const translations: Record<Locale, Translations> = {
+  id,
+  en: id,
+};
+
+/**
+ * Lazy load translation file berdasarkan locale.
+ * Hanya 'en' yang di-lazy load (karena 'id' sudah static import).
+ */
+export async function loadTranslation(locale: Locale): Promise<Translations> {
+  if (locale === "en") {
+    const mod = await import("./en");
+    translations.en = mod.en;
+    return mod.en;
+  }
+  return id;
+}
 
 /**
  * Ambil nested value dari object menggunakan dot-notation key.

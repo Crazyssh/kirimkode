@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { translations, getNestedValue, type Locale, type Translations } from "@/lib/i18n";
+import { translations, loadTranslation, getNestedValue, type Locale, type Translations } from "@/lib/i18n";
 
 const STORAGE_KEY = "kirimkode-lang";
 
@@ -30,6 +30,13 @@ interface LanguageStore {
 export const useLanguageStore = create<LanguageStore>((set, get) => {
   const initialLocale = typeof window !== "undefined" ? detectLocale() : "id";
 
+  // Lazy load translation jika bukan 'id'
+  if (initialLocale === "en" && typeof window !== "undefined") {
+    loadTranslation("en").then((t) => {
+      set({ translations: t });
+    });
+  }
+
   return {
     locale: initialLocale,
     translations: translations[initialLocale],
@@ -39,7 +46,10 @@ export const useLanguageStore = create<LanguageStore>((set, get) => {
         localStorage.setItem(STORAGE_KEY, locale);
         document.documentElement.lang = locale;
       }
-      set({ locale, translations: translations[locale] });
+      // Lazy load translation jika belum ada
+      loadTranslation(locale).then((t) => {
+        set({ locale, translations: t });
+      });
     },
 
     t: (key: string, params?: Record<string, string | number>): string => {
