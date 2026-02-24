@@ -81,6 +81,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   callbacks: {
+    async signIn({ user, account }) {
+      // Block banned users dari SEMUA provider (Google OAuth, Credentials, dll)
+      // Credentials provider sudah cek di authorize(), ini untuk OAuth providers
+      if (account?.provider !== "credentials" && user?.id) {
+        try {
+          const dbUser = await db.user.findUnique({
+            where: { id: user.id },
+            select: { status: true },
+          });
+          if (dbUser?.status === "banned") {
+            return false; // Block sign in
+          }
+        } catch {
+          // Kalau user baru (belum ada di DB), izinkan — akan dibuat oleh adapter
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;

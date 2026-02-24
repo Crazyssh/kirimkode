@@ -12,7 +12,7 @@ export async function GET() {
   } catch (error) {
     console.error("Get channels error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Gagal ambil payment channels" },
+      { error: "Gagal ambil payment channels" },
       { status: 500 }
     );
   }

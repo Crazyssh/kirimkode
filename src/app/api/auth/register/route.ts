@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { checkRouteRateLimit } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: max 5 registrasi per IP per menit
+    const rateLimited = checkRouteRateLimit(req, "register", 5, 60000);
+    if (rateLimited) return rateLimited;
+
     const { name, email, password, phone, captchaToken, referralCode } = await req.json();
 
     // Verify captcha

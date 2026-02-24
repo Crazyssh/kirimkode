@@ -99,12 +99,18 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Failed to create order";
+    const rawMsg = error instanceof Error ? error.message : "";
 
-    if (msg === "INSUFFICIENT_BALANCE") {
+    if (rawMsg === "INSUFFICIENT_BALANCE") {
       return NextResponse.json({ status: "error", message: "Insufficient balance" }, { status: 402 });
     }
 
-    return NextResponse.json({ status: "error", message: msg }, { status: 500 });
+    // Deteksi error stok habis dari JasaOTP
+    const isStock = /stok|stock|habis|unavailable|empty|sold.?out|not.?available|no.?number/i.test(rawMsg);
+    if (isStock) {
+      return NextResponse.json({ status: "error", message: "Out of stock for this service" }, { status: 409 });
+    }
+
+    return NextResponse.json({ status: "error", message: "Failed to create order" }, { status: 500 });
   }
 }

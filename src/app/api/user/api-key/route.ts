@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -10,6 +11,10 @@ function generateApiKey(): string {
 
 // POST: Generate atau regenerate API key (wajib konfirmasi password)
 export async function POST(req: NextRequest) {
+  // Rate limit: max 5 regenerate per IP per menit
+  const rateLimited = checkRouteRateLimit(req, "api-key", 5, 60000);
+  if (rateLimited) return rateLimited;
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

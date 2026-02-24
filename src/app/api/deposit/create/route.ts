@@ -5,9 +5,14 @@ import {
   createTransaction,
   generateReferenceId,
 } from "@/lib/paymenku";
+import { checkRouteRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: max 10 deposit per IP per menit
+    const rateLimited = checkRouteRateLimit(req, "deposit-create", 10, 60000);
+    if (rateLimited) return rateLimited;
+
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -99,7 +104,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Deposit create error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Gagal membuat deposit" },
+      { error: "Gagal membuat deposit" },
       { status: 500 }
     );
   }

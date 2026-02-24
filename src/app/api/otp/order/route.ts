@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
 import { applyPricing } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
+import { checkRouteRateLimit } from "@/lib/rate-limit";
 
 /**
  * Ambil harga dari server JasaOTP + apply pricing rules.
@@ -25,6 +26,10 @@ async function getServerPrice(server: "api1" | "api2", negara: number, layanan: 
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: max 50 order per IP per menit
+    const rateLimited = checkRouteRateLimit(req, "otp-order", 50, 60000);
+    if (rateLimited) return rateLimited;
+
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -105,9 +110,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("Order error:", error);
-    const msg = error instanceof Error ? error.message : "Gagal membuat pesanan";
+    const rawMsg = error instanceof Error ? error.message : "";
 
-    if (msg === "INSUFFICIENT_BALANCE") {
+    if (rawMsg === "INSUFFICIENT_BALANCE") {
       return NextResponse.json(
         { error: "Saldo tidak cukup. Silakan deposit terlebih dahulu." },
         { status: 402 }
@@ -115,7 +120,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Deteksi error stok habis dari JasaOTP
-    const isStock = /stok|stock|habis|unavailable|empty|sold.?out|not.?available|no.?number/i.test(msg);
+    const isStock = /stok|stock|habis|unavailable|empty|sold.?out|not.?available|no.?number/i.test(rawMsg);
     if (isStock) {
       return NextResponse.json(
         { error: "Stok habis untuk layanan ini. Coba negara atau operator lain.", message: "Stok habis" },
@@ -123,6 +128,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ error: msg, message: msg }, { status: 500 });
+    return NextResponse.json({ error: "Gagal membuat pesanan" }, { status: 500 });
   }
 }

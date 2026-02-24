@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { checkRouteRateLimit } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
 
 // Blacklist IP ranges yang tidak boleh dijadikan webhook URL (anti-SSRF)
@@ -39,6 +40,10 @@ function isValidWebhookUrl(url: string): { valid: boolean; error?: string } {
 }
 
 export async function PATCH(req: NextRequest) {
+  // Rate limit: max 10 settings update per IP per menit
+  const rateLimited = checkRouteRateLimit(req, "user-settings", 10, 60000);
+  if (rateLimited) return rateLimited;
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

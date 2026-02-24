@@ -95,7 +95,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Deposit status error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Gagal cek status" },
+      { error: "Gagal cek status" },
       { status: 500 }
     );
   }

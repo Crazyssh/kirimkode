@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { cancelOrder } from "@/lib/otp";
+import { checkRouteRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: max 50 cancel per IP per menit
+    const rateLimited = checkRouteRateLimit(req, "otp-cancel", 50, 60000);
+    if (rateLimited) return rateLimited;
+
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
