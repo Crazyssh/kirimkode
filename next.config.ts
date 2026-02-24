@@ -1,6 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["next"],
+
+  turbopack: {
+    resolveAlias: {
+      "../build/polyfills/polyfill-module":
+        "./src/lib/modern-polyfill.js",
+      "next/dist/build/polyfills/polyfill-module":
+        "./src/lib/modern-polyfill.js",
+    },
+  },
+
   experimental: {
     cssChunking: "strict",
   },
