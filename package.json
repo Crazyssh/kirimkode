@@ -27,8 +27,7 @@
     "react-dom": "19.2.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
-    "zustand": "^5.0.11",
-    "critters": "^0.0.25"
+    "zustand": "^5.0.11"
   },
   "browserslist": [
     "chrome >= 92",
