@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   DollarSign,
-  Plus,
   Trash2,
   Loader2,
   Save,
@@ -15,8 +14,8 @@ import {
   CheckCircle,
   Tag,
   RotateCcw,
-  Pencil,
-  X,
+  Search,
+  Globe,
 } from "lucide-react";
 
 interface PriceRule {
@@ -26,7 +25,6 @@ interface PriceRule {
   priceType: string;
   value: number;
   active: boolean;
-  createdAt: string;
 }
 
 interface Negara {
@@ -34,45 +32,51 @@ interface Negara {
   nama_negara: string;
 }
 
+interface LayananItem {
+  code: string;
+  name: string;
+  price: number;
+  stock: number;
+}
+
 const priceTypeOptions = [
+  { value: "", label: "Harga Provider" },
   { value: "fixed", label: "Harga Tetap" },
   { value: "multiply", label: "Kalikan (%)" },
-  { value: "markup", label: "Tambahan" },
+  { value: "markup", label: "Tambahan (+)" },
 ];
-
-const priceTypeLabels: Record<string, string> = {
-  fixed: "Harga Tetap",
-  multiply: "Kalikan (%)",
-  markup: "Tambahan",
-};
 
 export default function PricingPage() {
   const [rules, setRules] = useState<PriceRule[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState<string | null>(null); // ID yang sedang disave
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Inline edit state
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editType, setEditType] = useState("fixed");
-  const [editValue, setEditValue] = useState(0);
-
-  // New rule inline
-  const [showNewRow, setShowNewRow] = useState(false);
-  const [newServiceCode, setNewServiceCode] = useState("*");
-  const [newCountryId, setNewCountryId] = useState(0);
-  const [newPriceType, setNewPriceType] = useState("fixed");
-  const [newValue, setNewValue] = useState(1000);
-
-  // Negara list for dropdown
+  // Server & negara selection
+  const [selectedServer, setSelectedServer] = useState("api1");
+  const [selectedCountryId, setSelectedCountryId] = useState(0);
   const [negaraList, setNegaraList] = useState<Negara[]>([]);
+  const [negaraSearch, setNegaraSearch] = useState("");
+  const [loadingNegara, setLoadingNegara] = useState(true);
 
+  // Layanan list for selected country
+  const [layananList, setLayananList] = useState<LayananItem[]>([]);
+  const [loadingLayanan, setLoadingLayanan] = useState(false);
+  const [layananSearch, setLayananSearch] = useState("");
+
+  // Inline edit: track which service is being edited
+  const [editingCode, setEditingCode] = useState<string | null>(null);
+  const [editType, setEditType] = useState("");
+  const [editValue, setEditValue] = useState(0);
+  const [savingCode, setSavingCode] = useState<string | null>(null);
+
+  // Fetch negara
   useEffect(() => {
     async function fetchNegara() {
+      setLoadingNegara(true);
       try {
-        const res = await fetch("/api/otp/negara?server=api1");
+        const res = await fetch(`/api/otp/negara?server=${selectedServer}`);
         const data = await res.json();
         if (data.data) {
           const sorted = [...data.data].sort((a: Negara, b: Negara) =>
@@ -81,17 +85,12 @@ export default function PricingPage() {
           setNegaraList(sorted);
         }
       } catch { /* silent */ }
+      finally { setLoadingNegara(false); }
     }
     fetchNegara();
-  }, []);
+  }, [selectedServer]);
 
-  const getNegaraName = (id: number) => {
-    if (id === 0) return "Semua";
-    const n = negaraList.find((x) => x.id_negara === id);
-    if (!n) return `#${id}`;
-    return n.nama_negara.charAt(0).toUpperCase() + n.nama_negara.slice(1);
-  };
-
+  // Fetch rules
   const fetchRules = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/pricing");
@@ -106,51 +105,111 @@ export default function PricingPage() {
     }
   }, []);
 
+  useEffect(() => { fetchRules(); }, [fetchRules]);
+
+  // Fetch layanan when country selected
   useEffect(() => {
-    fetchRules();
-  }, [fetchRules]);
+    if (selectedCountryId === 0) {
+      setLayananList([]);
+      return;
+    }
+    async function fetchLayanan() {
+      setLoadingLayanan(true);
+      try {
+        const res = await fetch(`/api/otp/layanan?server=${selectedServer}&negara=${selectedCountryId}`);
+        const data = await res.json();
+        const key = String(selectedCountryId);
+        let serviceData: Record<string, { layanan: string; harga?: number; stok?: number }> = {};
+        if (data?.[key]) serviceData = data[key];
+        else if (data?.data?.[key]) serviceData = data.data[key];
+
+        const mapped: LayananItem[] = Object.entries(serviceData)
+          .filter(([, v]) => v && typeof v === "object" && "layanan" in v)
+          .map(([code, v]) => ({
+            code,
+            name: v.layanan || code,
+            price: v.harga || 0,
+            stock: v.stok || 0,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setLayananList(mapped);
+      } catch { setLayananList([]); }
+      finally { setLoadingLayanan(false); }
+    }
+    fetchLayanan();
+  }, [selectedCountryId, selectedServer]);
 
   // Auto-hide notifications
   useEffect(() => {
-    if (success) {
-      const t = setTimeout(() => setSuccess(""), 3000);
-      return () => clearTimeout(t);
-    }
+    if (success) { const t = setTimeout(() => setSuccess(""), 3000); return () => clearTimeout(t); }
   }, [success]);
   useEffect(() => {
-    if (error) {
-      const t = setTimeout(() => setError(""), 5000);
-      return () => clearTimeout(t);
-    }
+    if (error) { const t = setTimeout(() => setError(""), 5000); return () => clearTimeout(t); }
   }, [error]);
 
-  const startEdit = (rule: PriceRule) => {
-    setEditingId(rule.id);
-    setEditType(rule.priceType);
-    setEditValue(rule.value);
+  // Find existing rule for a service+country combo
+  const getRule = (serviceCode: string): PriceRule | undefined => {
+    return rules.find(
+      (r) => r.serviceCode === serviceCode && r.countryId === selectedCountryId
+    );
   };
 
-  const cancelEdit = () => {
-    setEditingId(null);
+  // Get global/wildcard rule
+  const getGlobalRule = (): PriceRule | undefined => {
+    return rules.find((r) => r.serviceCode === "*" && r.countryId === selectedCountryId)
+      || rules.find((r) => r.serviceCode === "*" && r.countryId === 0);
   };
 
-  const saveEdit = async (rule: PriceRule) => {
-    setSaving(rule.id);
+  const startEdit = (code: string) => {
+    const rule = getRule(code);
+    setEditingCode(code);
+    if (rule) {
+      setEditType(rule.priceType);
+      setEditValue(rule.value);
+    } else {
+      setEditType("fixed");
+      setEditValue(0);
+    }
+  };
+
+  const cancelEdit = () => { setEditingCode(null); };
+
+  const saveServicePrice = async (code: string) => {
+    setSavingCode(code);
     setError("");
     try {
+      // Kalau type kosong = hapus rule (kembali ke harga provider)
+      if (!editType) {
+        const rule = getRule(code);
+        if (rule) {
+          const res = await fetch("/api/admin/pricing", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: rule.id }),
+          });
+          if (res.ok) {
+            setSuccess(`${code.toUpperCase()} kembali ke harga provider`);
+            fetchRules();
+          }
+        }
+        setEditingCode(null);
+        setSavingCode(null);
+        return;
+      }
+
       const res = await fetch("/api/admin/pricing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          serviceCode: rule.serviceCode,
-          countryId: rule.countryId,
+          serviceCode: code,
+          countryId: selectedCountryId,
           priceType: editType,
           value: editValue,
         }),
       });
       if (res.ok) {
-        setSuccess("Harga berhasil diupdate");
-        setEditingId(null);
+        setSuccess(`Harga ${code.toUpperCase()} disimpan`);
+        setEditingCode(null);
         fetchRules();
       } else {
         const data = await res.json();
@@ -159,45 +218,11 @@ export default function PricingPage() {
     } catch {
       setError("Gagal menyimpan");
     } finally {
-      setSaving(null);
+      setSavingCode(null);
     }
   };
 
-  const saveNewRule = async () => {
-    setSaving("new");
-    setError("");
-    try {
-      const res = await fetch("/api/admin/pricing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceCode: newServiceCode,
-          countryId: newCountryId,
-          priceType: newPriceType,
-          value: newValue,
-        }),
-      });
-      if (res.ok) {
-        setSuccess("Aturan harga baru ditambahkan");
-        setShowNewRow(false);
-        setNewServiceCode("*");
-        setNewCountryId(0);
-        setNewPriceType("fixed");
-        setNewValue(1000);
-        fetchRules();
-      } else {
-        const data = await res.json();
-        setError(data.error || "Gagal menyimpan");
-      }
-    } catch {
-      setError("Gagal menyimpan");
-    } finally {
-      setSaving(null);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Hapus aturan harga ini?")) return;
+  const handleDeleteRule = async (id: string, code: string) => {
     try {
       const res = await fetch("/api/admin/pricing", {
         method: "DELETE",
@@ -205,7 +230,7 @@ export default function PricingPage() {
         body: JSON.stringify({ id }),
       });
       if (res.ok) {
-        setSuccess("Aturan dihapus");
+        setSuccess(`${code.toUpperCase()} kembali ke harga provider`);
         fetchRules();
       }
     } catch {
@@ -227,28 +252,36 @@ export default function PricingPage() {
         setSuccess(`${data.deleted} aturan dihapus`);
         fetchRules();
       }
-    } catch {
-      setError("Gagal mereset");
-    } finally {
-      setResetting(false);
-    }
+    } catch { setError("Gagal mereset"); }
+    finally { setResetting(false); }
   };
 
-  const formatValue = (rule: PriceRule) => {
+  const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
+
+  const getSellingPrice = (basePrice: number, rule?: PriceRule) => {
+    if (!rule) return basePrice;
     switch (rule.priceType) {
-      case "fixed":
-        return `Rp ${rule.value.toLocaleString("id-ID")}`;
-      case "multiply":
-        return `${rule.value}% (${(rule.value / 100).toFixed(1)}x)`;
-      case "markup":
-        return `+Rp ${rule.value.toLocaleString("id-ID")}`;
-      default:
-        return String(rule.value);
+      case "fixed": return rule.value;
+      case "multiply": return Math.ceil((basePrice * rule.value) / 100);
+      case "markup": return basePrice + rule.value;
+      default: return basePrice;
     }
   };
 
-  const formatCountry = (id: number) => getNegaraName(id);
-  const formatService = (code: string) => (code === "*" ? "Semua" : code.toUpperCase());
+  const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  const filteredLayanan = layananList.filter(
+    (l) => l.name.toLowerCase().includes(layananSearch.toLowerCase())
+      || l.code.toLowerCase().includes(layananSearch.toLowerCase())
+  );
+
+  const filteredNegara = negaraList.filter(
+    (n) => n.nama_negara.toLowerCase().includes(negaraSearch.toLowerCase())
+  );
+
+  const selectedNegaraName = selectedCountryId === 0
+    ? ""
+    : capitalize(negaraList.find((n) => n.id_negara === selectedCountryId)?.nama_negara || "");
 
   if (loading) {
     return (
@@ -265,38 +298,28 @@ export default function PricingPage() {
           <h1 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)]">
             Pengaturan Harga OTP
           </h1>
-          <p className="text-sm text-muted">
-            Klik baris untuk edit harga langsung. Kode <code className="text-primary">*</code> = semua layanan, negara <code className="text-primary">0</code> = semua negara.
-          </p>
+          <p className="text-sm text-muted">Pilih negara untuk lihat dan atur harga per layanan.</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => { setShowNewRow(true); setEditingId(null); }}>
-            <Plus className="w-4 h-4" />
-            Tambah
+        {rules.length > 0 && (
+          <Button variant="danger" size="sm" onClick={handleResetAll} disabled={resetting}>
+            {resetting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+            Reset Semua ({rules.length})
           </Button>
-          {rules.length > 0 && (
-            <Button variant="danger" size="sm" onClick={handleResetAll} disabled={resetting}>
-              {resetting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
-              Reset Semua
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-error/10 border border-error/30 text-error text-sm animate-fade-in">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-error/10 border border-error/30 text-error text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-success/10 border border-success/30 text-success text-sm animate-fade-in">
-          <CheckCircle className="w-4 h-4 shrink-0" />
-          {success}
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-success/10 border border-success/30 text-success text-sm">
+          <CheckCircle className="w-4 h-4 shrink-0" /> {success}
         </div>
       )}
 
-      {/* Penjelasan Singkat */}
+      {/* Penjelasan */}
       <Card>
         <CardContent>
           <div className="flex items-start gap-3">
@@ -304,227 +327,265 @@ export default function PricingPage() {
             <div className="text-sm text-muted space-y-1">
               <p><strong className="text-foreground">Harga Tetap</strong>: Abaikan harga provider, pakai harga ini</p>
               <p><strong className="text-foreground">Kalikan (%)</strong>: Harga provider × persentase (150 = 1.5x)</p>
-              <p><strong className="text-foreground">Tambahan</strong>: Harga provider + nominal Rupiah</p>
-              <p className="text-xs">Aturan spesifik (per layanan/negara) lebih prioritas dari aturan global</p>
+              <p><strong className="text-foreground">Tambahan (+)</strong>: Harga provider + nominal Rupiah</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabel Aturan Harga — Inline Edit */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <DollarSign className="w-4 h-4 text-primary" />
-            Aturan Harga
-            {rules.length > 0 && <Badge variant="primary">{rules.length}</Badge>}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-xs text-muted border-b border-border">
-                  <th className="pb-3 font-medium w-[140px]">Layanan</th>
-                  <th className="pb-3 font-medium w-[100px]">Negara</th>
-                  <th className="pb-3 font-medium w-[160px]">Tipe Harga</th>
-                  <th className="pb-3 font-medium w-[160px]">Nilai</th>
-                  <th className="pb-3 font-medium w-[80px]">Status</th>
-                  <th className="pb-3 font-medium w-[120px] text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm">
-                {/* New Rule Row */}
-                {showNewRow && (
-                  <tr className="border-b border-primary/30 bg-primary/5">
-                    <td className="py-2 pr-2">
-                      <Input
-                        value={newServiceCode}
-                        onChange={(e) => setNewServiceCode(e.target.value)}
-                        placeholder="* atau kode"
-                        className="h-9 text-sm font-[family-name:var(--font-jetbrains-mono)]"
-                      />
-                    </td>
-                    <td className="py-2 pr-2">
-                      <select
-                        value={newCountryId}
-                        onChange={(e) => setNewCountryId(Number(e.target.value))}
-                        className="w-full h-9 px-2 rounded-lg bg-surface border border-border text-sm focus:outline-none focus:border-primary/50 text-foreground"
-                      >
-                        <option value={0}>Semua Negara</option>
-                        {negaraList.map((n) => (
-                          <option key={n.id_negara} value={n.id_negara}>
-                            {n.nama_negara.charAt(0).toUpperCase() + n.nama_negara.slice(1)}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="py-2 pr-2">
-                      <select
-                        value={newPriceType}
-                        onChange={(e) => setNewPriceType(e.target.value)}
-                        className="w-full h-9 px-2 rounded-lg bg-surface border border-border text-sm focus:outline-none focus:border-primary/50 text-foreground"
-                      >
-                        {priceTypeOptions.map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="py-2 pr-2">
-                      <Input
-                        type="number"
-                        value={newValue}
-                        onChange={(e) => setNewValue(Number(e.target.value))}
-                        className="h-9 text-sm font-[family-name:var(--font-jetbrains-mono)]"
-                      />
-                    </td>
-                    <td className="py-2">
-                      <Badge variant="success">Baru</Badge>
-                    </td>
-                    <td className="py-2 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button size="sm" onClick={saveNewRule} disabled={saving === "new"}>
-                          {saving === "new" ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setShowNewRow(false)}>
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                )}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Sidebar: Pilih Server + Negara */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* Server */}
+          <Card>
+            <CardContent>
+              <label className="text-xs text-muted block mb-2">Server</label>
+              <div className="flex gap-2">
+                {[
+                  { id: "api1", name: "Mars", icon: "🔴" },
+                  { id: "api2", name: "Jupiter", icon: "🟠" },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => { setSelectedServer(s.id); setSelectedCountryId(0); }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+                      selectedServer === s.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border hover:border-primary/30"
+                    }`}
+                  >
+                    <span>{s.icon}</span> {s.name}
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
-                {/* Existing Rules */}
-                {rules.map((rule) => {
-                  const isEditing = editingId === rule.id;
-
-                  return (
-                    <tr
-                      key={rule.id}
-                      className={`border-b border-border/50 transition-colors ${
-                        isEditing ? "bg-primary/5" : "hover:bg-surface/30 cursor-pointer"
+          {/* Negara List */}
+          <Card>
+            <CardContent>
+              <label className="text-xs text-muted block mb-2">
+                <Globe className="w-3 h-3 inline mr-1" />
+                Pilih Negara
+              </label>
+              <div className="relative mb-3">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
+                <input
+                  type="text"
+                  placeholder="Cari negara..."
+                  value={negaraSearch}
+                  onChange={(e) => setNegaraSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 rounded-lg bg-background border border-border text-sm focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted"
+                />
+              </div>
+              <div className="max-h-[500px] overflow-y-auto space-y-0.5">
+                {loadingNegara ? (
+                  <div className="py-8 text-center text-muted text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin inline mr-2" />Memuat...
+                  </div>
+                ) : (
+                  filteredNegara.map((n) => (
+                    <button
+                      key={n.id_negara}
+                      onClick={() => { setSelectedCountryId(n.id_negara); setLayananSearch(""); setEditingCode(null); }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                        selectedCountryId === n.id_negara
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "hover:bg-surface-hover"
                       }`}
-                      onClick={() => !isEditing && startEdit(rule)}
                     >
-                      <td className="py-3">
-                        <span className="font-[family-name:var(--font-jetbrains-mono)] text-primary font-bold">
-                          {formatService(rule.serviceCode)}
-                        </span>
-                      </td>
-                      <td className="py-3 text-muted">
-                        {formatCountry(rule.countryId)}
-                      </td>
-                      <td className="py-2 pr-2">
-                        {isEditing ? (
-                          <select
-                            value={editType}
-                            onChange={(e) => setEditType(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full h-9 px-2 rounded-lg bg-surface border border-border text-sm focus:outline-none focus:border-primary/50 text-foreground"
-                          >
-                            {priceTypeOptions.map((o) => (
-                              <option key={o.value} value={o.value}>{o.label}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <Badge variant="default">
-                            {priceTypeLabels[rule.priceType] || rule.priceType}
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="py-2 pr-2">
-                        {isEditing ? (
-                          <Input
-                            type="number"
-                            value={editValue}
-                            onChange={(e) => setEditValue(Number(e.target.value))}
-                            onClick={(e) => e.stopPropagation()}
-                            className="h-9 text-sm font-[family-name:var(--font-jetbrains-mono)]"
-                            autoFocus
-                          />
-                        ) : (
-                          <span className="font-[family-name:var(--font-jetbrains-mono)] font-bold">
-                            {formatValue(rule)}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        <Badge variant={rule.active ? "success" : "error"}>
-                          {rule.active ? "Aktif" : "Off"}
-                        </Badge>
-                      </td>
-                      <td className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                        {isEditing ? (
-                          <div className="flex items-center justify-end gap-1">
-                            <Button size="sm" onClick={() => saveEdit(rule)} disabled={saving === rule.id}>
-                              {saving === rule.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={cancelEdit}>
-                              <X className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => startEdit(rule)}>
-                              <Pencil className="w-3 h-3" />
-                            </Button>
-                            <Button size="sm" variant="danger" onClick={() => handleDelete(rule.id)}>
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      {capitalize(n.nama_negara)}
+                      <span className="text-xs text-muted ml-1.5">#{n.id_negara}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          {rules.length === 0 && !showNewRow && (
-            <div className="text-center py-12 text-muted">
-              <DollarSign className="w-8 h-8 mx-auto mb-3 opacity-50" />
-              <p>Belum ada aturan harga</p>
-              <p className="text-xs mt-1">Klik &quot;Tambah&quot; untuk buat aturan pertama</p>
-            </div>
+        {/* Main: Daftar Layanan + Harga */}
+        <div className="lg:col-span-3">
+          {selectedCountryId === 0 ? (
+            <Card>
+              <CardContent>
+                <div className="text-center py-16 text-muted">
+                  <Globe className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium">Pilih negara di sebelah kiri</p>
+                  <p className="text-sm mt-1">Semua layanan yang tersedia akan muncul di sini</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <DollarSign className="w-4 h-4 text-primary" />
+                    Layanan di {selectedNegaraName}
+                    {layananList.length > 0 && <Badge variant="primary">{layananList.length}</Badge>}
+                  </CardTitle>
+                  <div className="relative w-64">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted" />
+                    <input
+                      type="text"
+                      placeholder="Cari layanan..."
+                      value={layananSearch}
+                      onChange={(e) => setLayananSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-2 rounded-lg bg-background border border-border text-sm focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted"
+                    />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loadingLayanan ? (
+                  <div className="py-12 text-center text-muted">
+                    <Loader2 className="w-6 h-6 animate-spin inline mr-2" />Memuat layanan...
+                  </div>
+                ) : filteredLayanan.length === 0 ? (
+                  <div className="py-12 text-center text-muted">
+                    <p>Tidak ada layanan ditemukan</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-left text-xs text-muted border-b border-border">
+                          <th className="pb-3 font-medium">Kode</th>
+                          <th className="pb-3 font-medium">Layanan</th>
+                          <th className="pb-3 font-medium">Stok</th>
+                          <th className="pb-3 font-medium">Harga Provider</th>
+                          <th className="pb-3 font-medium">Tipe</th>
+                          <th className="pb-3 font-medium">Nilai</th>
+                          <th className="pb-3 font-medium">Harga Jual</th>
+                          <th className="pb-3 font-medium text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm">
+                        {filteredLayanan.map((l) => {
+                          const rule = getRule(l.code);
+                          const globalRule = getGlobalRule();
+                          const activeRule = rule || globalRule;
+                          const sellingPrice = getSellingPrice(l.price, activeRule);
+                          const isEditing = editingCode === l.code;
+                          const hasCustomRule = !!rule;
+                          const profit = sellingPrice - l.price;
+
+                          return (
+                            <tr
+                              key={l.code}
+                              className={`border-b border-border/50 transition-colors ${
+                                isEditing ? "bg-primary/5" : "hover:bg-surface/30 cursor-pointer"
+                              }`}
+                              onClick={() => !isEditing && startEdit(l.code)}
+                            >
+                              <td className="py-2.5">
+                                <span className="font-[family-name:var(--font-jetbrains-mono)] text-primary font-bold text-xs">
+                                  {l.code.toUpperCase()}
+                                </span>
+                              </td>
+                              <td className="py-2.5">
+                                <span className="font-medium">{capitalize(l.name)}</span>
+                              </td>
+                              <td className="py-2.5">
+                                <span className={`text-xs font-[family-name:var(--font-jetbrains-mono)] ${
+                                  l.stock > 100 ? "text-success" : l.stock > 20 ? "text-accent" : "text-error"
+                                }`}>
+                                  {l.stock}
+                                </span>
+                              </td>
+                              <td className="py-2.5 font-[family-name:var(--font-jetbrains-mono)] text-xs text-muted">
+                                {formatRp(l.price)}
+                              </td>
+                              <td className="py-2 pr-2" onClick={(e) => e.stopPropagation()}>
+                                {isEditing ? (
+                                  <select
+                                    value={editType}
+                                    onChange={(e) => {
+                                      setEditType(e.target.value);
+                                      if (e.target.value === "fixed" && editValue === 0) setEditValue(l.price);
+                                    }}
+                                    className="w-full h-8 px-2 rounded-lg bg-surface border border-border text-xs focus:outline-none focus:border-primary/50 text-foreground"
+                                  >
+                                    {priceTypeOptions.map((o) => (
+                                      <option key={o.value} value={o.value}>{o.label}</option>
+                                    ))}
+                                  </select>
+                                ) : hasCustomRule ? (
+                                  <Badge variant="warning" className="text-[10px]">
+                                    {rule.priceType === "fixed" ? "Tetap" : rule.priceType === "multiply" ? "×%" : "+Rp"}
+                                  </Badge>
+                                ) : globalRule ? (
+                                  <Badge variant="default" className="text-[10px]">Global</Badge>
+                                ) : (
+                                  <span className="text-xs text-muted">—</span>
+                                )}
+                              </td>
+                              <td className="py-2 pr-2" onClick={(e) => e.stopPropagation()}>
+                                {isEditing && editType ? (
+                                  <Input
+                                    type="number"
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(Number(e.target.value))}
+                                    className="h-8 text-xs font-[family-name:var(--font-jetbrains-mono)] w-24"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") saveServicePrice(l.code);
+                                      if (e.key === "Escape") cancelEdit();
+                                    }}
+                                  />
+                                ) : hasCustomRule ? (
+                                  <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs">
+                                    {rule.priceType === "fixed" ? formatRp(rule.value) : rule.priceType === "multiply" ? `${rule.value}%` : `+${formatRp(rule.value)}`}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-muted">—</span>
+                                )}
+                              </td>
+                              <td className="py-2.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`font-[family-name:var(--font-jetbrains-mono)] font-bold text-xs ${
+                                    hasCustomRule ? "text-primary" : ""
+                                  }`}>
+                                    {formatRp(sellingPrice)}
+                                  </span>
+                                  {profit > 0 && (
+                                    <span className="text-[10px] text-success">+{formatRp(profit)}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                                {isEditing ? (
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button size="sm" onClick={() => saveServicePrice(l.code)} disabled={savingCode === l.code}>
+                                      {savingCode === l.code ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+                                    </Button>
+                                    <button onClick={cancelEdit} className="p-1.5 text-muted hover:text-foreground">
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : hasCustomRule ? (
+                                  <Button
+                                    size="sm"
+                                    variant="danger"
+                                    onClick={() => handleDeleteRule(rule.id, l.code)}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                ) : null}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Contoh Perhitungan */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Contoh Perhitungan</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-            <div className="p-4 rounded-xl bg-background/50">
-              <div className="text-muted mb-2">Kalikan 150%</div>
-              <div className="text-xs text-muted">Harga provider: Rp 1.000</div>
-              <div className="text-lg font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary">
-                Jual: Rp 1.500
-              </div>
-              <div className="text-xs text-success">Profit: Rp 500/OTP</div>
-            </div>
-            <div className="p-4 rounded-xl bg-background/50">
-              <div className="text-muted mb-2">Markup +Rp 1.000</div>
-              <div className="text-xs text-muted">Harga provider: Rp 1.000</div>
-              <div className="text-lg font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary">
-                Jual: Rp 2.000
-              </div>
-              <div className="text-xs text-success">Profit: Rp 1.000/OTP</div>
-            </div>
-            <div className="p-4 rounded-xl bg-background/50">
-              <div className="text-muted mb-2">Harga Tetap Rp 3.000</div>
-              <div className="text-xs text-muted">Harga provider: berapapun</div>
-              <div className="text-lg font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary">
-                Jual: Rp 3.000
-              </div>
-              <div className="text-xs text-success">Profit: tergantung provider</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
