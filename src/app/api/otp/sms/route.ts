@@ -2,37 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkSms } from "@/lib/otp";
-
-const WAITING_STATUSES = ["menunggu", "waiting", "pending", "processing"];
-
-function isRealOtp(otp: unknown): otp is string {
-  if (typeof otp !== "string" || !otp.trim()) return false;
-  return !WAITING_STATUSES.includes(otp.trim().toLowerCase());
-}
-
-function extractOtp(data: Record<string, unknown>): string | null {
-  // Try multiple possible response formats from JasaOTP:
-  // { otp: "123456" }
-  // { data: { otp: "123456" } }
-  // { sms: "123456" }
-  // { data: { sms: "123456" } }
-  // { data: { full_sms: "Your code is 123456" } }
-  const candidates = [
-    data?.otp,
-    data?.sms,
-    data?.code,
-    (data?.data as Record<string, unknown>)?.otp,
-    (data?.data as Record<string, unknown>)?.sms,
-    (data?.data as Record<string, unknown>)?.code,
-    (data?.data as Record<string, unknown>)?.full_sms,
-  ];
-
-  for (const val of candidates) {
-    if (isRealOtp(val)) return val;
-  }
-
-  return null;
-}
+import { extractOtp } from "@/lib/otp-extract";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -53,9 +23,6 @@ export async function GET(req: NextRequest) {
 
   try {
     const data = await checkSms(server, Number(id));
-
-    // Log raw response for debugging
-    console.log(`[SMS Check] server=${server} id=${id} raw:`, JSON.stringify(data));
 
     const otp = extractOtp(data as Record<string, unknown>);
 
@@ -79,7 +46,9 @@ export async function GET(req: NextRequest) {
       data: { otp },
     });
   } catch (err) {
-    console.error("[SMS Check Error]", err);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[SMS Check Error]", err);
+    }
     return NextResponse.json({ error: "Gagal mengambil OTP" }, { status: 500 });
   }
 }

@@ -604,8 +604,8 @@ export default function DepositPage() {
                         {dep.method} &middot; {dep.time}
                       </div>
                     </div>
-                    <Badge variant={dep.status === "success" ? "success" : "warning"}>
-                      {dep.status === "success" ? t("status.deposit.paid") : t("status.deposit.pending")}
+                    <Badge variant={dep.status === "paid" ? "success" : "warning"}>
+                      {dep.status === "paid" ? t("status.deposit.paid") : t("status.deposit.pending")}
                     </Badge>
                   </div>
                 ))}

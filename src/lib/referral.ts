@@ -23,8 +23,12 @@ export async function giveReferralCommission(userId: string, depositAmount: numb
       data: { balance: { increment: commission } },
     });
 
-    console.log(`[Referral] Commission Rp ${commission} given to ${user.referredBy} from deposit by ${userId}`);
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[Referral] Commission Rp ${commission} given to ${user.referredBy} from deposit by ${userId}`);
+    }
   } catch (error) {
-    console.error("[Referral] Failed to give commission:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.error("[Referral] Failed to give commission:", error);
+    }
   }
 }

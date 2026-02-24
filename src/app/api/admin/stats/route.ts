@@ -36,35 +36,33 @@ export async function GET() {
     ]);
 
     // Count orders grouped by status
-    const orders = await db.order.findMany({
-      select: { status: true },
+    const ordersByStatusGroup = await db.order.groupBy({
+      by: ["status"],
+      _count: { status: true },
     });
     const ordersByStatus: Record<string, number> = {};
-    for (const o of orders) {
-      ordersByStatus[o.status] = (ordersByStatus[o.status] || 0) + 1;
+    for (const g of ordersByStatusGroup) {
+      ordersByStatus[g.status] = g._count.status;
     }
 
     // Sum of paid deposits
-    const paidDeposits = await db.deposit.findMany({
+    const paidDepositAgg = await db.deposit.aggregate({
       where: { status: "paid" },
-      select: { amount: true },
+      _sum: { amount: true },
     });
-    const depositsPaidTotal = paidDeposits.reduce((sum, d) => sum + d.amount, 0);
+    const depositsPaidTotal = paidDepositAgg._sum.amount ?? 0;
 
     // Top 5 services by order count
-    const allOrders = await db.order.findMany({
-      select: { serviceName: true },
+    const topServicesGroup = await db.order.groupBy({
+      by: ["serviceName"],
+      _count: { serviceName: true },
+      orderBy: { _count: { serviceName: "desc" } },
+      take: 5,
     });
-    const serviceCount: Record<string, number> = {};
-    for (const o of allOrders) {
-      if (o.serviceName) {
-        serviceCount[o.serviceName] = (serviceCount[o.serviceName] || 0) + 1;
-      }
-    }
-    const topServices = Object.entries(serviceCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([name, count]) => ({ name, count }));
+    const topServices = topServicesGroup.map((g) => ({
+      name: g.serviceName,
+      count: g._count.serviceName,
+    }));
 
     // Revenue (sum of successful order prices)
     const [revenueResult, revenueTodayResult, depositsTodayResult] = await Promise.all([
@@ -85,21 +83,23 @@ export async function GET() {
     const revenueToday = revenueTodayResult._sum.price ?? 0;
     const depositsTodayTotal = depositsTodayResult._sum.amount ?? 0;
 
-    // Orders per day (last 7 days)
-    const ordersPerDay: { date: string; count: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
+    // Orders per day (last 7 days) — parallel batch instead of sequential loop
+    const dayRanges = Array.from({ length: 7 }, (_, idx) => {
       const d = new Date();
-      d.setDate(d.getDate() - i);
+      d.setDate(d.getDate() - (6 - idx));
       const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
       const dayEnd = new Date(dayStart.getTime() + 86400000);
-      const count = await db.order.count({
-        where: { createdAt: { gte: dayStart, lt: dayEnd } },
-      });
-      ordersPerDay.push({
-        date: dayStart.toISOString().slice(0, 10),
-        count,
-      });
-    }
+      return { dayStart, dayEnd };
+    });
+    const ordersPerDayCounts = await Promise.all(
+      dayRanges.map(({ dayStart, dayEnd }) =>
+        db.order.count({ where: { createdAt: { gte: dayStart, lt: dayEnd } } })
+      )
+    );
+    const ordersPerDay = dayRanges.map(({ dayStart }, idx) => ({
+      date: dayStart.toISOString().slice(0, 10),
+      count: ordersPerDayCounts[idx],
+    }));
 
     // Active users (ordered in last 7 days)
     const weekAgo = new Date(Date.now() - 7 * 86400000);

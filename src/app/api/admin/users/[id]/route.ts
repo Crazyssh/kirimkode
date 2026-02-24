@@ -39,14 +39,14 @@ export async function GET(
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    const [totalSpentArr, totalDepositedArr, recentOrders, recentDeposits] = await Promise.all([
-      db.order.findMany({
+    const [totalSpentAgg, totalDepositedAgg, recentOrders, recentDeposits] = await Promise.all([
+      db.order.aggregate({
         where: { userId: id },
-        select: { price: true },
+        _sum: { price: true },
       }),
-      db.deposit.findMany({
+      db.deposit.aggregate({
         where: { userId: id, status: "paid" },
-        select: { amount: true },
+        _sum: { amount: true },
       }),
       db.order.findMany({
         where: { userId: id },
@@ -64,8 +64,8 @@ export async function GET(
       data: {
         ...user,
         stats: {
-          totalSpent: totalSpentArr.reduce((sum, o) => sum + o.price, 0),
-          totalDeposited: totalDepositedArr.reduce((sum, d) => sum + d.amount, 0),
+          totalSpent: totalSpentAgg._sum.price ?? 0,
+          totalDeposited: totalDepositedAgg._sum.amount ?? 0,
         },
         recentOrders: recentOrders.map((o) => ({
           id: o.id,
@@ -96,7 +96,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { error } = await requireAdmin();
+    const { error, user: adminUser } = await requireAdmin();
     if (error) return error;
 
     const { id } = await params;
@@ -108,6 +108,16 @@ export async function PATCH(
       status?: string;
       banReason?: string;
     };
+
+    // Proteksi: admin tidak boleh demote/ban diri sendiri
+    if (adminUser && id === adminUser.id) {
+      if ((role && role !== "admin") || (status && status === "banned")) {
+        return NextResponse.json(
+          { error: "Tidak bisa mengubah role atau ban akun sendiri" },
+          { status: 400 }
+        );
+      }
+    }
 
     const existingUser = await db.user.findUnique({ where: { id } });
     if (!existingUser) {

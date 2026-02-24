@@ -10,6 +10,7 @@ interface PriceRule {
 
 let cachedRules: PriceRule[] | null = null;
 let cacheTime = 0;
+let pendingFetch: Promise<PriceRule[]> | null = null;
 const CACHE_TTL = 60_000; // 1 minute
 
 async function getRules(): Promise<PriceRule[]> {
@@ -18,12 +19,26 @@ async function getRules(): Promise<PriceRule[]> {
     return cachedRules;
   }
 
-  cachedRules = await db.priceRule.findMany({
-    where: { active: true },
-    select: { serviceCode: true, countryId: true, priceType: true, value: true, active: true },
-  });
-  cacheTime = now;
-  return cachedRules;
+  // Reuse in-flight fetch to prevent concurrent DB queries
+  if (pendingFetch) return pendingFetch;
+
+  pendingFetch = db.priceRule
+    .findMany({
+      where: { active: true },
+      select: { serviceCode: true, countryId: true, priceType: true, value: true, active: true },
+    })
+    .then((rules) => {
+      cachedRules = rules;
+      cacheTime = Date.now();
+      pendingFetch = null;
+      return rules;
+    })
+    .catch((err) => {
+      pendingFetch = null;
+      throw err;
+    });
+
+  return pendingFetch;
 }
 
 /**

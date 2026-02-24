@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { checkSms, cancelOrder } from "@/lib/otp";
+import { extractOtp } from "@/lib/otp-extract";
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
 const EXPIRE_MINUTES = 20;
@@ -108,28 +109,3 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// OTP extraction helpers (same logic as sms route)
-const WAITING_STATUSES = ["menunggu", "waiting", "pending", "processing"];
-
-function isRealOtp(otp: unknown): otp is string {
-  if (typeof otp !== "string" || !otp.trim()) return false;
-  return !WAITING_STATUSES.includes(otp.trim().toLowerCase());
-}
-
-function extractOtp(data: Record<string, unknown>): string | null {
-  const candidates = [
-    data?.otp,
-    data?.sms,
-    data?.code,
-    (data?.data as Record<string, unknown>)?.otp,
-    (data?.data as Record<string, unknown>)?.sms,
-    (data?.data as Record<string, unknown>)?.code,
-    (data?.data as Record<string, unknown>)?.full_sms,
-  ];
-
-  for (const val of candidates) {
-    if (isRealOtp(val)) return val;
-  }
-
-  return null;
-}

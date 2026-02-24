@@ -112,8 +112,8 @@ export default function SettingsPage() {
       toast.error("Password baru tidak sama");
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error("Password minimal 6 karakter");
+    if (newPassword.length < 8) {
+      toast.error("Password minimal 8 karakter");
       return;
     }
     setSaving(true);

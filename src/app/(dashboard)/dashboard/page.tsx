@@ -71,6 +71,7 @@ export default function DashboardPage() {
       }
     }
     fetchDashboard();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const formatRelativeTime = (isoString: string) => {

@@ -12,11 +12,16 @@ export async function GET(req: NextRequest) {
   const where: Record<string, unknown> = { userId: session.user.id };
   if (status && status !== "all") where.status = status;
 
-  const orders = await db.order.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    take: 10000, // max 10.000 records untuk prevent memory overload
-  });
+  const MAX_EXPORT = 2000;
+
+  const [orders, totalCount] = await Promise.all([
+    db.order.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: MAX_EXPORT,
+    }),
+    db.order.count({ where }),
+  ]);
 
   // Build CSV
   const headers = ["Tanggal", "Layanan", "Negara", "Nomor", "Kode OTP", "Harga", "Status", "Server"];
@@ -40,6 +45,9 @@ export async function GET(req: NextRequest) {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="kirimkode-orders-${new Date().toISOString().slice(0, 10)}.csv"`,
+      "X-Total-Count": String(totalCount),
+      "X-Exported-Count": String(orders.length),
+      "X-Max-Export": String(MAX_EXPORT),
     },
   });
 }
