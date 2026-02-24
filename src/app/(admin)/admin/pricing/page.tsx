@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,6 @@ import {
   DollarSign,
   Trash2,
   Loader2,
-  Save,
   AlertCircle,
   CheckCircle,
   Tag,
@@ -160,6 +159,9 @@ export default function PricingPage() {
       || rules.find((r) => r.serviceCode === "*" && r.countryId === 0);
   };
 
+  // Debounce timer ref
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const startEdit = (code: string) => {
     const rule = getRule(code);
     setEditingCode(code);
@@ -172,44 +174,37 @@ export default function PricingPage() {
     }
   };
 
-  const cancelEdit = () => { setEditingCode(null); };
+  const cancelEdit = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setEditingCode(null);
+  };
 
-  const saveServicePrice = async (code: string) => {
-    setSavingCode(code);
-    setError("");
-    try {
-      // Kalau type kosong = hapus rule (kembali ke harga provider)
-      if (!editType) {
-        const rule = getRule(code);
-        if (rule) {
-          const res = await fetch("/api/admin/pricing", {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: rule.id }),
-          });
-          if (res.ok) {
-            setSuccess(`${code.toUpperCase()} kembali ke harga provider`);
-            fetchRules();
-          }
-        }
-        setEditingCode(null);
-        setSavingCode(null);
-        return;
+  // Auto-save with debounce — save 800ms after user stops typing
+  const triggerAutoSave = useCallback((code: string, type: string, val: number) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (type && val > 0) {
+        autoSave(code, type, val);
       }
+    }, 800);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCountryId, rules]);
 
+  const autoSave = async (code: string, type: string, val: number) => {
+    setSavingCode(code);
+    try {
       const res = await fetch("/api/admin/pricing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceCode: code,
           countryId: selectedCountryId,
-          priceType: editType,
-          value: editValue,
+          priceType: type,
+          value: val,
         }),
       });
       if (res.ok) {
-        setSuccess(`Harga ${code.toUpperCase()} disimpan`);
-        setEditingCode(null);
+        setSuccess(`${code.toUpperCase()} tersimpan`);
         fetchRules();
       } else {
         const data = await res.json();
@@ -502,8 +497,12 @@ export default function PricingPage() {
                                   <select
                                     value={editType}
                                     onChange={(e) => {
-                                      setEditType(e.target.value);
-                                      if (e.target.value === "fixed" && editValue === 0) setEditValue(l.price);
+                                      const newType = e.target.value;
+                                      setEditType(newType);
+                                      const newVal = newType === "fixed" && editValue === 0 ? l.price : editValue;
+                                      if (newType === "fixed" && editValue === 0) setEditValue(newVal);
+                                      // Auto-save saat ganti tipe (kalau value sudah ada)
+                                      if (newType && newVal > 0) triggerAutoSave(l.code, newType, newVal);
                                     }}
                                     className="w-full h-8 px-2 rounded-lg bg-surface border border-border text-xs focus:outline-none focus:border-primary/50 text-foreground"
                                   >
@@ -523,17 +522,33 @@ export default function PricingPage() {
                               </td>
                               <td className="py-2 pr-2" onClick={(e) => e.stopPropagation()}>
                                 {isEditing && editType ? (
-                                  <Input
-                                    type="number"
-                                    value={editValue}
-                                    onChange={(e) => setEditValue(Number(e.target.value))}
-                                    className="h-8 text-xs font-[family-name:var(--font-jetbrains-mono)] w-24"
-                                    autoFocus
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") saveServicePrice(l.code);
-                                      if (e.key === "Escape") cancelEdit();
-                                    }}
-                                  />
+                                  <div className="relative">
+                                    <Input
+                                      type="number"
+                                      value={editValue}
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value);
+                                        setEditValue(val);
+                                        triggerAutoSave(l.code, editType, val);
+                                      }}
+                                      className="h-8 text-xs font-[family-name:var(--font-jetbrains-mono)] w-28 pr-7"
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Escape") cancelEdit();
+                                      }}
+                                      onBlur={() => {
+                                        // Save saat klik keluar
+                                        if (editType && editValue > 0) {
+                                          if (debounceRef.current) clearTimeout(debounceRef.current);
+                                          autoSave(l.code, editType, editValue);
+                                        }
+                                        setTimeout(() => setEditingCode(null), 200);
+                                      }}
+                                    />
+                                    {savingCode === l.code && (
+                                      <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-primary" />
+                                    )}
+                                  </div>
                                 ) : hasCustomRule ? (
                                   <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs">
                                     {rule.priceType === "fixed" ? formatRp(rule.value) : rule.priceType === "multiply" ? `${rule.value}%` : `+${formatRp(rule.value)}`}
@@ -555,16 +570,7 @@ export default function PricingPage() {
                                 </div>
                               </td>
                               <td className="py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                                {isEditing ? (
-                                  <div className="flex items-center justify-end gap-1">
-                                    <Button size="sm" onClick={() => saveServicePrice(l.code)} disabled={savingCode === l.code}>
-                                      {savingCode === l.code ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-                                    </Button>
-                                    <button onClick={cancelEdit} className="p-1.5 text-muted hover:text-foreground">
-                                      ✕
-                                    </button>
-                                  </div>
-                                ) : hasCustomRule ? (
+                                {hasCustomRule ? (
                                   <Button
                                     size="sm"
                                     variant="danger"
@@ -572,6 +578,8 @@ export default function PricingPage() {
                                   >
                                     <Trash2 className="w-3 h-3" />
                                   </Button>
+                                ) : savingCode === l.code ? (
+                                  <Loader2 className="w-4 h-4 animate-spin text-primary inline" />
                                 ) : null}
                               </td>
                             </tr>
