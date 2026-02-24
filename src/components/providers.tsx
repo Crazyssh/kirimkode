@@ -1,27 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ComponentType } from "react";
 import { SessionProvider } from "next-auth/react";
-import dynamic from "next/dynamic";
-
-// Lazy load — tidak dibutuhkan untuk initial render
-const Toaster = dynamic(
-  () => import("sonner").then((mod) => mod.Toaster),
-  { ssr: false }
-);
-
-const FingerprintTracker = dynamic(
-  () =>
-    import("./fingerprint-tracker").then((mod) => mod.FingerprintTracker),
-  { ssr: false }
-);
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [Lazy, setLazy] = useState<{
+    Toaster: ComponentType<any> | null;
+    FP: ComponentType | null;
+  }>({ Toaster: null, FP: null });
 
   useEffect(() => {
     const saved = localStorage.getItem("theme") as "dark" | "light" | null;
     if (saved) setTheme(saved);
+
+    // Lazy load setelah hydration — tidak menyebabkan mismatch
+    Promise.all([
+      import("sonner"),
+      import("./fingerprint-tracker"),
+    ]).then(([sonner, fp]) => {
+      setLazy({
+        Toaster: sonner.Toaster,
+        FP: fp.FingerprintTracker,
+      });
+    });
 
     // Listen for theme changes
     const observer = new MutationObserver(() => {
@@ -34,14 +37,16 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider>
-      <FingerprintTracker />
+      {Lazy.FP && <Lazy.FP />}
       {children}
-      <Toaster
-        theme={theme}
-        position="top-right"
-        richColors
-        closeButton
-      />
+      {Lazy.Toaster && (
+        <Lazy.Toaster
+          theme={theme}
+          position="top-right"
+          richColors
+          closeButton
+        />
+      )}
     </SessionProvider>
   );
 }
