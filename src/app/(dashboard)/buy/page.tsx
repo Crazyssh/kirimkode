@@ -226,9 +226,18 @@ export default function BuyPage() {
           });
 
         setServiceList(mapped);
+
+        // Update selectedService dengan harga dari negara baru
+        // Kalau service yang sama ada, update harganya. Kalau tidak ada, reset.
+        setSelectedService((prev) => {
+          if (!prev) return null;
+          const updated = mapped.find((s) => s.code === prev.code);
+          return updated || null;
+        });
       } catch {
         setError(t("buy.failedLoadServices"));
         setServiceList([]);
+        setSelectedService(null);
       } finally {
         setLoadingLayanan(false);
       }
