@@ -88,6 +88,7 @@ export default function HomePage() {
       />
       <Navbar />
       <main>
+      <HomeContent />
 
       {/* Server-rendered SEO content — visible to crawlers without JS */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-surface/30">
