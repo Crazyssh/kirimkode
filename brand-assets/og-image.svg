@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="40%" stop-color="#162033"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="300" y1="115" x2="300" y2="315" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#00C853"/>
+    </linearGradient>
+    <linearGradient id="iconBg" x1="200" y1="115" x2="400" y2="315" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#263248"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="20" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Decorative grid pattern (subtle) -->
+  <g opacity="0.03" stroke="#00E676" stroke-width="1">
+    <line x1="0" y1="100" x2="1200" y2="100"/>
+    <line x1="0" y1="200" x2="1200" y2="200"/>
+    <line x1="0" y1="300" x2="1200" y2="300"/>
+    <line x1="0" y1="400" x2="1200" y2="400"/>
+    <line x1="0" y1="500" x2="1200" y2="500"/>
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+
+  <!-- Glow behind icon -->
+  <circle cx="300" cy="280" r="120" fill="#00E676" opacity="0.06" filter="url(#glow)"/>
+
+  <!-- Icon container -->
+  <rect x="200" y="180" width="200" height="200" rx="44" fill="url(#iconBg)"/>
+  <rect x="201" y="181" width="198" height="198" rx="43" fill="none" stroke="#334155" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Lightning bolt in icon (balanced: tips at center x=300) -->
+  <polygon points="300,211 255,289 295,289 300,349 345,264 305,264" fill="url(#bolt)"/>
+
+  <!-- Keyhole in icon -->
+  <circle cx="300" cy="273" r="7" fill="#1E293B"/>
+  <polygon points="296,279 300,293 304,279" fill="#1E293B"/>
+
+  <!-- Brand name -->
+  <text x="460" y="280" font-family="'Space Grotesk', 'Inter', 'Segoe UI', sans-serif" font-size="72" font-weight="700" letter-spacing="-2">
+    <tspan fill="#E2E8F0">Kirim</tspan><tspan fill="#00E676">Kode</tspan>
+  </text>
+
+  <!-- Tagline -->
+  <text x="460" y="330" font-family="'Inter', 'Segoe UI', sans-serif" font-size="24" fill="#64748B" font-weight="400">
+    Nomor Virtual OTP — Cepat, Aman, Terjangkau
+  </text>
+
+  <!-- URL -->
+  <text x="460" y="380" font-family="'JetBrains Mono', 'Consolas', monospace" font-size="20" fill="#00E676" opacity="0.6">
+    kirimkode.com
+  </text>
+
+  <!-- Bottom accent line -->
+  <rect x="0" y="620" width="1200" height="10" fill="#00E676" opacity="0.8"/>
+
+  <!-- Border -->
+  <rect x="1" y="1" width="1198" height="628" fill="none" stroke="#334155" stroke-width="2" opacity="0.3"/>
+</svg>

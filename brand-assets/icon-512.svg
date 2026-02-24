@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1A2744"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="256" y1="80" x2="256" y2="432" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#00C853"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+
+  <!-- Subtle border -->
+  <rect x="2" y="2" width="508" height="508" rx="106" fill="none" stroke="#334155" stroke-width="2" opacity="0.4"/>
+
+  <!-- Glow effect behind bolt -->
+  <polygon points="256,80 140,280 244,280 256,432 372,216 268,216" fill="#00E676" opacity="0.12" filter="url(#glow)"/>
+
+  <!-- Lightning bolt (balanced: tips at center x=256, wings ±116px) -->
+  <polygon points="256,80 140,280 244,280 256,432 372,216 268,216" fill="url(#bolt)"/>
+
+  <!-- Keyhole cutout (lock/unlock reference) -->
+  <circle cx="256" cy="240" r="18" fill="#0F172A"/>
+  <polygon points="244,252 256,288 268,252" fill="#0F172A"/>
+</svg>

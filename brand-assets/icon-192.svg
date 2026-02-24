@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="192" y2="192" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1A2744"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="96" y1="30" x2="96" y2="162" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#00C853"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background (maskable safe area = 80% centered) -->
+  <rect width="192" height="192" rx="41" fill="url(#bg)"/>
+
+  <!-- Lightning bolt (balanced: tips at center x=96) -->
+  <polygon points="96,30 53,105 92,105 96,162 140,81 101,81" fill="url(#bolt)"/>
+
+  <!-- Keyhole cutout -->
+  <circle cx="96" cy="90" r="7" fill="#0F172A"/>
+  <polygon points="92,96 96,109 100,96" fill="#0F172A"/>
+</svg>

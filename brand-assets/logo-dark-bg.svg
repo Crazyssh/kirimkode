@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120" width="520" height="120">
+  <defs>
+    <linearGradient id="iconBg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1A2744"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="50" y1="16" x2="50" y2="94" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#00C853"/>
+    </linearGradient>
+    <linearGradient id="textGrad" x1="130" y1="40" x2="500" y2="80" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#FACC15"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon (100x100, offset 10,10) -->
+  <rect x="10" y="10" width="100" height="100" rx="22" fill="url(#iconBg)"/>
+  <rect x="11" y="11" width="98" height="98" rx="21" fill="none" stroke="#334155" stroke-width="1" opacity="0.4"/>
+
+  <!-- Lightning bolt in icon (balanced: tips at center x=60) -->
+  <polygon points="60,26 37,65 58,65 60,94 83,52 62,52" fill="url(#bolt)"/>
+
+  <!-- Keyhole in icon -->
+  <circle cx="60" cy="57" r="3.5" fill="#0F172A"/>
+  <polygon points="57.5,60 60,67 62.5,60" fill="#0F172A"/>
+
+  <!-- Wordmark: "Kirim" white + "Kode" green -->
+  <text x="130" y="78" font-family="'Space Grotesk', 'Inter', 'Segoe UI', sans-serif" font-size="50" font-weight="700" letter-spacing="-1">
+    <tspan fill="#E2E8F0">Kirim</tspan><tspan fill="#00E676">Kode</tspan>
+  </text>
+</svg>

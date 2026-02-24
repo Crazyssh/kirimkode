@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1A2744"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="90" y1="28" x2="90" y2="152" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#00C853"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background (Apple akan clip jadi rounded otomatis) -->
+  <rect width="180" height="180" fill="url(#bg)"/>
+
+  <!-- Lightning bolt (balanced: tips at center x=90) -->
+  <polygon points="90,28 49,98 86,98 90,152 131,76 94,76" fill="url(#bolt)"/>
+
+  <!-- Keyhole cutout -->
+  <circle cx="90" cy="84" r="6" fill="#0F172A"/>
+  <polygon points="86,90 90,102 94,90" fill="#0F172A"/>
+</svg>
