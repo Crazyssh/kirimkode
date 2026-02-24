@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
+import { logAction } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -71,12 +72,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   events: {
     async signIn({ user }) {
       if (user?.id) {
-        // Log login event (non-blocking)
-        try {
-          await db.auditLog.create({
-            data: { userId: user.id, action: "login" },
-          });
-        } catch { /* silent */ }
+        // Log login event with IP (non-blocking)
+        logAction(user.id, "login");
       }
     },
   },

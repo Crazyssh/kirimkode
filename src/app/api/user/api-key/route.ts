@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
+import { logAction } from "@/lib/audit";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -54,12 +55,7 @@ export async function POST(req: NextRequest) {
     data: { apiKey },
   });
 
-  await db.auditLog.create({
-    data: {
-      userId: session.user.id,
-      action: "api_key_generate",
-    },
-  });
+  logAction(session.user.id, "api_key_generate");
 
   return NextResponse.json({ success: true, data: { apiKey } });
 }

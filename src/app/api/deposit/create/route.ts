@@ -6,6 +6,7 @@ import {
   generateReferenceId,
 } from "@/lib/paymenku";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
+import { logAction } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -89,6 +90,8 @@ export async function POST(req: NextRequest) {
         payUrl: result.data.pay_url,
       },
     });
+
+    logAction(user.id, "deposit", JSON.stringify({ trxId: result.data.trx_id, amount, channel: channel_code }));
 
     return NextResponse.json({
       status: "success",

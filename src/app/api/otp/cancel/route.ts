@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { cancelOrder } from "@/lib/otp";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
+import { logAction } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -51,6 +52,8 @@ export async function POST(req: NextRequest) {
         }),
       ]);
     }
+
+    logAction(session.user.id, "cancel", JSON.stringify({ orderId: id, server }));
 
     return NextResponse.json({ success: true, message: "Pesanan dibatalkan, saldo dikembalikan" });
   } catch {

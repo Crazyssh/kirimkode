@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
+import { logAction } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 
 // Blacklist IP ranges yang tidak boleh dijadikan webhook URL (anti-SSRF)
@@ -105,14 +106,12 @@ export async function PATCH(req: NextRequest) {
     data: updateData,
   });
 
-  // Audit log
-  await db.auditLog.create({
-    data: {
-      userId: session.user.id,
-      action: "settings_update",
-      detail: JSON.stringify(Object.keys(updateData).filter((k) => k !== "password")),
-    },
-  });
+  // Audit log (IP otomatis dari headers)
+  logAction(
+    session.user.id,
+    "settings_update",
+    JSON.stringify(Object.keys(updateData).filter((k) => k !== "password")),
+  );
 
   return NextResponse.json({ success: true, message: "Pengaturan berhasil disimpan" });
 }
