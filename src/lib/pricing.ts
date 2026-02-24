@@ -75,6 +75,11 @@ export async function applyPricing(
       return Math.ceil((basePrice * rule.value) / 100);
     case "markup":
       return basePrice + rule.value;
+    case "floor":
+      // Bulatkan ke bawah ke kelipatan value. Misal value=500:
+      // 499 → 499 (di bawah step, biarin), 500 → 500, 750 → 500, 1200 → 1000
+      if (basePrice < rule.value) return basePrice;
+      return Math.floor(basePrice / rule.value) * rule.value;
     default:
       return basePrice;
   }

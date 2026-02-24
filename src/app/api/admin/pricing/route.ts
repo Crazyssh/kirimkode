@@ -34,9 +34,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!["fixed", "multiply", "markup"].includes(priceType)) {
+    if (!["fixed", "multiply", "markup", "floor"].includes(priceType)) {
       return NextResponse.json(
-        { error: "priceType harus: fixed, multiply, atau markup" },
+        { error: "priceType harus: fixed, multiply, markup, atau floor" },
         { status: 400 }
       );
     }

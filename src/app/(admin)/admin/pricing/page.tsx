@@ -52,6 +52,7 @@ const priceTypeOptions = [
   { value: "fixed", label: "Harga Tetap" },
   { value: "multiply", label: "Kalikan (%)" },
   { value: "markup", label: "Tambahan (+)" },
+  { value: "floor", label: "Bulatkan ↓" },
 ];
 
 export default function PricingPage() {
@@ -244,6 +245,9 @@ export default function PricingPage() {
       case "fixed": return rule.value;
       case "multiply": return Math.ceil((basePrice * rule.value) / 100);
       case "markup": return basePrice + rule.value;
+      case "floor":
+        if (basePrice < rule.value) return basePrice;
+        return Math.floor(basePrice / rule.value) * rule.value;
       default: return basePrice;
     }
   };
@@ -374,7 +378,7 @@ export default function PricingPage() {
             </select>
           ) : hasCustomRule ? (
             <Badge variant="warning" className="text-[10px]">
-              {rule.priceType === "fixed" ? "Tetap" : rule.priceType === "multiply" ? "×%" : "+Rp"}
+              {rule.priceType === "fixed" ? "Tetap" : rule.priceType === "multiply" ? "×%" : rule.priceType === "floor" ? "↓" : "+Rp"}
             </Badge>
           ) : globalRule ? (
             <Badge variant="default" className="text-[10px]">Global</Badge>
@@ -408,7 +412,7 @@ export default function PricingPage() {
             </div>
           ) : hasCustomRule ? (
             <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs">
-              {rule.priceType === "fixed" ? formatRp(rule.value) : rule.priceType === "multiply" ? `${rule.value}%` : `+${formatRp(rule.value)}`}
+              {rule.priceType === "fixed" ? formatRp(rule.value) : rule.priceType === "multiply" ? `${rule.value}%` : rule.priceType === "floor" ? `↓${rule.value}` : `+${formatRp(rule.value)}`}
             </span>
           ) : (
             <span className="text-xs text-muted">—</span>
@@ -492,6 +496,7 @@ export default function PricingPage() {
               <p><strong className="text-foreground">Harga Tetap</strong>: Abaikan harga provider, pakai harga ini</p>
               <p><strong className="text-foreground">Kalikan (%)</strong>: Harga provider × persentase (150 = 1.5x)</p>
               <p><strong className="text-foreground">Tambahan (+)</strong>: Harga provider + nominal Rupiah</p>
+              <p><strong className="text-foreground">Bulatkan ↓</strong>: Bulatkan ke bawah ke kelipatan N. Misal 500: harga 1.200 → 1.000, harga 750 → 500, di bawah 500 biarin</p>
             </div>
           </div>
         </CardContent>
