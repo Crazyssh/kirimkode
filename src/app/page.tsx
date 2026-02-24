@@ -87,7 +87,7 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Navbar />
-      <HomeContent />
+      <main>
 
       {/* Server-rendered SEO content — visible to crawlers without JS */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-surface/30">
@@ -141,6 +141,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      </main>
 
       <Footer />
     </div>

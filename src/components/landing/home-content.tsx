@@ -398,7 +398,7 @@ export function HomeContent() {
                   <div className="flex items-start gap-3">
                     <ChevronDown className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-semibold mb-2">{faq.q}</h4>
+                      <h3 className="text-base font-semibold mb-2">{faq.q}</h3>
                       <p className="text-sm text-muted">{faq.a}</p>
                     </div>
                   </div>

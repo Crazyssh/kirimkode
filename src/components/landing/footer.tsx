@@ -25,7 +25,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold mb-4">{t("footer.services")}</h4>
+            <h3 className="text-sm font-semibold mb-4">{t("footer.services")}</h3>
             <ul className="space-y-2 text-sm text-muted">
               <li><a href="/nomor-virtual-whatsapp" className="hover:text-foreground transition-colors">WhatsApp OTP</a></li>
               <li><a href="/nomor-virtual-telegram" className="hover:text-foreground transition-colors">Telegram OTP</a></li>
@@ -36,7 +36,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold mb-4">{t("footer.company")}</h4>
+            <h3 className="text-sm font-semibold mb-4">{t("footer.company")}</h3>
             <ul className="space-y-2 text-sm text-muted">
               <li><a href="/about" className="hover:text-foreground transition-colors">{t("footer.aboutUs")}</a></li>
               <li><a href="/api-docs" className="hover:text-foreground transition-colors">API Docs</a></li>
@@ -45,7 +45,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-sm font-semibold mb-4">{t("footer.legal")}</h4>
+            <h3 className="text-sm font-semibold mb-4">{t("footer.legal")}</h3>
             <ul className="space-y-2 text-sm text-muted">
               <li><a href="/terms" className="hover:text-foreground transition-colors">{t("footer.terms")}</a></li>
               <li><a href="/privacy" className="hover:text-foreground transition-colors">{t("footer.privacy")}</a></li>
