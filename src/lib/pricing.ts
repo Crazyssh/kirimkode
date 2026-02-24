@@ -65,7 +65,16 @@ export async function applyPricing(
 
   const rule = exactMatch || serviceMatch || globalMatch;
 
-  if (!rule) return basePrice;
+  if (!rule) {
+    // Default tiered pricing berdasarkan harga provider
+    if (basePrice > 10_000) return Math.ceil(basePrice * 0.6);
+    if (basePrice >= 5_000) return 5_000;
+    if (basePrice >= 2_500) return 2_500;
+    if (basePrice >= 2_000) return 2_000;
+    if (basePrice >= 1_000) return 1_000;
+    if (basePrice >= 500) return 500;
+    return basePrice;
+  }
 
   switch (rule.priceType) {
     case "fixed":
