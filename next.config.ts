@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  cssChunking: "strict",
+  experimental: {
+    cssChunking: "strict",
+  },
 
   images: {
     formats: ["image/webp", "image/avif"],
