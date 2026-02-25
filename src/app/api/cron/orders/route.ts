@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { checkSms, cancelOrder } from "@/lib/otp";
 import { extractOtp } from "@/lib/otp-extract";
-import { checkWhatsApp, checkTelegram, checkTelegramFull } from "@/lib/checker";
+import { checkWhatsApp, checkTelegramFull } from "@/lib/checker";
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
 const EXPIRE_MINUTES = 20;
@@ -74,9 +74,7 @@ export async function GET(req: NextRequest) {
         if (!order.checkedAt && (svc === "wa" || svc === "tg")) {
           try {
             if (svc === "tg") {
-              tgCheck = order.user.premiumChecker
-                ? await checkTelegramFull(order.number)
-                : await checkTelegram(order.number);
+              tgCheck = await checkTelegramFull(order.number);
             } else {
               waCheck = await checkWhatsApp(order.number);
             }
