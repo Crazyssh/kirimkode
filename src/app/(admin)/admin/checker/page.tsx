@@ -63,6 +63,17 @@ export default function AdminCheckerPage() {
   const [bulkResults, setBulkResults] = useState<BulkResultItem[]>([]);
   const [bulkProgress, setBulkProgress] = useState({ checked: 0, total: 0 });
 
+  /** Auto-format nomor: tambah country code kalau belum ada */
+  const formatNumber = (num: string): string => {
+    const digits = num.replace(/[^0-9]/g, "");
+    // Sudah punya country code (dimulai 1-9 dan panjang >= 10)
+    if (digits.length >= 10) return digits;
+    // Nomor lokal Indonesia (08xxx) → 628xxx
+    if (digits.startsWith("08")) return "62" + digits.slice(1);
+    if (digits.startsWith("8") && digits.length >= 9 && digits.length <= 12) return "62" + digits;
+    return digits;
+  };
+
   const handleCheck = async (platform: "wa" | "tg") => {
     if (!number.trim()) return;
     setLoading(platform);
@@ -74,7 +85,7 @@ export default function AdminCheckerPage() {
       const res = await fetch("/api/admin/checker", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ number: number.trim(), platform }),
+        body: JSON.stringify({ number: formatNumber(number.trim()), platform }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -93,7 +104,7 @@ export default function AdminCheckerPage() {
   const handleBulkCheck = async () => {
     const numbers = bulkNumbers
       .split(/[\n,;]+/)
-      .map((n) => n.trim().replace(/[^0-9+]/g, ""))
+      .map((n) => formatNumber(n.trim()))
       .filter((n) => n.length >= 8);
 
     if (numbers.length === 0) return;
@@ -144,10 +155,11 @@ export default function AdminCheckerPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
               <Input
-                placeholder="Masukkan nomor telepon (contoh: 6281234567890)"
+                placeholder="Masukkan nomor (contoh: 6281234567890 atau 081234567890)"
                 className="pl-9 font-[family-name:var(--font-jetbrains-mono)]"
                 value={number}
                 onChange={(e) => setNumber(e.target.value)}
+                onBlur={() => { if (number.trim()) setNumber(formatNumber(number.trim())); }}
                 onKeyDown={(e) => { if (e.key === "Enter") handleCheck("wa"); }}
               />
             </div>
