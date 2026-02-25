@@ -46,6 +46,17 @@ interface DisplayService {
   stock: number;
 }
 
+interface WaCheckData {
+  exists: boolean;
+  profilePic?: string | null;
+}
+
+interface TgCheckData {
+  exists: boolean;
+  username?: string | null;
+  firstName?: string | null;
+}
+
 interface HistoryOrder {
   id: string;
   service: string;
@@ -57,6 +68,9 @@ interface HistoryOrder {
   date: string;
   server?: string;
   orderId?: number;
+  waCheck?: WaCheckData | null;
+  tgCheck?: TgCheckData | null;
+  checkedAt?: string | null;
 }
 
 export default function BuyPage() {
@@ -369,6 +383,16 @@ export default function BuyPage() {
       if (data.success && data.data) {
         fetchUser();
         fetchHistory(1);
+        // Auto-check nomor di WA/TG (non-blocking)
+        if (data.data.id) {
+          fetch("/api/otp/check-number", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId: data.data.id }),
+          }).then(() => {
+            setTimeout(() => fetchHistory(1, true), 1500);
+          }).catch(() => { /* silent */ });
+        }
         if (typeof window !== "undefined" && window.gtag) {
           window.gtag("event", "purchase", {
             transaction_id: data.data.order_id || data.data.id,
@@ -940,21 +964,45 @@ export default function BuyPage() {
                           {formatRupiah(o.price)}
                         </td>
                         <td className="py-3">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-[family-name:var(--font-jetbrains-mono)]">
-                              {o.number}
-                            </span>
-                            <button
-                              onClick={() => handleCopyText(o.number, `num-${o.id}`)}
-                              className="text-muted hover:text-primary transition-colors"
-                              title="Salin nomor"
-                            >
-                              {copiedId === `num-${o.id}` ? (
-                                <CheckCircle className="w-3.5 h-3.5 text-success" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
-                              )}
-                            </button>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-[family-name:var(--font-jetbrains-mono)]">
+                                {o.number}
+                              </span>
+                              <button
+                                onClick={() => handleCopyText(o.number, `num-${o.id}`)}
+                                className="text-muted hover:text-primary transition-colors"
+                                title="Salin nomor"
+                              >
+                                {copiedId === `num-${o.id}` ? (
+                                  <CheckCircle className="w-3.5 h-3.5 text-success" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            </div>
+                            {o.checkedAt && (
+                              <div className="flex gap-1">
+                                {o.waCheck != null && (
+                                  <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                    o.waCheck.exists
+                                      ? "bg-green-500/20 text-green-400"
+                                      : "bg-zinc-500/20 text-zinc-400"
+                                  }`}>
+                                    WA {o.waCheck.exists ? "\u2713" : "\u2717"}
+                                  </span>
+                                )}
+                                {o.tgCheck != null && (
+                                  <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                    o.tgCheck.exists
+                                      ? "bg-blue-500/20 text-blue-400"
+                                      : "bg-zinc-500/20 text-zinc-400"
+                                  }`}>
+                                    TG {o.tgCheck.exists ? "\u2713" : "\u2717"}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="py-2 sm:py-3 text-muted capitalize hidden lg:table-cell">{o.country}</td>

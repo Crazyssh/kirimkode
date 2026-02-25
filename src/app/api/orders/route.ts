@@ -50,6 +50,9 @@ export async function GET(req: NextRequest) {
       date: o.createdAt.toISOString(),
       server: o.server,
       orderId: o.orderId,
+      waCheck: o.waCheck ? JSON.parse(o.waCheck) : null,
+      tgCheck: o.tgCheck ? JSON.parse(o.tgCheck) : null,
+      checkedAt: o.checkedAt?.toISOString() ?? null,
     })),
     pagination: {
       page,

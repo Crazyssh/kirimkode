@@ -17,6 +17,17 @@ import {
   XCircle,
 } from "lucide-react";
 
+interface WaCheckData {
+  exists: boolean;
+  profilePic?: string | null;
+}
+
+interface TgCheckData {
+  exists: boolean;
+  username?: string | null;
+  firstName?: string | null;
+}
+
 interface OrderItem {
   id: string;
   service: string;
@@ -28,6 +39,9 @@ interface OrderItem {
   date: string;
   server?: string;
   orderId?: number;
+  waCheck?: WaCheckData | null;
+  tgCheck?: TgCheckData | null;
+  checkedAt?: string | null;
 }
 
 interface Pagination {
@@ -208,8 +222,34 @@ export default function HistoryPage() {
                       >
                         <td className="py-3 font-medium">{order.service}</td>
                         <td className="py-3 text-muted text-xs">{order.country}</td>
-                        <td className="py-3 font-[family-name:var(--font-jetbrains-mono)] text-xs">
-                          {order.number}
+                        <td className="py-3">
+                          <div className="flex flex-col gap-1">
+                            <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs">
+                              {order.number}
+                            </span>
+                            {order.checkedAt && (
+                              <div className="flex gap-1">
+                                {order.waCheck != null && (
+                                  <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                    order.waCheck.exists
+                                      ? "bg-green-500/20 text-green-400"
+                                      : "bg-zinc-500/20 text-zinc-400"
+                                  }`}>
+                                    WA {order.waCheck.exists ? "\u2713" : "\u2717"}
+                                  </span>
+                                )}
+                                {order.tgCheck != null && (
+                                  <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                    order.tgCheck.exists
+                                      ? "bg-blue-500/20 text-blue-400"
+                                      : "bg-zinc-500/20 text-zinc-400"
+                                  }`}>
+                                    TG {order.tgCheck.exists ? "\u2713" : "\u2717"}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3">
                           {order.code ? (

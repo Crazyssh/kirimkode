@@ -50,6 +50,9 @@ export async function GET(req: NextRequest) {
         price: o.price,
         userEmail: o.user?.email ?? "-",
         time: o.createdAt.toISOString(),
+        waCheck: o.waCheck ? JSON.parse(o.waCheck) : null,
+        tgCheck: o.tgCheck ? JSON.parse(o.tgCheck) : null,
+        checkedAt: o.checkedAt?.toISOString() ?? null,
       })),
       pagination: {
         page,

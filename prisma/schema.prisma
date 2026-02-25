@@ -98,6 +98,9 @@ model Order {
   price       Int      // price in IDR
   status      String   @default("waiting") // waiting | success | cancelled | timeout | refunded
   operator    String   @default("any")
+  waCheck     String?  // JSON: {"exists":true,"profilePic":"..."}
+  tgCheck     String?  // JSON: {"exists":true,"username":"...","firstName":"..."}
+  checkedAt   DateTime? // kapan nomor dicek di WA/TG
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

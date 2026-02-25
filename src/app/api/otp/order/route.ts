@@ -106,6 +106,7 @@ export async function POST(req: NextRequest) {
       data: {
         order_id: result.orderId,
         number: result.number,
+        id: result.order.id,
       },
     });
   } catch (error) {

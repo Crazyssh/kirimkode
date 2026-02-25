@@ -54,6 +54,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       code: order.code,
       status: order.status,
       received_at: order.code ? order.updatedAt.toISOString() : null,
+      wa_check: order.waCheck ? JSON.parse(order.waCheck) : null,
+      tg_check: order.tgCheck ? JSON.parse(order.tgCheck) : null,
+      checked_at: order.checkedAt?.toISOString() ?? null,
     },
   });
 }
