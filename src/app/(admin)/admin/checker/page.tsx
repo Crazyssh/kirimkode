@@ -15,8 +15,8 @@ import {
   Calendar,
   Trash2,
   CheckCircle,
-  XCircle,
   Image,
+  List,
 } from "lucide-react";
 
 interface WaResult {
@@ -43,12 +43,25 @@ interface TgResult {
   sessionUsed?: string;
 }
 
+interface BulkResultItem {
+  number: string;
+  platform: "wa" | "tg";
+  data: WaResult | TgResult | null;
+}
+
 export default function AdminCheckerPage() {
   const [number, setNumber] = useState("");
   const [loading, setLoading] = useState<"wa" | "tg" | null>(null);
   const [waResult, setWaResult] = useState<WaResult | null>(null);
   const [tgResult, setTgResult] = useState<TgResult | null>(null);
   const [error, setError] = useState("");
+
+  // Bulk checker state
+  const [bulkNumbers, setBulkNumbers] = useState("");
+  const [bulkPlatform, setBulkPlatform] = useState<"wa" | "tg">("wa");
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkResults, setBulkResults] = useState<BulkResultItem[]>([]);
+  const [bulkProgress, setBulkProgress] = useState({ checked: 0, total: 0 });
 
   const handleCheck = async (platform: "wa" | "tg") => {
     if (!number.trim()) return;
@@ -77,6 +90,43 @@ export default function AdminCheckerPage() {
     }
   };
 
+  const handleBulkCheck = async () => {
+    const numbers = bulkNumbers
+      .split(/[\n,;]+/)
+      .map((n) => n.trim().replace(/[^0-9+]/g, ""))
+      .filter((n) => n.length >= 8);
+
+    if (numbers.length === 0) return;
+
+    setBulkLoading(true);
+    setBulkResults([]);
+    setBulkProgress({ checked: 0, total: numbers.length });
+
+    const results: BulkResultItem[] = [];
+
+    for (let i = 0; i < numbers.length; i++) {
+      try {
+        const res = await fetch("/api/admin/checker", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ number: numbers[i], platform: bulkPlatform }),
+        });
+        const json = await res.json();
+        results.push({
+          number: numbers[i],
+          platform: bulkPlatform,
+          data: res.ok ? json.data : null,
+        });
+      } catch {
+        results.push({ number: numbers[i], platform: bulkPlatform, data: null });
+      }
+      setBulkProgress({ checked: i + 1, total: numbers.length });
+      setBulkResults([...results]);
+    }
+
+    setBulkLoading(false);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -86,8 +136,10 @@ export default function AdminCheckerPage() {
         <p className="text-sm text-muted">Cek status nomor di WhatsApp & Telegram</p>
       </div>
 
+      {/* Single Check */}
       <Card>
         <CardContent>
+          <h3 className="text-sm font-semibold mb-3">Cek Satu Nomor</h3>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
@@ -119,8 +171,8 @@ export default function AdminCheckerPage() {
         </CardContent>
       </Card>
 
+      {/* Single Check Results */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* WhatsApp Result */}
         {waResult && (
           <Card>
             <CardContent>
@@ -148,7 +200,6 @@ export default function AdminCheckerPage() {
           </Card>
         )}
 
-        {/* Telegram Result */}
         {tgResult && (
           <Card>
             <CardContent>
@@ -185,14 +236,121 @@ export default function AdminCheckerPage() {
             </CardContent>
           </Card>
         )}
-
-        {!waResult && !tgResult && !error && (
-          <div className="col-span-full text-center py-12 text-muted">
-            <Search className="w-8 h-8 mx-auto mb-3 opacity-50" />
-            <p>Masukkan nomor dan klik Cek WA atau Cek TG</p>
-          </div>
-        )}
       </div>
+
+      {/* Bulk Check */}
+      <Card>
+        <CardContent>
+          <div className="flex items-center gap-2 mb-3">
+            <List className="w-5 h-5 text-primary" />
+            <h3 className="text-sm font-semibold">Bulk Checker</h3>
+          </div>
+          <div className="space-y-3">
+            <textarea
+              value={bulkNumbers}
+              onChange={(e) => setBulkNumbers(e.target.value)}
+              placeholder={"Masukkan nomor (satu per baris atau pisahkan dengan koma):\n6281234567890\n6289876543210"}
+              rows={5}
+              className="w-full px-3 py-2.5 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50 text-foreground placeholder:text-muted resize-none font-[family-name:var(--font-jetbrains-mono)]"
+            />
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setBulkPlatform("wa")}
+                  className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
+                    bulkPlatform === "wa"
+                      ? "border-green-500 bg-green-500/10 text-green-400"
+                      : "border-border hover:border-green-500/30 text-muted"
+                  }`}
+                >
+                  <MessageCircle className="w-4 h-4 inline mr-1.5" />WhatsApp
+                </button>
+                <button
+                  onClick={() => setBulkPlatform("tg")}
+                  className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all ${
+                    bulkPlatform === "tg"
+                      ? "border-blue-500 bg-blue-500/10 text-blue-400"
+                      : "border-border hover:border-blue-500/30 text-muted"
+                  }`}
+                >
+                  <Send className="w-4 h-4 inline mr-1.5" />Telegram
+                </button>
+              </div>
+              <Button onClick={handleBulkCheck} disabled={bulkLoading || !bulkNumbers.trim()}>
+                {bulkLoading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> {bulkProgress.checked}/{bulkProgress.total}</>
+                ) : (
+                  <><Search className="w-4 h-4" /> Cek Semua</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bulk Results */}
+      {bulkResults.length > 0 && (
+        <Card>
+          <CardContent>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">
+                Hasil Bulk ({bulkResults.filter((r) => r.data && (r.data as WaResult | TgResult).exists).length}/{bulkResults.length} terdaftar)
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-xs text-muted border-b border-border">
+                    <th className="pb-2 font-medium">#</th>
+                    <th className="pb-2 font-medium">Nomor</th>
+                    <th className="pb-2 font-medium">Status</th>
+                    {bulkPlatform === "tg" && (
+                      <>
+                        <th className="pb-2 font-medium">Username</th>
+                        <th className="pb-2 font-medium">Nama</th>
+                        <th className="pb-2 font-medium">Last Seen</th>
+                        <th className="pb-2 font-medium">Terdaftar</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="text-sm">
+                  {bulkResults.map((r, i) => {
+                    const tg = r.platform === "tg" ? (r.data as TgResult | null) : null;
+                    return (
+                      <tr key={i} className="border-b border-border/50">
+                        <td className="py-2 text-muted text-xs">{i + 1}</td>
+                        <td className="py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs">{r.number}</td>
+                        <td className="py-2">
+                          {r.data ? (
+                            <Badge variant={(r.data as WaResult | TgResult).exists ? "success" : "error"}>
+                              {(r.data as WaResult | TgResult).exists ? "Terdaftar" : "Tidak"}
+                            </Badge>
+                          ) : (
+                            <Badge variant="default">Error</Badge>
+                          )}
+                        </td>
+                        {bulkPlatform === "tg" && (
+                          <>
+                            <td className="py-2 text-xs font-[family-name:var(--font-jetbrains-mono)]">
+                              {tg?.username ? `@${tg.username}` : "-"}
+                            </td>
+                            <td className="py-2 text-xs">
+                              {tg?.firstName || tg?.lastName ? `${tg.firstName || ""} ${tg.lastName || ""}`.trim() : "-"}
+                            </td>
+                            <td className="py-2 text-xs">{tg?.lastSeenLabel || "-"}</td>
+                            <td className="py-2 text-xs">{tg?.registeredAt || "-"}</td>
+                          </>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

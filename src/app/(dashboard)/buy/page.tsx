@@ -431,6 +431,8 @@ export default function BuyPage() {
     let successCount = 0;
     let lastError = "";
 
+    const orderIds: string[] = [];
+
     for (let i = 0; i < count; i++) {
       try {
         const res = await fetch("/api/otp/order", {
@@ -449,6 +451,7 @@ export default function BuyPage() {
         const data = await res.json();
         if (data.success && data.data) {
           successCount++;
+          if (data.data.id) orderIds.push(data.data.id);
         } else {
           lastError = data.message || data.error || "Gagal membuat pesanan";
           break;
@@ -457,6 +460,15 @@ export default function BuyPage() {
         lastError = "Gagal membuat pesanan. Coba lagi.";
         break;
       }
+    }
+
+    // Trigger checker untuk semua order yang berhasil (non-blocking)
+    for (const id of orderIds) {
+      fetch("/api/otp/check-number", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: id }),
+      }).catch(() => {});
     }
 
     fetchUser();
