@@ -58,6 +58,12 @@ export const en = {
       expired: "Expired",
       cancelled: "Cancelled",
     },
+    checker: {
+      waRegistered: "WA Registered",
+      waNotRegistered: "WA Not Registered",
+      tgRegistered: "TG Registered",
+      tgNotRegistered: "TG Not Registered",
+    },
   },
   auth: {
     loginTitle: "Sign In",

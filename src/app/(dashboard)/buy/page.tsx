@@ -982,23 +982,23 @@ export default function BuyPage() {
                               </button>
                             </div>
                             {o.checkedAt && (
-                              <div className="flex gap-1">
+                              <div className="flex flex-wrap gap-1">
                                 {o.waCheck != null && (
-                                  <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
                                     o.waCheck.exists
                                       ? "bg-green-500/20 text-green-400"
                                       : "bg-zinc-500/20 text-zinc-400"
                                   }`}>
-                                    WA {o.waCheck.exists ? "\u2713" : "\u2717"}
+                                    {o.waCheck.exists ? t("status.checker.waRegistered") : t("status.checker.waNotRegistered")}
                                   </span>
                                 )}
                                 {o.tgCheck != null && (
-                                  <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
                                     o.tgCheck.exists
                                       ? "bg-blue-500/20 text-blue-400"
                                       : "bg-zinc-500/20 text-zinc-400"
                                   }`}>
-                                    TG {o.tgCheck.exists ? "\u2713" : "\u2717"}
+                                    {o.tgCheck.exists ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
                                   </span>
                                 )}
                               </div>

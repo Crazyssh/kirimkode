@@ -228,23 +228,23 @@ export default function HistoryPage() {
                               {order.number}
                             </span>
                             {order.checkedAt && (
-                              <div className="flex gap-1">
+                              <div className="flex flex-wrap gap-1">
                                 {order.waCheck != null && (
-                                  <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
                                     order.waCheck.exists
                                       ? "bg-green-500/20 text-green-400"
                                       : "bg-zinc-500/20 text-zinc-400"
                                   }`}>
-                                    WA {order.waCheck.exists ? "\u2713" : "\u2717"}
+                                    {order.waCheck.exists ? t("status.checker.waRegistered") : t("status.checker.waNotRegistered")}
                                   </span>
                                 )}
                                 {order.tgCheck != null && (
-                                  <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
                                     order.tgCheck.exists
                                       ? "bg-blue-500/20 text-blue-400"
                                       : "bg-zinc-500/20 text-zinc-400"
                                   }`}>
-                                    TG {order.tgCheck.exists ? "\u2713" : "\u2717"}
+                                    {order.tgCheck.exists ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
                                   </span>
                                 )}
                               </div>

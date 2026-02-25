@@ -58,6 +58,12 @@ export const id = {
       expired: "Kedaluwarsa",
       cancelled: "Dibatalkan",
     },
+    checker: {
+      waRegistered: "Terdaftar WA",
+      waNotRegistered: "Belum Terdaftar WA",
+      tgRegistered: "Terdaftar TG",
+      tgNotRegistered: "Belum Terdaftar TG",
+    },
   },
   auth: {
     loginTitle: "Masuk ke Akun",
