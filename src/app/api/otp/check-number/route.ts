@@ -34,7 +34,11 @@ export async function POST(req: NextRequest) {
   }
 
   const number = order.number;
-  const service = order.service.toLowerCase();
+  const rawSvc = order.service.toLowerCase();
+  // Normalize: "telegram" → "tg", "whatsapp" → "wa"
+  const service = rawSvc.startsWith("tg") || rawSvc.startsWith("telegram") ? "tg"
+    : rawSvc.startsWith("wa") || rawSvc.startsWith("whatsapp") ? "wa"
+    : rawSvc;
 
   // Hanya cek untuk service WA dan TG
   if (service !== "wa" && service !== "tg") {

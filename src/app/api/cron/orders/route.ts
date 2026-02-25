@@ -70,7 +70,11 @@ export async function GET(req: NextRequest) {
         // Auto-check nomor di WA/TG jika belum dicek (hanya untuk service wa/tg)
         let waCheck = null;
         let tgCheck = null;
-        const svc = order.service.toLowerCase();
+        const rawSvc = order.service.toLowerCase();
+        // Normalize: "telegram" → "tg", "whatsapp" → "wa"
+        const svc = rawSvc.startsWith("tg") || rawSvc.startsWith("telegram") ? "tg"
+          : rawSvc.startsWith("wa") || rawSvc.startsWith("whatsapp") ? "wa"
+          : rawSvc;
         if (!order.checkedAt && (svc === "wa" || svc === "tg")) {
           try {
             if (svc === "tg") {
