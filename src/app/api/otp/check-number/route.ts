@@ -36,39 +36,23 @@ export async function POST(req: NextRequest) {
   const number = order.number;
   const service = order.service.toLowerCase();
 
-  // Hanya cek untuk service WA dan TG
+  // Hanya cek WA (TG checker dimatikan karena tidak akurat)
   if (service !== "wa" && service !== "tg") {
     return NextResponse.json({ success: true, data: { waCheck: null, tgCheck: null } });
   }
 
-  // Cek apakah user punya akses detail checker
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { premiumChecker: true },
-  });
-
-  let waResult = null;
-  let tgResult = null;
-
-  if (service === "tg") {
-    tgResult = user?.premiumChecker
-      ? await checkTelegramFull(number)
-      : await checkTelegram(number);
-  } else {
-    waResult = await checkWhatsApp(number);
-  }
+  const waResult = await checkWhatsApp(number);
 
   await db.order.update({
     where: { id: order.id },
     data: {
       waCheck: waResult ? JSON.stringify(waResult) : null,
-      tgCheck: tgResult ? JSON.stringify(tgResult) : null,
       checkedAt: new Date(),
     },
   });
 
   return NextResponse.json({
     success: true,
-    data: { waCheck: waResult, tgCheck: tgResult },
+    data: { waCheck: waResult, tgCheck: null },
   });
 }

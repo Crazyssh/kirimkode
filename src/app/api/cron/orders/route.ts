@@ -67,19 +67,12 @@ export async function GET(req: NextRequest) {
 
       const otp = extractOtp(data as Record<string, unknown>);
       if (otp) {
-        // Auto-check nomor di WA/TG jika belum dicek (hanya untuk service wa/tg)
+        // Auto-check nomor di WA jika belum dicek (TG checker dimatikan)
         let waCheck = null;
-        let tgCheck = null;
         const svc = order.service.toLowerCase();
         if (!order.checkedAt && (svc === "wa" || svc === "tg")) {
           try {
-            if (svc === "tg") {
-              tgCheck = order.user.premiumChecker
-                ? await checkTelegramFull(order.number)
-                : await checkTelegram(order.number);
-            } else {
-              waCheck = await checkWhatsApp(order.number);
-            }
+            waCheck = await checkWhatsApp(order.number);
           } catch { /* checker failure is non-critical */ }
         }
 
@@ -90,7 +83,6 @@ export async function GET(req: NextRequest) {
             status: "success",
             ...(order.checkedAt ? {} : {
               waCheck: waCheck ? JSON.stringify(waCheck) : null,
-              tgCheck: tgCheck ? JSON.stringify(tgCheck) : null,
               checkedAt: new Date(),
             }),
           },
