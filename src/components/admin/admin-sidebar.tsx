@@ -19,11 +19,13 @@ import {
   LogOut,
   X,
   SearchCheck,
+  BarChart3,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const menuItems = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/deposits", label: "Deposits", icon: Wallet },
