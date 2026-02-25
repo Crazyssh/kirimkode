@@ -245,18 +245,20 @@ export default function HistoryPage() {
                                 {order.tgCheck != null && (
                                   <>
                                     <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                      order.tgCheck.exists
-                                        ? "bg-blue-500/20 text-blue-400"
-                                        : "bg-zinc-500/20 text-zinc-400"
+                                      order.tgCheck.deleted
+                                        ? "bg-red-500/20 text-red-400"
+                                        : order.tgCheck.exists
+                                          ? "bg-blue-500/20 text-blue-400"
+                                          : "bg-zinc-500/20 text-zinc-400"
                                     }`}>
-                                      {order.tgCheck.exists ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
+                                      {order.tgCheck.deleted ? "Terhapus TG" : order.tgCheck.exists ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
                                     </span>
-                                    {order.tgCheck.lastSeenLabel && (
+                                    {!order.tgCheck.deleted && order.tgCheck.lastSeenLabel && (
                                       <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/20 text-purple-400">
                                         {order.tgCheck.lastSeenLabel}
                                       </span>
                                     )}
-                                    {order.tgCheck.registeredAt && (
+                                    {!order.tgCheck.deleted && order.tgCheck.registeredAt && (
                                       <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/20 text-cyan-400">
                                         {order.tgCheck.registeredAt}
                                       </span>
