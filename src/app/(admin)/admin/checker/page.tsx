@@ -102,10 +102,15 @@ export default function AdminCheckerPage() {
   };
 
   const handleBulkCheck = async () => {
-    const numbers = bulkNumbers
-      .split(/[\n,;]+/)
-      .map((n) => formatNumber(n.trim()))
-      .filter((n) => n.length >= 8);
+    // Extract nomor dari teks apapun: ambil pattern +digits (min 10 digit)
+    // atau fallback ke split per baris kalau input rapi
+    const matches = bulkNumbers.match(/\+\d{10,15}/g);
+    const numbers = matches
+      ? [...new Set(matches.map((m) => m.replace(/^\+/, "")))]
+      : bulkNumbers
+          .split(/[\n,;]+/)
+          .map((n) => formatNumber(n.trim()))
+          .filter((n) => n.length >= 8);
 
     if (numbers.length === 0) return;
 
