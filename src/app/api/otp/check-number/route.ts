@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { checkWhatsApp, checkTelegram } from "@/lib/checker";
+import { checkWhatsApp, checkTelegram, checkTelegramFull } from "@/lib/checker";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -41,11 +41,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, data: { waCheck: null, tgCheck: null } });
   }
 
+  // Cek apakah user punya akses detail checker
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { premiumChecker: true },
+  });
+
   let waResult = null;
   let tgResult = null;
 
   if (service === "tg") {
-    tgResult = await checkTelegram(number);
+    tgResult = user?.premiumChecker
+      ? await checkTelegramFull(number)
+      : await checkTelegram(number);
   } else {
     waResult = await checkWhatsApp(number);
   }

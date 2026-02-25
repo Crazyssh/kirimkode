@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
           status: true,
           banReason: true,
           apiKey: true,
+          premiumChecker: true,
           createdAt: true,
           _count: {
             select: {

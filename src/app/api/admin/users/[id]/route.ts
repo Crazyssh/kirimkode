@@ -101,12 +101,13 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { balance, role, name, status, banReason } = body as {
+    const { balance, role, name, status, banReason, premiumChecker } = body as {
       balance?: number;
       role?: string;
       name?: string;
       status?: string;
       banReason?: string;
+      premiumChecker?: boolean;
     };
 
     // Proteksi: admin tidak boleh demote/ban diri sendiri
@@ -164,6 +165,10 @@ export async function PATCH(
       data.banReason = banReason;
     }
 
+    if (typeof premiumChecker === "boolean") {
+      data.premiumChecker = premiumChecker;
+    }
+
     if (Object.keys(data).length === 0) {
       return NextResponse.json(
         { error: "No valid fields to update" },
@@ -184,6 +189,7 @@ export async function PATCH(
         status: true,
         banReason: true,
         apiKey: true,
+        premiumChecker: true,
         createdAt: true,
         updatedAt: true,
       },

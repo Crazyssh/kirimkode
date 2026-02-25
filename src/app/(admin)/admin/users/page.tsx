@@ -27,6 +27,7 @@ interface UserItem {
   role: string;
   status: string;
   banReason: string | null;
+  premiumChecker: boolean;
   _count: { orders: number; deposits: number };
   createdAt: string;
 }
@@ -52,6 +53,7 @@ export default function AdminUsersPage() {
   const [editRole, setEditRole] = useState("user");
   const [editStatus, setEditStatus] = useState("active");
   const [editBanReason, setEditBanReason] = useState("");
+  const [editPremiumChecker, setEditPremiumChecker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
@@ -80,6 +82,7 @@ export default function AdminUsersPage() {
     setEditRole(user.role);
     setEditStatus(user.status);
     setEditBanReason(user.banReason || "");
+    setEditPremiumChecker(user.premiumChecker);
     setEditError("");
   };
 
@@ -97,6 +100,7 @@ export default function AdminUsersPage() {
           role: editRole,
           status: editStatus,
           banReason: editStatus === "banned" ? editBanReason : null,
+          premiumChecker: editPremiumChecker,
         }),
       });
 
@@ -326,6 +330,26 @@ export default function AdminUsersPage() {
                 />
               </div>
             )}
+
+            {/* Detail Checker */}
+            <div>
+              <label className="text-sm text-muted mb-1.5 block">Detail Checker TG</label>
+              <button
+                onClick={() => setEditPremiumChecker(!editPremiumChecker)}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                  editPremiumChecker
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border hover:border-primary/30 text-muted"
+                }`}
+              >
+                {editPremiumChecker ? (
+                  <><CheckCircle className="w-4 h-4" /> Aktif</>
+                ) : (
+                  <><X className="w-4 h-4" /> Nonaktif</>
+                )}
+              </button>
+              <p className="text-[11px] text-muted mt-1">Aktifkan untuk lihat detail TG (last seen, tanggal daftar, dll)</p>
+            </div>
 
             {/* Actions */}
             <div className="flex gap-3 pt-2">

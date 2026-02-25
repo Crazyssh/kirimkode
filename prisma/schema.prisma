@@ -31,6 +31,7 @@ model User {
   referralCode  String?   @unique // kode referral unik user ini
   referredBy    String?   // userId yang mereferensikan
   fingerprint   String?   // browser fingerprint untuk deteksi device
+  premiumChecker Boolean  @default(false) // akses detail checker TG (last seen, reg date, dll)
 
   accounts      Account[]
   sessions      Session[]
