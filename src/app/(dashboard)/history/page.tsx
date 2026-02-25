@@ -30,6 +30,7 @@ interface TgCheckData {
   lastSeenLabel?: string | null;
   registeredAt?: string | null;
   deleted?: boolean;
+  profilePic?: string | null;
 }
 
 interface OrderItem {
@@ -232,39 +233,44 @@ export default function HistoryPage() {
                               {order.number}
                             </span>
                             {order.checkedAt && (
-                              <div className="flex flex-wrap gap-1">
-                                {order.waCheck != null && (
-                                  <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                    order.waCheck.exists
-                                      ? "bg-green-500/20 text-green-400"
-                                      : "bg-zinc-500/20 text-zinc-400"
-                                  }`}>
-                                    {order.waCheck.exists ? t("status.checker.waRegistered") : t("status.checker.waNotRegistered")}
-                                  </span>
+                              <div className="flex items-center gap-1.5">
+                                {order.tgCheck?.profilePic && (
+                                  <img src={order.tgCheck.profilePic} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
                                 )}
-                                {order.tgCheck != null && (
-                                  <>
+                                <div className="flex flex-wrap gap-1">
+                                  {order.waCheck != null && (
                                     <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                      order.tgCheck.deleted
-                                        ? "bg-red-500/20 text-red-400"
-                                        : order.tgCheck.exists
-                                          ? "bg-blue-500/20 text-blue-400"
-                                          : "bg-zinc-500/20 text-zinc-400"
+                                      order.waCheck.exists
+                                        ? "bg-green-500/20 text-green-400"
+                                        : "bg-zinc-500/20 text-zinc-400"
                                     }`}>
-                                      {order.tgCheck.deleted ? "Dibanned TG" : order.tgCheck.exists ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
+                                      {order.waCheck.exists ? t("status.checker.waRegistered") : t("status.checker.waNotRegistered")}
                                     </span>
-                                    {order.tgCheck.exists && !order.tgCheck.deleted && order.tgCheck.lastSeenLabel && (
-                                      <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/20 text-purple-400">
-                                        {order.tgCheck.lastSeenLabel}
+                                  )}
+                                  {order.tgCheck != null && (
+                                    <>
+                                      <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                                        order.tgCheck.deleted
+                                          ? "bg-red-500/20 text-red-400"
+                                          : order.tgCheck.exists
+                                            ? "bg-blue-500/20 text-blue-400"
+                                            : "bg-zinc-500/20 text-zinc-400"
+                                      }`}>
+                                        {order.tgCheck.deleted ? "Dibanned TG" : order.tgCheck.exists ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
                                       </span>
-                                    )}
-                                    {order.tgCheck.exists && !order.tgCheck.deleted && order.tgCheck.registeredAt && (
-                                      <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/20 text-cyan-400">
-                                        {order.tgCheck.registeredAt}
-                                      </span>
-                                    )}
-                                  </>
-                                )}
+                                      {order.tgCheck.exists && !order.tgCheck.deleted && order.tgCheck.lastSeenLabel && (
+                                        <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/20 text-purple-400">
+                                          {order.tgCheck.lastSeenLabel}
+                                        </span>
+                                      )}
+                                      {order.tgCheck.exists && !order.tgCheck.deleted && order.tgCheck.registeredAt && (
+                                        <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/20 text-cyan-400">
+                                          {order.tgCheck.registeredAt}
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
