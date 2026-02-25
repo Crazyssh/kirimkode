@@ -1011,20 +1011,18 @@ export default function BuyPage() {
                                 {o.tgCheck != null && (
                                   <>
                                     <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                      o.tgCheck.deleted
-                                        ? "bg-red-500/20 text-red-400"
-                                        : o.tgCheck.exists
-                                          ? "bg-blue-500/20 text-blue-400"
-                                          : "bg-zinc-500/20 text-zinc-400"
+                                      o.tgCheck.exists && !o.tgCheck.deleted
+                                        ? "bg-blue-500/20 text-blue-400"
+                                        : "bg-zinc-500/20 text-zinc-400"
                                     }`}>
-                                      {o.tgCheck.deleted ? "Terhapus TG" : o.tgCheck.exists ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
+                                      {o.tgCheck.exists && !o.tgCheck.deleted ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
                                     </span>
-                                    {!o.tgCheck.deleted && o.tgCheck.lastSeenLabel && (
+                                    {o.tgCheck.exists && !o.tgCheck.deleted && o.tgCheck.lastSeenLabel && (
                                       <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/20 text-purple-400">
                                         {o.tgCheck.lastSeenLabel}
                                       </span>
                                     )}
-                                    {!o.tgCheck.deleted && o.tgCheck.registeredAt && (
+                                    {o.tgCheck.exists && !o.tgCheck.deleted && o.tgCheck.registeredAt && (
                                       <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/20 text-cyan-400">
                                         {o.tgCheck.registeredAt}
                                       </span>
