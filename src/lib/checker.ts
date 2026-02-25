@@ -1,6 +1,11 @@
 const CHECKER_API_URL = process.env.CHECKER_API_URL || "https://unified-checker-api-production.up.railway.app";
 const CHECKER_API_KEY = process.env.CHECKER_API_KEY || "";
 
+/** Strip +, spasi, dan karakter non-digit dari nomor */
+function cleanNumber(num: string): string {
+  return num.replace(/[^0-9]/g, "");
+}
+
 export interface WaCheckResult {
   exists: boolean;
   profilePic?: string | null;
@@ -32,7 +37,7 @@ export interface TgCheckFullResult {
 export async function checkWhatsApp(number: string): Promise<WaCheckResult | null> {
   if (!CHECKER_API_KEY) return null;
   try {
-    const res = await fetch(`${CHECKER_API_URL}/api/wa/check/${encodeURIComponent(number)}`, {
+    const res = await fetch(`${CHECKER_API_URL}/api/wa/check/${cleanNumber(number)}`, {
       headers: { "X-API-Key": CHECKER_API_KEY },
       signal: AbortSignal.timeout(10000),
     });
@@ -48,7 +53,7 @@ export async function checkWhatsApp(number: string): Promise<WaCheckResult | nul
 export async function checkTelegramFull(number: string): Promise<TgCheckFullResult | null> {
   if (!CHECKER_API_KEY) return null;
   try {
-    const res = await fetch(`${CHECKER_API_URL}/api/tg/check/${encodeURIComponent(number)}/full`, {
+    const res = await fetch(`${CHECKER_API_URL}/api/tg/check/${cleanNumber(number)}/full`, {
       headers: { "X-API-Key": CHECKER_API_KEY },
       signal: AbortSignal.timeout(10000),
     });
@@ -64,7 +69,7 @@ export async function checkTelegramFull(number: string): Promise<TgCheckFullResu
 export async function checkTelegram(number: string): Promise<TgCheckResult | null> {
   if (!CHECKER_API_KEY) return null;
   try {
-    const res = await fetch(`${CHECKER_API_URL}/api/tg/check/${encodeURIComponent(number)}`, {
+    const res = await fetch(`${CHECKER_API_URL}/api/tg/check/${cleanNumber(number)}`, {
       headers: { "X-API-Key": CHECKER_API_KEY },
       signal: AbortSignal.timeout(10000),
     });
