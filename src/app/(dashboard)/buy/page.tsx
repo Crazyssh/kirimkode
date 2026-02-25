@@ -285,15 +285,15 @@ export default function BuyPage() {
 
   useEffect(() => { fetchHistory(1); }, [fetchHistory]);
 
-  // Poll OTP untuk order "waiting" + order baru dapat OTP (< 3 menit) untuk tangkap OTP terbaru
+  // Poll OTP untuk order "waiting" + order baru dapat OTP (< 20 menit) untuk tangkap resend
   const otpPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevCodesRef = useRef<Record<string, string>>({});
   useEffect(() => {
-    const threeMinAgo = Date.now() - 3 * 60 * 1000;
+    const twentyMinAgo = Date.now() - 20 * 60 * 1000;
     const pollableOrders = historyOrders.filter(
       (o) => o.server && o.orderId && (
         o.status === "waiting" ||
-        (o.status === "success" && new Date(o.date).getTime() > threeMinAgo)
+        (o.status === "success" && new Date(o.date).getTime() > twentyMinAgo)
       )
     );
 
