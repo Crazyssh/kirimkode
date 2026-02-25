@@ -67,21 +67,16 @@ export async function GET(req: NextRequest) {
 
       const otp = extractOtp(data as Record<string, unknown>);
       if (otp) {
-        // Auto-check nomor di WA/TG jika belum dicek
+        // Auto-check nomor di WA/TG jika belum dicek (hanya untuk service wa/tg)
         let waCheck = null;
         let tgCheck = null;
-        if (!order.checkedAt) {
-          const svc = order.service.toLowerCase();
+        const svc = order.service.toLowerCase();
+        if (!order.checkedAt && (svc === "wa" || svc === "tg")) {
           try {
             if (svc === "tg") {
               tgCheck = await checkTelegram(order.number);
-            } else if (svc === "wa") {
-              waCheck = await checkWhatsApp(order.number);
             } else {
-              [waCheck, tgCheck] = await Promise.all([
-                checkWhatsApp(order.number),
-                checkTelegram(order.number),
-              ]);
+              waCheck = await checkWhatsApp(order.number);
             }
           } catch { /* checker failure is non-critical */ }
         }

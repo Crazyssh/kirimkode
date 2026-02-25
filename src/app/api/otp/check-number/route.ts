@@ -36,18 +36,18 @@ export async function POST(req: NextRequest) {
   const number = order.number;
   const service = order.service.toLowerCase();
 
+  // Hanya cek untuk service WA dan TG
+  if (service !== "wa" && service !== "tg") {
+    return NextResponse.json({ success: true, data: { waCheck: null, tgCheck: null } });
+  }
+
   let waResult = null;
   let tgResult = null;
 
   if (service === "tg") {
     tgResult = await checkTelegram(number);
-  } else if (service === "wa") {
-    waResult = await checkWhatsApp(number);
   } else {
-    [waResult, tgResult] = await Promise.all([
-      checkWhatsApp(number),
-      checkTelegram(number),
-    ]);
+    waResult = await checkWhatsApp(number);
   }
 
   await db.order.update({
