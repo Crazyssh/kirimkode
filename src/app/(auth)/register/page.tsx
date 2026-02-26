@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { UserPlus, Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
@@ -20,6 +20,12 @@ export default function RegisterPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme") as "dark" | "light" | null;
+    if (saved) setTheme(saved);
+  }, []);
 
   const [form, setForm] = useState({
     name: "",
@@ -246,7 +252,7 @@ export default function RegisterPage() {
             onSuccess={setCaptchaToken}
             onError={() => setCaptchaToken("")}
             onExpire={() => setCaptchaToken("")}
-            options={{ theme: "dark", size: "flexible" }}
+            options={{ theme, size: "flexible" }}
           />
 
           <Button type="submit" className="w-full" size="lg" disabled={loading || !captchaToken}>
