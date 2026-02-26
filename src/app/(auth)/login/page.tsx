@@ -21,8 +21,10 @@ function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const saved = localStorage.getItem("theme") as "dark" | "light" | null;
     if (saved) setTheme(saved);
   }, []);
@@ -67,6 +69,18 @@ function LoginForm() {
     setGoogleLoading(true);
     await signIn("google", { callbackUrl: "/dashboard" });
   };
+
+  if (!mounted) {
+    return (
+      <Card>
+        <CardContent>
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>

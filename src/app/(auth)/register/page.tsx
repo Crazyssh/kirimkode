@@ -4,7 +4,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { UserPlus, Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
+import {
+  UserPlus,
+  Mail,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  Loader2,
+} from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -21,8 +29,10 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const saved = localStorage.getItem("theme") as "dark" | "light" | null;
     if (saved) setTheme(saved);
   }, []);
@@ -117,6 +127,18 @@ export default function RegisterPage() {
     }
     await signIn("google", { callbackUrl: "/dashboard" });
   };
+
+  if (!mounted) {
+    return (
+      <Card>
+        <CardContent>
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
