@@ -46,7 +46,7 @@ export function Navbar() {
           <Link href="/login" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-transparent text-foreground hover:bg-surface px-4 py-1.5 text-xs">
             {t("common.login")}
           </Link>
-          <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-4 py-1.5 text-xs">
+          <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_var(--shadow-primary)] hover:shadow-[0_0_30px_var(--shadow-primary-hover)] px-4 py-1.5 text-xs">
             {t("common.register")}
           </Link>
         </div>
@@ -79,7 +79,7 @@ export function Navbar() {
                 <Link href="/login" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-surface text-foreground border border-border hover:bg-surface-hover px-4 py-1.5 text-xs">
                   {t("common.login")}
                 </Link>
-                <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-4 py-1.5 text-xs">
+                <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_var(--shadow-primary)] hover:shadow-[0_0_30px_var(--shadow-primary-hover)] px-4 py-1.5 text-xs">
                   {t("common.register")}
                 </Link>
               </div>

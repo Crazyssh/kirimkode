@@ -17,24 +17,28 @@
   --font-sans: var(--font-inter);
   --font-display: var(--font-space-grotesk);
   --font-mono: var(--font-jetbrains-mono);
+  --shadow-primary: rgba(0, 230, 118, 0.3);
+  --shadow-primary-hover: rgba(0, 230, 118, 0.5);
 }
 
 /* Light theme - override Tailwind v4 @theme variables */
 [data-theme="light"],
 [data-theme="light"] * {
-  --color-background: #F8FAFC;
-  --color-foreground: #1E293B;
+  --color-background: #EFF3F8;
+  --color-foreground: #0F172A;
   --color-primary: #059669;
   --color-primary-hover: #047857;
-  --color-secondary: #F1F5F9;
+  --color-secondary: #E2E8F0;
   --color-accent: #D97706;
   --color-surface: #FFFFFF;
   --color-surface-hover: #F1F5F9;
-  --color-border: #E2E8F0;
-  --color-muted: #64748B;
-  --color-success: #10B981;
-  --color-error: #EF4444;
-  --color-warning: #F59E0B;
+  --color-border: #CBD5E1;
+  --color-muted: #475569;
+  --color-success: #059669;
+  --color-error: #DC2626;
+  --color-warning: #D97706;
+  --shadow-primary: rgba(5, 150, 105, 0.2);
+  --shadow-primary-hover: rgba(5, 150, 105, 0.35);
 }
 
 * {
@@ -58,8 +62,8 @@ body {
 }
 
 [data-theme="light"] body {
-  background: #F8FAFC;
-  color: #1E293B;
+  background: #EFF3F8;
+  color: #0F172A;
 }
 
 ::selection {
@@ -73,8 +77,8 @@ body {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px rgba(0, 230, 118, 0.3); }
-  50% { box-shadow: 0 0 20px rgba(0, 230, 118, 0.6); }
+  0%, 100% { box-shadow: 0 0 8px var(--shadow-primary); }
+  50% { box-shadow: 0 0 20px var(--shadow-primary-hover); }
 }
 
 @keyframes slide-up {
@@ -101,8 +105,9 @@ body {
 }
 
 [data-theme="light"] .glass {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(203, 213, 225, 0.6);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 [data-theme="light"] .gradient-text {
@@ -136,6 +141,10 @@ body {
   mask-composite: exclude;
   -webkit-mask-composite: xor;
   pointer-events: none;
+}
+
+[data-theme="light"] .gradient-border::before {
+  background: linear-gradient(135deg, #059669, #D97706);
 }
 
 /* Respect user motion preferences */

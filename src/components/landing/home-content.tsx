@@ -147,7 +147,7 @@ export function HomeContent() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-              <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-8 py-3 text-base">
+              <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_var(--shadow-primary)] hover:shadow-[0_0_30px_var(--shadow-primary-hover)] px-8 py-3 text-base">
                   {t("landing.startNow")} <ArrowRight className="w-4 h-4" />
               </Link>
               <Link href="#fitur" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-surface text-foreground border border-border hover:bg-surface-hover px-8 py-3 text-base">
@@ -358,7 +358,7 @@ export function HomeContent() {
                           </div>
                         </td>
                         <td className="py-3 text-right">
-                          <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-4 py-1.5 text-xs">
+                          <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_var(--shadow-primary)] hover:shadow-[0_0_30px_var(--shadow-primary-hover)] px-4 py-1.5 text-xs">
                             {t("landing.buy")}
                           </Link>
                         </td>
@@ -418,7 +418,7 @@ export function HomeContent() {
           <p className="text-lg text-muted mb-8">
             {t("landing.ctaDesc")}
           </p>
-          <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_rgba(0,230,118,0.3)] hover:shadow-[0_0_30px_rgba(0,230,118,0.5)] px-8 py-3 text-base animate-pulse-glow">
+          <Link href="/register" className="inline-flex items-center justify-center gap-2 font-semibold rounded-full transition-all duration-200 bg-primary text-background hover:bg-primary-hover shadow-[0_0_20px_var(--shadow-primary)] hover:shadow-[0_0_30px_var(--shadow-primary-hover)] px-8 py-3 text-base animate-pulse-glow">
               {t("landing.ctaButton")} <ArrowRight className="w-5 h-5 ml-2" />
           </Link>
         </div>

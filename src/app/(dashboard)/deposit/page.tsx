@@ -257,7 +257,7 @@ export default function DepositPage() {
                       onClick={() => setAmount(preset)}
                       className={`px-4 py-3 rounded-xl text-sm font-medium font-[family-name:var(--font-jetbrains-mono)] transition-all ${
                         amount === preset
-                          ? "bg-primary text-background shadow-[0_0_15px_rgba(0,230,118,0.3)]"
+                          ? "bg-primary text-background shadow-[0_0_15px_var(--shadow-primary)]"
                           : "bg-background border border-border hover:border-primary/50"
                       }`}
                     >
