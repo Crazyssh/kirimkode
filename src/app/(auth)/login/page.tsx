@@ -5,28 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { LogIn, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useLanguageStore } from "@/store/language";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const turnstileRef = useRef<TurnstileInstance>(null);
   const { t } = useLanguageStore();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem("theme") as "dark" | "light" | null;
-    if (saved) setTheme(saved);
   }, []);
 
   const registered = searchParams.get("registered");
@@ -61,7 +56,6 @@ function LoginForm() {
       setError(t("auth.networkError"));
     } finally {
       setLoading(false);
-      turnstileRef.current?.reset();
     }
   };
 
@@ -154,12 +148,6 @@ function LoginForm() {
               </button>
             </div>
           </div>
-
-          <Turnstile
-            ref={turnstileRef}
-            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
-            options={{ theme, size: "flexible" }}
-          />
 
           <Button type="submit" className="w-full" size="lg" disabled={loading}>
             {loading ? (
