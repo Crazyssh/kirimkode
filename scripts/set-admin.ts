@@ -1,10 +1,14 @@
 // Script untuk set user jadi admin
 // Jalankan: npx tsx scripts/set-admin.ts
 
+import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const adapter = new PrismaBetterSqlite3({ url: "./dev.db" });
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) throw new Error("DATABASE_URL is not set");
+
+const adapter = new PrismaPg({ connectionString });
 const db = new PrismaClient({ adapter });
 
 async function main() {

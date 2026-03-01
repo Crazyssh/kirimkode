@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__swift-_openai__createchatcompletion",
+      "Bash(npm ls critters)",
+      "Bash(npm ls @next/bundle-analyzer)"
+    ]
+  }
+}
