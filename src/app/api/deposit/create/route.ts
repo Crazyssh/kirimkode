@@ -6,6 +6,7 @@ import {
   generateReferenceId,
 } from "@/lib/paymenku";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
+import { depositCreateSchema, validateBody } from "@/lib/validations";
 import { logAction } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
@@ -20,28 +21,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { amount, channel_code } = body;
-
-    if (!amount || amount < 1000) {
-      return NextResponse.json(
-        { error: "Minimum deposit Rp 1.000" },
-        { status: 400 }
-      );
+    const validated = validateBody(depositCreateSchema, body);
+    if (!validated.success) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
     }
 
-    if (amount > 10_000_000) {
-      return NextResponse.json(
-        { error: "Maksimum deposit Rp 10.000.000 per transaksi" },
-        { status: 400 }
-      );
-    }
-
-    if (!channel_code) {
-      return NextResponse.json(
-        { error: "Pilih metode pembayaran" },
-        { status: 400 }
-      );
-    }
+    const { amount, channel_code } = validated.data;
 
     // Anti double charge: cek apakah ada deposit pending yang masih aktif
     const pendingCount = await db.deposit.count({

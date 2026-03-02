@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { cancelOrder } from "@/lib/otp";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { logAction } from "@/lib/audit";
+import { otpCancelSchema, validateBody } from "@/lib/validations";
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,15 +18,12 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { server, id } = body;
-
-    if (!server || !["api1", "api2"].includes(server)) {
-      return NextResponse.json({ error: "Server parameter required (api1 or api2)" }, { status: 400 });
+    const validated = validateBody(otpCancelSchema, body);
+    if (!validated.success) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
     }
 
-    if (!id) {
-      return NextResponse.json({ error: "Parameter id diperlukan" }, { status: 400 });
-    }
+    const { server, id } = validated.data;
 
     // Cancel on JasaOTP
     await cancelOrder(server, Number(id));

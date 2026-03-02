@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
+import { registerSchema, validateBody } from "@/lib/validations";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
@@ -11,27 +12,19 @@ export async function POST(req: NextRequest) {
     const rateLimited = checkRouteRateLimit(req, "register", 5, 60000);
     if (rateLimited) return rateLimited;
 
-    const { name, email, password, phone, captchaToken, referralCode } = await req.json();
+    const body = await req.json();
+    const validated = validateBody(registerSchema, body);
+    if (!validated.success) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
+    }
+
+    const { name, email, password, phone, captchaToken, referralCode } = validated.data;
 
     // Verify captcha
     const captchaValid = await verifyTurnstile(captchaToken || "");
     if (!captchaValid) {
       return NextResponse.json(
         { error: "Verifikasi captcha gagal. Silakan coba lagi." },
-        { status: 400 }
-      );
-    }
-
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { error: "Nama, email, dan password wajib diisi" },
-        { status: 400 }
-      );
-    }
-
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: "Password minimal 8 karakter" },
         { status: 400 }
       );
     }

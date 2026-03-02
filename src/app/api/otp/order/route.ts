@@ -5,6 +5,7 @@ import { createOrder, getLayanan } from "@/lib/otp";
 import { applyPricing } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
+import { otpOrderSchema, validateBody } from "@/lib/validations";
 
 /**
  * Ambil harga dari server JasaOTP + apply pricing rules.
@@ -38,15 +39,12 @@ export async function POST(req: NextRequest) {
     const userId = session.user.id;
 
     const body = await req.json();
-    const { server, negara, layanan, operator, serviceName, countryName } = body;
-
-    if (!server || !["api1", "api2"].includes(server)) {
-      return NextResponse.json({ error: "Server parameter required (api1 or api2)" }, { status: 400 });
+    const validated = validateBody(otpOrderSchema, body);
+    if (!validated.success) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
     }
 
-    if (!negara || !layanan || !operator) {
-      return NextResponse.json({ error: "Parameter negara, layanan, dan operator diperlukan" }, { status: 400 });
-    }
+    const { server, negara, layanan, operator, serviceName, countryName } = validated.data;
 
     // Harga WAJIB dari server, bukan dari client
     const orderPrice = await getServerPrice(server as "api1" | "api2", Number(negara), layanan);
