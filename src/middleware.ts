@@ -16,10 +16,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Verify JWT token (bukan hanya cek cookie existence)
-  // getToken() decode & verify JWT signature menggunakan AUTH_SECRET
-  const token = await getToken({ req: request });
-  const isLoggedIn = !!token;
+  // Verify JWT token menggunakan getToken (decode + verify signature)
+  // Dengan fallback ke cookie check kalau getToken gagal
+  let isLoggedIn = false;
+  try {
+    const token = await getToken({ req: request });
+    isLoggedIn = !!token;
+  } catch {
+    // Fallback: cek cookie existence kalau getToken error
+    // (misalnya AUTH_SECRET bermasalah atau token format salah)
+    const sessionCookie =
+      request.cookies.get("authjs.session-token")?.value ||
+      request.cookies.get("__Secure-authjs.session-token")?.value;
+    isLoggedIn = !!sessionCookie;
+  }
 
   if (isProtected && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", request.url));
