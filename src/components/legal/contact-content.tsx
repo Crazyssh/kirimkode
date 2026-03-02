@@ -36,8 +36,8 @@ export function ContactContent() {
               <MessageSquare className="w-6 h-6 text-primary mb-3" />
               <h3 className="font-semibold mb-1">WhatsApp</h3>
               <p className="text-sm text-muted mb-2">Quick response via WhatsApp chat</p>
-              <a href="https://wa.me/6281234567890" className="text-sm text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-                +62 812-3456-7890
+              <a href="https://wa.me/19053297645" className="text-sm text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+                +1 (905) 329-7645
               </a>
             </CardContent>
           </Card>
@@ -119,8 +119,8 @@ export function ContactContent() {
             <MessageSquare className="w-6 h-6 text-primary mb-3" />
             <h3 className="font-semibold mb-1">WhatsApp</h3>
             <p className="text-sm text-muted mb-2">Respon cepat via chat WhatsApp</p>
-            <a href="https://wa.me/6281234567890" className="text-sm text-primary hover:underline" target="_blank" rel="noopener noreferrer">
-              +62 812-3456-7890
+            <a href="https://wa.me/19053297645" className="text-sm text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+              +1 (905) 329-7645
             </a>
           </CardContent>
         </Card>

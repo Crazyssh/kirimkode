@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
+import { WhatsAppButton } from "@/components/whatsapp-button";
 import { AlertCircle, Info, CheckCircle, X } from "lucide-react";
 
 interface Announcement {
@@ -67,6 +68,8 @@ export default function DashboardLayout({
 
         <main className="p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
+
+      <WhatsAppButton />
     </div>
   );
 }
