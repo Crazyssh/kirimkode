@@ -109,6 +109,9 @@ model Order {
 
   @@index([userId])
   @@index([status])
+  @@index([createdAt])
+  @@index([userId, status])
+  @@index([userId, createdAt])
   @@map("orders")
 }
 
@@ -132,6 +135,8 @@ model Deposit {
 
   @@index([userId])
   @@index([status])
+  @@index([createdAt])
+  @@index([status, createdAt])
   @@map("deposits")
 }
 
@@ -163,6 +168,7 @@ model AuditLog {
 
   @@index([userId])
   @@index([action])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
