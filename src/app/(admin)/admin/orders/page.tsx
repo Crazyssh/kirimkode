@@ -109,7 +109,7 @@ export default function AdminOrdersPage() {
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
               <Input
-                placeholder="Cari layanan, nomor, atau email..."
+                placeholder="Cari layanan, nomor, nama, atau email..."
                 className="pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -120,11 +120,10 @@ export default function AdminOrdersPage() {
                 <button
                   key={sf.value}
                   onClick={() => setStatusFilter(sf.value)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    statusFilter === sf.value
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${statusFilter === sf.value
                       ? "bg-primary text-background"
                       : "bg-surface-hover text-muted hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   {sf.label}
                 </button>
@@ -185,19 +184,19 @@ export default function AdminOrdersPage() {
                               order.status === "success"
                                 ? "success"
                                 : order.status === "waiting"
-                                ? "warning"
-                                : "error"
+                                  ? "warning"
+                                  : "error"
                             }
                           >
                             {order.status === "success"
                               ? "Berhasil"
                               : order.status === "waiting"
-                              ? "Menunggu"
-                              : order.status === "cancelled"
-                              ? "Dibatalkan"
-                              : order.status === "timeout"
-                              ? "Time Out"
-                              : "Gagal"}
+                                ? "Menunggu"
+                                : order.status === "cancelled"
+                                  ? "Dibatalkan"
+                                  : order.status === "timeout"
+                                    ? "Time Out"
+                                    : "Gagal"}
                           </Badge>
                         </td>
                         <td className="py-3 font-[family-name:var(--font-jetbrains-mono)] text-xs">

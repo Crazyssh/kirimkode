@@ -11,11 +11,21 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
     const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit")) || 20));
     const status = searchParams.get("status");
+    const search = searchParams.get("search") || "";
 
     const where: Record<string, unknown> = {};
 
     if (status && status !== "all") {
       where.status = status;
+    }
+
+    if (search) {
+      where.user = {
+        OR: [
+          { email: { contains: search, mode: "insensitive" } },
+          { name: { contains: search, mode: "insensitive" } },
+        ],
+      };
     }
 
     const [deposits, total] = await Promise.all([

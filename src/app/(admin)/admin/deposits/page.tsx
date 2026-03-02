@@ -3,9 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { formatRupiah } from "@/lib/utils";
 import {
+  Search,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -45,6 +47,7 @@ export default function AdminDepositsPage() {
     total: 0,
     totalPages: 1,
   });
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -58,6 +61,7 @@ export default function AdminDepositsPage() {
           limit: "20",
         });
         if (statusFilter !== "all") params.set("status", statusFilter);
+        if (search) params.set("search", search);
 
         const res = await fetch(`/api/admin/deposits?${params}`);
         if (res.ok) {
@@ -71,7 +75,7 @@ export default function AdminDepositsPage() {
         setLoading(false);
       }
     },
-    [statusFilter]
+    [statusFilter, search]
   );
 
   useEffect(() => {
@@ -118,20 +122,30 @@ export default function AdminDepositsPage() {
       {/* Filters */}
       <Card>
         <CardContent>
-          <div className="flex gap-2">
-            {statusFilters.map((sf) => (
-              <button
-                key={sf.value}
-                onClick={() => setStatusFilter(sf.value)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                  statusFilter === sf.value
-                    ? "bg-primary text-background"
-                    : "bg-surface-hover text-muted hover:text-foreground"
-                }`}
-              >
-                {sf.label}
-              </button>
-            ))}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+              <Input
+                placeholder="Cari nama atau email user..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              {statusFilters.map((sf) => (
+                <button
+                  key={sf.value}
+                  onClick={() => setStatusFilter(sf.value)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${statusFilter === sf.value
+                      ? "bg-primary text-background"
+                      : "bg-surface-hover text-muted hover:text-foreground"
+                    }`}
+                >
+                  {sf.label}
+                </button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -180,15 +194,15 @@ export default function AdminDepositsPage() {
                               deposit.status === "paid"
                                 ? "success"
                                 : deposit.status === "pending"
-                                ? "warning"
-                                : "error"
+                                  ? "warning"
+                                  : "error"
                             }
                           >
                             {deposit.status === "paid"
                               ? "Lunas"
                               : deposit.status === "pending"
-                              ? "Pending"
-                              : "Expired"}
+                                ? "Pending"
+                                : "Expired"}
                           </Badge>
                         </td>
                         <td className="py-3 text-xs text-muted whitespace-nowrap">
