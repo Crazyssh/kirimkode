@@ -160,7 +160,7 @@ export function WhatsAppButton() {
                     {/* Footer */}
                     <div className="px-4 py-2 border-t border-border">
                         <p className="text-[10px] text-muted text-center">
-                            Powered by WhatsApp · Jam kerja 09:00 - 21:00 WIB
+                            Powered by WhatsApp · Tersedia 24/7
                         </p>
                     </div>
                 </div>
