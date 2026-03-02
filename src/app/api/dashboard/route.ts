@@ -79,6 +79,7 @@ export async function GET() {
       })),
       recentDeposits: deposits.map((d) => ({
         id: d.id,
+        trxId: d.trxId,
         amount: d.amount,
         method: d.channelName,
         status: d.status,

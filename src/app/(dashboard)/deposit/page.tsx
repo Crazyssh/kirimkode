@@ -52,6 +52,7 @@ interface DepositResult {
 
 interface DepositHistoryItem {
   id: string;
+  trxId: string;
   amount: number;
   method: string;
   status: string;
@@ -99,8 +100,9 @@ export default function DepositPage() {
         if (res.ok) {
           const json = await res.json();
           setDepositHistory(
-            (json.data.recentDeposits || []).map((d: { id: string; amount: number; method: string; status: string; time: string }) => ({
+            (json.data.recentDeposits || []).map((d: { id: string; trxId: string; amount: number; method: string; status: string; time: string }) => ({
               id: d.id,
+              trxId: d.trxId,
               amount: d.amount,
               method: d.method,
               status: d.status,
@@ -190,10 +192,10 @@ export default function DepositPage() {
   // Ambil semua channels dalam satu flat list untuk ditampilkan
   const allChannels: (PaymentChannel & { group: string })[] = channels
     ? [
-        ...(channels.qris || []).map((c) => ({ ...c, group: "QRIS" })),
-        ...(channels.ewallet || []).map((c) => ({ ...c, group: "E-Wallet" })),
-        ...(channels.va || []).map((c) => ({ ...c, group: "Virtual Account" })),
-      ]
+      ...(channels.qris || []).map((c) => ({ ...c, group: "QRIS" })),
+      ...(channels.ewallet || []).map((c) => ({ ...c, group: "E-Wallet" })),
+      ...(channels.va || []).map((c) => ({ ...c, group: "Virtual Account" })),
+    ]
     : [];
 
   const selectedChannelObj = allChannels.find((c) => c.code === selectedChannel);
@@ -255,11 +257,10 @@ export default function DepositPage() {
                     <button
                       key={preset}
                       onClick={() => setAmount(preset)}
-                      className={`px-4 py-3 rounded-xl text-sm font-medium font-[family-name:var(--font-jetbrains-mono)] transition-all ${
-                        amount === preset
+                      className={`px-4 py-3 rounded-xl text-sm font-medium font-[family-name:var(--font-jetbrains-mono)] transition-all ${amount === preset
                           ? "bg-primary text-background shadow-[0_0_15px_var(--shadow-primary)]"
                           : "bg-background border border-border hover:border-primary/50"
-                      }`}
+                        }`}
                     >
                       {formatRupiah(preset)}
                     </button>
@@ -301,11 +302,10 @@ export default function DepositPage() {
                           <button
                             key={channel.code}
                             onClick={() => setSelectedChannel(channel.code)}
-                            className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
-                              selectedChannel === channel.code
+                            className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${selectedChannel === channel.code
                                 ? "border-primary/50 bg-primary/5"
                                 : "border-border hover:border-primary/30"
-                            }`}
+                              }`}
                           >
                             <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center shrink-0">
                               {channel.icon ? (
@@ -323,9 +323,8 @@ export default function DepositPage() {
                                 {t("deposit.fee")}: {channel.fee.display}
                               </div>
                             </div>
-                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                              selectedChannel === channel.code ? "border-primary" : "border-border"
-                            }`}>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedChannel === channel.code ? "border-primary" : "border-border"
+                              }`}>
                               {selectedChannel === channel.code && (
                                 <div className="w-2.5 h-2.5 rounded-full bg-primary" />
                               )}
@@ -599,6 +598,9 @@ export default function DepositPage() {
                     <div>
                       <div className="text-sm font-medium font-[family-name:var(--font-jetbrains-mono)]">
                         +{formatRupiah(dep.amount)}
+                      </div>
+                      <div className="text-xs text-muted">
+                        {dep.trxId}
                       </div>
                       <div className="text-xs text-muted">
                         {dep.method} &middot; {dep.time}

@@ -31,6 +31,20 @@ export async function GET(req: NextRequest) {
     // Deposit lebih lama dari itu kemungkinan sudah expired di Paymenku
     const cutoff24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
+    // Auto-expire: deposit pending > 24 jam langsung set expired
+    // Supaya slot pending user terbebas (maks 3 pending)
+    const autoExpired = await db.deposit.updateMany({
+        where: {
+            status: "pending",
+            createdAt: { lt: cutoff24h },
+        },
+        data: { status: "expired" },
+    });
+
+    if (autoExpired.count > 0) {
+        console.log(`[CRON Deposits] Auto-expired ${autoExpired.count} deposits older than 24h`);
+    }
+
     const pendingDeposits = await db.deposit.findMany({
         where: {
             status: "pending",
@@ -141,6 +155,7 @@ export async function GET(req: NextRequest) {
         success: true,
         timestamp: now.toISOString(),
         results: {
+            autoExpired: autoExpired.count,
             totalPending: pendingDeposits.length,
             checked,
             paid,
