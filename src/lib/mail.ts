@@ -3,47 +3,47 @@ import formData from "form-data";
 
 const mailgun = new Mailgun(formData);
 
-const DOMAIN = process.env.MAILGUN_DOMAIN || "mg.kirimkode.com";
+const DOMAIN = process.env.MAILGUN_DOMAIN || "kirimkode.com";
 const API_KEY = process.env.MAILGUN_API_KEY || "";
-const FROM_EMAIL = process.env.MAILGUN_FROM || "KirimKode <noreply@mg.kirimkode.com>";
+const FROM_EMAIL = process.env.MAILGUN_FROM || "KirimKode <noreply@kirimkode.com>";
 
 const mg = mailgun.client({ username: "api", key: API_KEY });
 
 // ==================== SEND EMAIL ====================
 
 interface SendMailOptions {
-    to: string;
-    subject: string;
-    html: string;
-    text?: string;
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
 }
 
 export async function sendMail({ to, subject, html, text }: SendMailOptions) {
-    if (!API_KEY) {
-        console.warn("[Mail] MAILGUN_API_KEY not set, skipping email");
-        return null;
-    }
+  if (!API_KEY) {
+    console.warn("[Mail] MAILGUN_API_KEY not set, skipping email");
+    return null;
+  }
 
-    try {
-        const result = await mg.messages.create(DOMAIN, {
-            from: FROM_EMAIL,
-            to: [to],
-            subject,
-            html,
-            text: text || subject,
-        });
-        console.log(`[Mail] Sent to ${to}: ${subject} (${result.id})`);
-        return result;
-    } catch (error) {
-        console.error(`[Mail] Failed to send to ${to}:`, error);
-        return null;
-    }
+  try {
+    const result = await mg.messages.create(DOMAIN, {
+      from: FROM_EMAIL,
+      to: [to],
+      subject,
+      html,
+      text: text || subject,
+    });
+    console.log(`[Mail] Sent to ${to}: ${subject} (${result.id})`);
+    return result;
+  } catch (error) {
+    console.error(`[Mail] Failed to send to ${to}:`, error);
+    return null;
+  }
 }
 
 // ==================== EMAIL TEMPLATES ====================
 
 function baseTemplate(content: string): string {
-    return `
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -77,14 +77,14 @@ function baseTemplate(content: string): string {
 }
 
 function formatRp(amount: number): string {
-    return `Rp ${amount.toLocaleString("id-ID")}`;
+  return `Rp ${amount.toLocaleString("id-ID")}`;
 }
 
 // ==================== SPECIFIC EMAILS ====================
 
 /** Email: Deposit berhasil / saldo masuk */
 export async function sendDepositSuccessEmail(to: string, data: { name: string; amount: number; trxId: string; balance: number }) {
-    const html = baseTemplate(`
+  const html = baseTemplate(`
     <div style="text-align:center;margin-bottom:20px;">
       <div style="width:56px;height:56px;border-radius:50%;background:rgba(52,211,153,0.2);display:inline-flex;align-items:center;justify-content:center;">
         <span style="font-size:28px;">✅</span>
@@ -115,16 +115,16 @@ export async function sendDepositSuccessEmail(to: string, data: { name: string; 
     </a>
   `);
 
-    return sendMail({
-        to,
-        subject: `✅ Deposit ${formatRp(data.amount)} Berhasil — KirimKode`,
-        html,
-    });
+  return sendMail({
+    to,
+    subject: `✅ Deposit ${formatRp(data.amount)} Berhasil — KirimKode`,
+    html,
+  });
 }
 
 /** Email: Welcome / registrasi berhasil */
 export async function sendWelcomeEmail(to: string, data: { name: string }) {
-    const html = baseTemplate(`
+  const html = baseTemplate(`
     <div style="text-align:center;margin-bottom:20px;">
       <div style="width:56px;height:56px;border-radius:50%;background:rgba(0,230,118,0.2);display:inline-flex;align-items:center;justify-content:center;">
         <span style="font-size:28px;">👋</span>
@@ -146,24 +146,24 @@ export async function sendWelcomeEmail(to: string, data: { name: string }) {
     </a>
   `);
 
-    return sendMail({
-        to,
-        subject: `👋 Selamat Datang di KirimKode, ${data.name}!`,
-        html,
-    });
+  return sendMail({
+    to,
+    subject: `👋 Selamat Datang di KirimKode, ${data.name}!`,
+    html,
+  });
 }
 
 /** Email: Broadcast / pengumuman dari admin */
 export async function sendBroadcastEmail(to: string, data: { subject: string; content: string }) {
-    const html = baseTemplate(`
+  const html = baseTemplate(`
     <div style="color:#E2E8F0;font-size:14px;line-height:1.7;">
       ${data.content}
     </div>
   `);
 
-    return sendMail({
-        to,
-        subject: data.subject,
-        html,
-    });
+  return sendMail({
+    to,
+    subject: data.subject,
+    html,
+  });
 }
