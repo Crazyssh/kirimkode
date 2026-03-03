@@ -10,7 +10,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const data = await getNegara(server);
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "public, s-maxage=600, stale-while-revalidate=1200",
+      },
+    });
   } catch {
     return NextResponse.json({ error: "Gagal mengambil daftar negara" }, { status: 500 });
   }

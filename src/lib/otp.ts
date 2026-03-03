@@ -95,8 +95,9 @@ async function fetchApi(
   try {
     const data = await doFetch();
     // Cache hanya untuk read endpoints
+    // Negara: 30 menit (jarang berubah), Layanan: 3 menit (stok cukup akurat)
     if (!options?.skipCache) {
-      const ttl = endpoint.includes("negara") ? 300000 : 60000;
+      const ttl = endpoint.includes("negara") ? 1800000 : 180000;
       setCache(urlStr, data, ttl);
     }
     return data;
@@ -111,7 +112,7 @@ async function fetchApi(
     try {
       const data = await doFetch();
       if (!options?.skipCache) {
-        const ttl = endpoint.includes("negara") ? 300000 : 60000;
+        const ttl = endpoint.includes("negara") ? 1800000 : 180000;
         setCache(urlStr, data, ttl);
       }
       return data;
