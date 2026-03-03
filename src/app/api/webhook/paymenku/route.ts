@@ -77,8 +77,16 @@ export async function POST(req: NextRequest) {
       const fee = Math.floor(parseFloat(apiData.total_fee || "0"));
       const amountReceived = Math.floor(parseFloat(apiData.amount_received || "0"));
 
-      await db.$transaction([
-        db.deposit.update({
+      // Interactive transaction dengan re-check untuk prevent race condition
+      // (Paymenku bisa kirim webhook 2x hampir bersamaan)
+      const processed = await db.$transaction(async (tx) => {
+        const freshDeposit = await tx.deposit.findUnique({ where: { trxId } });
+        if (!freshDeposit || freshDeposit.status !== "pending") {
+          console.log(`[Paymenku Webhook] Race condition prevented: ${trxId} already ${freshDeposit?.status}`);
+          return false;
+        }
+
+        await tx.deposit.update({
           where: { trxId },
           data: {
             status: "paid",
@@ -86,28 +94,45 @@ export async function POST(req: NextRequest) {
             fee,
             totalPaid: amountReceived + fee,
           },
-        }),
-        db.user.update({
+        });
+        await tx.user.update({
           where: { id: deposit.userId },
           data: { balance: { increment: deposit.amount } },
-        }),
-      ]);
+        });
+        return true;
+      });
 
-      // Komisi referral 5% untuk inviter
-      await giveReferralCommission(deposit.userId, deposit.amount);
-
-      // Kirim email notifikasi deposit berhasil
-      const user = await db.user.findUnique({ where: { id: deposit.userId }, select: { email: true, name: true, balance: true } });
-      if (user?.email) {
-        sendDepositSuccessEmail(user.email, {
-          name: user.name || "User",
-          amount: deposit.amount,
-          trxId,
-          balance: user.balance,
-        }).catch((e) => console.error("[Mail] Email deposit error:", e));
+      if (!processed) {
+        return NextResponse.json({ status: "already_processed" });
       }
 
       console.log(`[Paymenku] VERIFIED & PAID: ${trxId} | +Rp ${deposit.amount} for user ${deposit.userId}`);
+
+      // Komisi referral (non-blocking, jangan block email)
+      try {
+        await giveReferralCommission(deposit.userId, deposit.amount);
+      } catch (e) {
+        console.error("[Paymenku] Referral commission error:", e);
+      }
+
+      // Kirim email notifikasi deposit berhasil
+      try {
+        const user = await db.user.findUnique({ where: { id: deposit.userId }, select: { email: true, name: true, balance: true } });
+        if (user?.email) {
+          console.log(`[Mail] Sending deposit email to ${user.email}...`);
+          await sendDepositSuccessEmail(user.email, {
+            name: user.name || "User",
+            amount: deposit.amount,
+            trxId,
+            balance: user.balance,
+          });
+          console.log(`[Mail] Deposit email sent to ${user.email}`);
+        } else {
+          console.warn(`[Mail] No email found for user ${deposit.userId}`);
+        }
+      } catch (e) {
+        console.error("[Mail] Email deposit error:", e);
+      }
     } else if (apiStatus === "expired" || apiStatus === "cancelled") {
       await db.deposit.update({
         where: { trxId },
