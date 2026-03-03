@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
         const rateLimited = checkRouteRateLimit(req, "v1-deposit-create", 10, 60000);
         if (rateLimited) return rateLimited;
 
-        const user = await authenticateApiKey(req);
-        if (!user) {
+        const authUser = await authenticateApiKey(req);
+        if (!authUser) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
         // Anti double charge
         const pendingCount = await db.deposit.count({
-            where: { userId: user.id, status: "pending" },
+            where: { userId: authUser.id, status: "pending" },
         });
 
         if (pendingCount >= 3) {
@@ -44,6 +44,16 @@ export async function POST(req: NextRequest) {
                 { error: "Anda sudah memiliki 3 deposit pending" },
                 { status: 429 }
             );
+        }
+
+        // Fetch full user data for payment
+        const user = await db.user.findUnique({
+            where: { id: authUser.id },
+            select: { id: true, name: true, email: true, phone: true },
+        });
+
+        if (!user) {
+            return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
         const referenceId = generateReferenceId(user.id);
@@ -54,7 +64,7 @@ export async function POST(req: NextRequest) {
             amount: Number(amount),
             customer_name: user.name || "KirimKode User",
             customer_email: user.email || "",
-            customer_phone: (user as Record<string, unknown>).phone as string || "",
+            customer_phone: user.phone || "",
             channel_code: channel,
             return_url: `${appUrl}/deposit?status=success`,
         });
