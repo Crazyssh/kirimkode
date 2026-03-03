@@ -86,8 +86,8 @@ function formatRp(amount: number): string {
 export async function sendDepositSuccessEmail(to: string, data: { name: string; amount: number; trxId: string; balance: number }) {
   const html = baseTemplate(`
     <div style="text-align:center;margin-bottom:20px;">
-      <div style="width:56px;height:56px;border-radius:50%;background:rgba(52,211,153,0.2);display:inline-flex;align-items:center;justify-content:center;">
-        <span style="font-size:28px;">✅</span>
+      <div style="width:56px;height:56px;border-radius:50%;background:#00E676;display:inline-flex;align-items:center;justify-content:center;">
+        <span style="font-size:28px;color:#0F172A;font-weight:bold;">&#10003;</span>
       </div>
     </div>
     <h2 style="color:#E2E8F0;text-align:center;margin:0 0 8px;font-size:20px;">Deposit Berhasil!</h2>
