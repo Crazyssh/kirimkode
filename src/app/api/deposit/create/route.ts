@@ -8,6 +8,7 @@ import {
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { depositCreateSchema, validateBody } from "@/lib/validations";
 import { logAction } from "@/lib/audit";
+import { sendDepositPendingEmail } from "@/lib/mail";
 
 export async function POST(req: NextRequest) {
   try {
@@ -77,6 +78,17 @@ export async function POST(req: NextRequest) {
     });
 
     logAction(user.id, "deposit", JSON.stringify({ trxId: result.data.trx_id, amount, channel: channel_code }));
+
+    // Kirim email pending (non-blocking)
+    if (user.email) {
+      sendDepositPendingEmail(user.email, {
+        name: user.name || "User",
+        amount,
+        trxId: result.data.trx_id,
+        channelName: channel_code.toUpperCase(),
+        payUrl: result.data.pay_url,
+      }).catch((e) => console.error("[Mail] Email deposit pending error:", e));
+    }
 
     return NextResponse.json({
       status: "success",

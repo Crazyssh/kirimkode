@@ -80,6 +80,19 @@ function formatRp(amount: number): string {
   return `Rp ${amount.toLocaleString("id-ID")}`;
 }
 
+function formatWaktu(date?: Date | string | null): string {
+  const d = date ? new Date(date) : new Date();
+  return d.toLocaleString("id-ID", {
+    timeZone: "Asia/Jakarta",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }) + " WIB";
+}
+
 // ==================== SPECIFIC EMAILS ====================
 
 /** Email: Deposit berhasil / saldo masuk */
@@ -105,19 +118,70 @@ export async function sendDepositSuccessEmail(to: string, data: { name: string; 
           <td style="color:#E2E8F0;font-size:12px;padding:6px 0;text-align:right;font-family:monospace;">${data.trxId}</td>
         </tr>
         <tr>
+          <td style="color:#94A3B8;font-size:13px;padding:6px 0;">Waktu</td>
+          <td style="color:#E2E8F0;font-size:13px;padding:6px 0;text-align:right;">${formatWaktu()}</td>
+        </tr>
+        <tr>
           <td style="color:#94A3B8;font-size:13px;padding:6px 0;">Saldo Sekarang</td>
           <td style="color:#E2E8F0;font-size:13px;padding:6px 0;text-align:right;font-weight:700;">${formatRp(data.balance)}</td>
         </tr>
       </table>
     </div>
     <a href="https://kirimkode.com/buy" style="display:block;text-align:center;background:#00E676;color:#0F172A;padding:12px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;">
-      Beli Nomor OTP Sekarang →
+      Beli Nomor OTP Sekarang &rarr;
     </a>
   `);
 
   return sendMail({
     to,
     subject: `✅ Deposit ${formatRp(data.amount)} Berhasil — KirimKode`,
+    html,
+  });
+}
+
+/** Email: Deposit pending / menunggu pembayaran */
+export async function sendDepositPendingEmail(to: string, data: { name: string; amount: number; trxId: string; channelName: string; payUrl: string; expiredAt?: string }) {
+  const html = baseTemplate(`
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="width:56px;height:56px;border-radius:50%;background:rgba(251,191,36,0.2);display:inline-flex;align-items:center;justify-content:center;">
+        <span style="font-size:28px;">&#9202;</span>
+      </div>
+    </div>
+    <h2 style="color:#E2E8F0;text-align:center;margin:0 0 8px;font-size:20px;">Menunggu Pembayaran</h2>
+    <p style="color:#94A3B8;text-align:center;margin:0 0 24px;font-size:14px;">
+      Segera selesaikan pembayaran deposit Anda
+    </p>
+    <div style="background:#0F172A;border-radius:12px;padding:16px;margin-bottom:16px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="color:#94A3B8;font-size:13px;padding:6px 0;">Nominal</td>
+          <td style="color:#FBBF24;font-size:13px;padding:6px 0;text-align:right;font-weight:700;">${formatRp(data.amount)}</td>
+        </tr>
+        <tr>
+          <td style="color:#94A3B8;font-size:13px;padding:6px 0;">Metode</td>
+          <td style="color:#E2E8F0;font-size:13px;padding:6px 0;text-align:right;">${data.channelName}</td>
+        </tr>
+        <tr>
+          <td style="color:#94A3B8;font-size:13px;padding:6px 0;">ID Transaksi</td>
+          <td style="color:#E2E8F0;font-size:12px;padding:6px 0;text-align:right;font-family:monospace;">${data.trxId}</td>
+        </tr>
+        <tr>
+          <td style="color:#94A3B8;font-size:13px;padding:6px 0;">Waktu</td>
+          <td style="color:#E2E8F0;font-size:13px;padding:6px 0;text-align:right;">${formatWaktu()}</td>
+        </tr>
+      </table>
+    </div>
+    <a href="${data.payUrl}" style="display:block;text-align:center;background:#FBBF24;color:#0F172A;padding:12px;border-radius:10px;text-decoration:none;font-weight:600;font-size:14px;">
+      Bayar Sekarang &rarr;
+    </a>
+    <p style="color:#64748B;font-size:11px;text-align:center;margin:12px 0 0;">
+      Selesaikan pembayaran sebelum batas waktu agar deposit tidak expired.
+    </p>
+  `);
+
+  return sendMail({
+    to,
+    subject: `⏳ Deposit ${formatRp(data.amount)} Menunggu Pembayaran — KirimKode`,
     html,
   });
 }
