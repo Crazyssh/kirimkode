@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkTransactionStatus } from "@/lib/paymenku";
+import { sendDepositSuccessEmail } from "@/lib/mail";
 
 const REFERRAL_COMMISSION_PERCENT = 5;
 
@@ -42,10 +43,10 @@ export async function GET(req: NextRequest) {
       const amountReceived = Math.floor(parseFloat(result.data.amount_received || result.data.amount));
       const totalFee = Math.floor(parseFloat(result.data.total_fee || "0"));
 
-      await db.$transaction(async (tx) => {
+      const processed = await db.$transaction(async (tx) => {
         // Re-check status dalam transaction untuk prevent race condition
         const freshDeposit = await tx.deposit.findUnique({ where: { trxId: orderId } });
-        if (!freshDeposit || freshDeposit.status === "paid") return;
+        if (!freshDeposit || freshDeposit.status === "paid") return false;
 
         await tx.deposit.update({
           where: { trxId: orderId },
@@ -76,7 +77,32 @@ export async function GET(req: NextRequest) {
             });
           }
         }
+
+        return true;
       });
+
+      // Kirim email deposit berhasil (di luar transaction)
+      if (processed) {
+        console.log(`[Deposit Status] PAID: ${orderId} | +Rp ${deposit.amount} for user ${deposit.userId}`);
+        try {
+          const user = await db.user.findUnique({
+            where: { id: deposit.userId },
+            select: { email: true, name: true, balance: true },
+          });
+          if (user?.email) {
+            console.log(`[Mail] Sending deposit email to ${user.email}...`);
+            await sendDepositSuccessEmail(user.email, {
+              name: user.name || "User",
+              amount: deposit.amount,
+              trxId: orderId,
+              balance: user.balance,
+            });
+            console.log(`[Mail] Deposit email sent to ${user.email}`);
+          }
+        } catch (e) {
+          console.error("[Mail] Email deposit error:", e);
+        }
+      }
     }
 
     return NextResponse.json({
