@@ -342,21 +342,32 @@ export default function BuyPage() {
     return () => {
       if (otpPollRef.current) clearInterval(otpPollRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyOrders, historyPage, fetchHistory]);
 
   const handleCancelOrder = async (order: HistoryOrder) => {
-    if (!order.server || !order.orderId) return;
+    if (!order.server || !order.orderId) {
+      toast.error("Data order tidak lengkap, tidak bisa cancel");
+      return;
+    }
     setCancellingId(order.id);
     try {
-      await fetch("/api/otp/cancel", {
+      const res = await fetch("/api/otp/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ server: order.server, id: order.orderId }),
       });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success("Pesanan dibatalkan, saldo dikembalikan");
+      } else {
+        toast.error(data.error || "Gagal membatalkan pesanan");
+      }
       fetchUser();
       fetchHistory(historyPage);
-    } catch { /* silent */ }
+    } catch {
+      toast.error("Gagal membatalkan pesanan. Coba lagi.");
+    }
     finally { setCancellingId(null); }
   };
 
@@ -469,7 +480,7 @@ export default function BuyPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId: id }),
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     fetchUser();
@@ -555,11 +566,10 @@ export default function BuyPage() {
                   <button
                     key={server.id}
                     onClick={() => setSelectedServer(server)}
-                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl border transition-all ${
-                      selectedServer.id === server.id
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl border transition-all ${selectedServer.id === server.id
                         ? "border-primary bg-primary/10"
                         : "border-border bg-background/50 hover:border-primary/30"
-                    }`}
+                      }`}
                   >
                     <div
                       className={`w-10 h-10 rounded-xl bg-gradient-to-br ${server.color} flex items-center justify-center text-lg`}
@@ -572,11 +582,10 @@ export default function BuyPage() {
                           {server.name}
                         </span>
                         <span
-                          className={`w-2 h-2 rounded-full ${
-                            server.status === "online"
+                          className={`w-2 h-2 rounded-full ${server.status === "online"
                               ? "bg-success"
                               : "bg-warning"
-                          }`}
+                            }`}
                         />
                       </div>
                       <span className="text-xs text-muted">
@@ -655,12 +664,11 @@ export default function BuyPage() {
                                   setShowCountryDropdown(false);
                                   setCountrySearch("");
                                 }}
-                                className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-hover transition-colors ${
-                                  selectedNegara?.id_negara ===
-                                  negara.id_negara
+                                className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-hover transition-colors ${selectedNegara?.id_negara ===
+                                    negara.id_negara
                                     ? "bg-primary/10 text-primary"
                                     : ""
-                                }`}
+                                  }`}
                               >
                                 {capitalizeFirst(negara.nama_negara)}
                               </button>
@@ -670,10 +678,10 @@ export default function BuyPage() {
                               .toLowerCase()
                               .includes(countrySearch.toLowerCase())
                           ).length === 0 && (
-                            <div className="px-3 py-4 text-sm text-muted text-center">
-                              {t("buy.countryNotFound")}
-                            </div>
-                          )}
+                              <div className="px-3 py-4 text-sm text-muted text-center">
+                                {t("buy.countryNotFound")}
+                              </div>
+                            )}
                         </div>
                       </div>
                     )}
@@ -686,49 +694,49 @@ export default function BuyPage() {
 
           {/* Provider Dropdown - hidden for api2/Jupiter */}
           {selectedServer.id === "api1" && (
-          <Card className="relative z-15" style={{ overflow: "visible" }}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Globe className="w-4 h-4 text-primary" />
-                {t("buy.provider")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent style={{ overflow: "visible" }}>
-              {loadingOperator ? (
-                <div className="flex items-center justify-center py-4 text-muted">
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  <span className="text-sm">{t("buy.loadingProviders")}</span>
-                </div>
-              ) : operatorList.length === 0 ? (
-                <div className="text-center py-4 text-xs text-muted">
-                  {t("buy.selectCountryFirst")}
-                </div>
-              ) : (
-                <div className="relative" ref={operatorDropdownRef}>
-                  <button
-                    onClick={() => setShowOperatorDropdown(!showOperatorDropdown)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-background border border-border text-sm hover:border-primary/50 transition-colors"
-                  >
-                    <span>{selectedOperator === "any" ? t("buy.allProviders") : capitalizeFirst(selectedOperator)}</span>
-                    <ChevronDown className="w-4 h-4 text-muted" />
-                  </button>
-                  {showOperatorDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-xl z-50 max-h-52 overflow-y-auto">
-                      {operatorList.map((op) => (
-                        <button
-                          key={op}
-                          onClick={() => { setSelectedOperator(op); setShowOperatorDropdown(false); }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-hover transition-colors ${selectedOperator === op ? "bg-primary/10 text-primary" : ""}`}
-                        >
-                          {op === "any" ? t("buy.allProviders") : capitalizeFirst(op)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            <Card className="relative z-15" style={{ overflow: "visible" }}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Globe className="w-4 h-4 text-primary" />
+                  {t("buy.provider")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent style={{ overflow: "visible" }}>
+                {loadingOperator ? (
+                  <div className="flex items-center justify-center py-4 text-muted">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    <span className="text-sm">{t("buy.loadingProviders")}</span>
+                  </div>
+                ) : operatorList.length === 0 ? (
+                  <div className="text-center py-4 text-xs text-muted">
+                    {t("buy.selectCountryFirst")}
+                  </div>
+                ) : (
+                  <div className="relative" ref={operatorDropdownRef}>
+                    <button
+                      onClick={() => setShowOperatorDropdown(!showOperatorDropdown)}
+                      className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-background border border-border text-sm hover:border-primary/50 transition-colors"
+                    >
+                      <span>{selectedOperator === "any" ? t("buy.allProviders") : capitalizeFirst(selectedOperator)}</span>
+                      <ChevronDown className="w-4 h-4 text-muted" />
+                    </button>
+                    {showOperatorDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border rounded-xl shadow-xl z-50 max-h-52 overflow-y-auto">
+                        {operatorList.map((op) => (
+                          <button
+                            key={op}
+                            onClick={() => { setSelectedOperator(op); setShowOperatorDropdown(false); }}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-hover transition-colors ${selectedOperator === op ? "bg-primary/10 text-primary" : ""}`}
+                          >
+                            {op === "any" ? t("buy.allProviders") : capitalizeFirst(op)}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
 
           {/* Layanan Dropdown */}
@@ -782,9 +790,8 @@ export default function BuyPage() {
                               setShowServiceDropdown(false);
                               setSearchQuery("");
                             }}
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-hover transition-colors flex items-center justify-between ${
-                              selectedService?.code === service.code ? "bg-primary/10 text-primary" : ""
-                            } ${service.stock === 0 ? "opacity-40" : ""}`}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-hover transition-colors flex items-center justify-between ${selectedService?.code === service.code ? "bg-primary/10 text-primary" : ""
+                              } ${service.stock === 0 ? "opacity-40" : ""}`}
                           >
                             <div className="flex items-center gap-2">
                               <button
@@ -862,289 +869,285 @@ export default function BuyPage() {
 
         {/* Kanan: Riwayat Order */}
         <div className="flex-1 min-w-0">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between w-full">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Clock className="w-4 h-4 text-primary" />
-              {t("buy.orderHistory")}
-              {historyTotal > 0 && (
-                <span className="text-muted font-normal text-sm">({historyTotal})</span>
-              )}
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => window.open(`/api/orders/export${historyFilter !== "all" ? `?status=${historyFilter}` : ""}`, "_blank")}
-            >
-              <Download className="w-3.5 h-3.5" />
-              {t("common.exportCsv")}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Search */}
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-              <Input
-                placeholder={t("buy.searchNumber")}
-                value={historySearch}
-                onChange={(e) => setHistorySearch(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") fetchHistory(1); }}
-                className="pl-9"
-              />
-            </div>
-            <Button size="sm" onClick={() => fetchHistory(1)}>
-              <Search className="w-4 h-4" />
-              {t("common.search")}
-            </Button>
-            {historySearch && (
-              <Button variant="ghost" size="sm" onClick={() => { setHistorySearch(""); }}>
-                {t("common.reset")}
-              </Button>
-            )}
-          </div>
-
-          {/* Filters row */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex gap-1.5">
-              {[
-                { label: t("common.all"), value: "all" },
-                { label: t("status.order.success"), value: "success" },
-                { label: t("status.order.waiting"), value: "waiting" },
-                { label: t("status.order.cancelled"), value: "cancelled" },
-              ].map((f) => (
-                <button
-                  key={f.value}
-                  onClick={() => setHistoryFilter(f.value)}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
-                    historyFilter === f.value
-                      ? "bg-primary text-background"
-                      : "bg-surface-hover text-muted hover:text-foreground"
-                  }`}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between w-full">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Clock className="w-4 h-4 text-primary" />
+                  {t("buy.orderHistory")}
+                  {historyTotal > 0 && (
+                    <span className="text-muted font-normal text-sm">({historyTotal})</span>
+                  )}
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => window.open(`/api/orders/export${historyFilter !== "all" ? `?status=${historyFilter}` : ""}`, "_blank")}
                 >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted">{t("common.show")}</span>
-              <select
-                value={historyLimit}
-                onChange={(e) => { setHistoryLimit(Number(e.target.value)); setHistoryPage(1); }}
-                className="bg-background border border-border rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-primary/50 text-foreground"
-              >
-                {[5, 10, 20, 30, 50, 100].map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-              <span className="text-xs text-muted">{t("common.entries")}</span>
-            </div>
-          </div>
-
-          {/* Table */}
-          {historyLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : historyOrders.length === 0 ? (
-            <div className="text-center py-8 text-muted">
-              <ShoppingCart className="w-6 h-6 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">{t("buy.noOrders")}</p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="text-left text-xs sm:text-sm text-muted border-b border-border">
-                      <th className="pb-3 font-medium hidden md:table-cell">{t("buy.time")}</th>
-                      <th className="pb-3 font-medium">{t("buy.service")}</th>
-                      <th className="pb-3 font-medium hidden sm:table-cell">{t("buy.price")}</th>
-                      <th className="pb-3 font-medium">{t("buy.number")}</th>
-                      <th className="pb-3 font-medium hidden lg:table-cell">{t("buy.selectCountry")}</th>
-                      <th className="pb-3 font-medium">OTP</th>
-                      <th className="pb-3 font-medium">{t("buy.status")}</th>
-                      <th className="pb-3 font-medium"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-xs sm:text-sm">
-                    {historyOrders.map((o) => (
-                      <tr key={o.id} className="border-b border-border/50 hover:bg-surface/30">
-                        <td className="py-2 sm:py-3 text-muted whitespace-nowrap hidden md:table-cell">
-                          {new Date(o.date).toLocaleString("id-ID", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                        </td>
-                        <td className="py-2 sm:py-3 font-medium">{o.service}</td>
-                        <td className="py-2 sm:py-3 font-[family-name:var(--font-jetbrains-mono)] text-primary font-bold whitespace-nowrap hidden sm:table-cell">
-                          {formatRupiah(o.price)}
-                        </td>
-                        <td className="py-3">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-[family-name:var(--font-jetbrains-mono)]">
-                                {o.number}
-                              </span>
-                              <button
-                                onClick={() => handleCopyText(o.number, `num-${o.id}`)}
-                                className="text-muted hover:text-primary transition-colors"
-                                title="Salin nomor"
-                              >
-                                {copiedId === `num-${o.id}` ? (
-                                  <CheckCircle className="w-3.5 h-3.5 text-success" />
-                                ) : (
-                                  <Copy className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-                            </div>
-                            {o.checkedAt && (
-                              <div className="flex items-center gap-1.5">
-                                {o.tgCheck?.profilePic && (
-                                  <img src={o.tgCheck.profilePic} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
-                                )}
-                                <div className="flex flex-wrap gap-1">
-                                  {o.waCheck != null && (
-                                    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                      o.waCheck.exists
-                                        ? "bg-green-500/20 text-green-400"
-                                        : "bg-zinc-500/20 text-zinc-400"
-                                    }`}>
-                                      {o.waCheck.exists ? t("status.checker.waRegistered") : t("status.checker.waNotRegistered")}
-                                    </span>
-                                  )}
-                                  {o.tgCheck != null && (
-                                    <>
-                                      <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                        o.tgCheck.deleted
-                                          ? "bg-red-500/20 text-red-400"
-                                          : o.tgCheck.exists
-                                            ? "bg-blue-500/20 text-blue-400"
-                                            : "bg-zinc-500/20 text-zinc-400"
-                                      }`}>
-                                        {o.tgCheck.deleted ? "Dibanned TG" : o.tgCheck.exists ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
-                                      </span>
-                                      {o.tgCheck.exists && !o.tgCheck.deleted && o.tgCheck.lastSeenLabel && (
-                                        <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/20 text-purple-400">
-                                          {o.tgCheck.lastSeenLabel}
-                                        </span>
-                                      )}
-                                      {o.tgCheck.exists && !o.tgCheck.deleted && o.tgCheck.registeredAt && (
-                                        <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/20 text-cyan-400">
-                                          {o.tgCheck.registeredAt}
-                                        </span>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-2 sm:py-3 text-muted capitalize hidden lg:table-cell">{o.country}</td>
-                        <td className="py-2 sm:py-3">
-                          {o.code ? (
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-[family-name:var(--font-jetbrains-mono)] text-primary font-bold tracking-wider">
-                                {o.code}
-                              </span>
-                              <button
-                                onClick={() => handleCopyText(o.code!, `otp-${o.id}`)}
-                                className="text-muted hover:text-primary transition-colors"
-                                title="Salin kode OTP"
-                              >
-                                {copiedId === `otp-${o.id}` ? (
-                                  <CheckCircle className="w-3.5 h-3.5 text-success" />
-                                ) : (
-                                  <Copy className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-muted">-</span>
-                          )}
-                        </td>
-                        <td className="py-3">
-                          <Badge
-                            variant={o.status === "success" ? "success" : o.status === "waiting" ? "warning" : "error"}
-                          >
-                            {o.status === "success" ? t("status.order.success") : o.status === "waiting" ? t("status.order.waiting") : t("status.order.cancelled")}
-                          </Badge>
-                        </td>
-                        <td className="py-3">
-                          {o.status === "waiting" && (
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => handleCancelOrder(o)}
-                              disabled={cancellingId === o.id}
-                            >
-                              {cancellingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                              {t("status.order.cancelled")}
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  <Download className="w-3.5 h-3.5" />
+                  {t("common.exportCsv")}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Search */}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                  <Input
+                    placeholder={t("buy.searchNumber")}
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") fetchHistory(1); }}
+                    className="pl-9"
+                  />
+                </div>
+                <Button size="sm" onClick={() => fetchHistory(1)}>
+                  <Search className="w-4 h-4" />
+                  {t("common.search")}
+                </Button>
+                {historySearch && (
+                  <Button variant="ghost" size="sm" onClick={() => { setHistorySearch(""); }}>
+                    {t("common.reset")}
+                  </Button>
+                )}
               </div>
 
-              {/* Pagination */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-3 pt-3 border-t border-border">
-                <span className="text-xs text-muted">
-                  {t("common.pageOf", { page: historyPage, total: historyTotalPages })}
-                </span>
-                <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap justify-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-xs"
-                    disabled={historyPage <= 1}
-                    onClick={() => fetchHistory(historyPage - 1)}
-                  >
-                    {t("common.prev")}
-                  </Button>
-                  {Array.from({ length: Math.min(5, historyTotalPages) }, (_, i) => {
-                    let page: number;
-                    if (historyTotalPages <= 5) {
-                      page = i + 1;
-                    } else if (historyPage <= 3) {
-                      page = i + 1;
-                    } else if (historyPage >= historyTotalPages - 2) {
-                      page = historyTotalPages - 4 + i;
-                    } else {
-                      page = historyPage - 2 + i;
-                    }
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => fetchHistory(page)}
-                        className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg text-[10px] sm:text-xs font-medium transition-all ${
-                          historyPage === page
-                            ? "bg-primary text-background"
-                            : "text-muted hover:text-foreground hover:bg-surface-hover"
+              {/* Filters row */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex gap-1.5">
+                  {[
+                    { label: t("common.all"), value: "all" },
+                    { label: t("status.order.success"), value: "success" },
+                    { label: t("status.order.waiting"), value: "waiting" },
+                    { label: t("status.order.cancelled"), value: "cancelled" },
+                  ].map((f) => (
+                    <button
+                      key={f.value}
+                      onClick={() => setHistoryFilter(f.value)}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${historyFilter === f.value
+                          ? "bg-primary text-background"
+                          : "bg-surface-hover text-muted hover:text-foreground"
                         }`}
-                      >
-                        {page}
-                      </button>
-                    );
-                  })}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-xs"
-                    disabled={historyPage >= historyTotalPages}
-                    onClick={() => fetchHistory(historyPage + 1)}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted">{t("common.show")}</span>
+                  <select
+                    value={historyLimit}
+                    onChange={(e) => { setHistoryLimit(Number(e.target.value)); setHistoryPage(1); }}
+                    className="bg-background border border-border rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-primary/50 text-foreground"
                   >
-                    {t("common.next")}
-                  </Button>
+                    {[5, 10, 20, 30, 50, 100].map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <span className="text-xs text-muted">{t("common.entries")}</span>
                 </div>
               </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+
+              {/* Table */}
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : historyOrders.length === 0 ? (
+                <div className="text-center py-8 text-muted">
+                  <ShoppingCart className="w-6 h-6 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">{t("buy.noOrders")}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-left text-xs sm:text-sm text-muted border-b border-border">
+                          <th className="pb-3 font-medium hidden md:table-cell">{t("buy.time")}</th>
+                          <th className="pb-3 font-medium">{t("buy.service")}</th>
+                          <th className="pb-3 font-medium hidden sm:table-cell">{t("buy.price")}</th>
+                          <th className="pb-3 font-medium">{t("buy.number")}</th>
+                          <th className="pb-3 font-medium hidden lg:table-cell">{t("buy.selectCountry")}</th>
+                          <th className="pb-3 font-medium">OTP</th>
+                          <th className="pb-3 font-medium">{t("buy.status")}</th>
+                          <th className="pb-3 font-medium"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-xs sm:text-sm">
+                        {historyOrders.map((o) => (
+                          <tr key={o.id} className="border-b border-border/50 hover:bg-surface/30">
+                            <td className="py-2 sm:py-3 text-muted whitespace-nowrap hidden md:table-cell">
+                              {new Date(o.date).toLocaleString("id-ID", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                            </td>
+                            <td className="py-2 sm:py-3 font-medium">{o.service}</td>
+                            <td className="py-2 sm:py-3 font-[family-name:var(--font-jetbrains-mono)] text-primary font-bold whitespace-nowrap hidden sm:table-cell">
+                              {formatRupiah(o.price)}
+                            </td>
+                            <td className="py-3">
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-[family-name:var(--font-jetbrains-mono)]">
+                                    {o.number}
+                                  </span>
+                                  <button
+                                    onClick={() => handleCopyText(o.number, `num-${o.id}`)}
+                                    className="text-muted hover:text-primary transition-colors"
+                                    title="Salin nomor"
+                                  >
+                                    {copiedId === `num-${o.id}` ? (
+                                      <CheckCircle className="w-3.5 h-3.5 text-success" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                                {o.checkedAt && (
+                                  <div className="flex items-center gap-1.5">
+                                    {o.tgCheck?.profilePic && (
+                                      <img src={o.tgCheck.profilePic} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                                    )}
+                                    <div className="flex flex-wrap gap-1">
+                                      {o.waCheck != null && (
+                                        <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${o.waCheck.exists
+                                            ? "bg-green-500/20 text-green-400"
+                                            : "bg-zinc-500/20 text-zinc-400"
+                                          }`}>
+                                          {o.waCheck.exists ? t("status.checker.waRegistered") : t("status.checker.waNotRegistered")}
+                                        </span>
+                                      )}
+                                      {o.tgCheck != null && (
+                                        <>
+                                          <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${o.tgCheck.deleted
+                                              ? "bg-red-500/20 text-red-400"
+                                              : o.tgCheck.exists
+                                                ? "bg-blue-500/20 text-blue-400"
+                                                : "bg-zinc-500/20 text-zinc-400"
+                                            }`}>
+                                            {o.tgCheck.deleted ? "Dibanned TG" : o.tgCheck.exists ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
+                                          </span>
+                                          {o.tgCheck.exists && !o.tgCheck.deleted && o.tgCheck.lastSeenLabel && (
+                                            <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/20 text-purple-400">
+                                              {o.tgCheck.lastSeenLabel}
+                                            </span>
+                                          )}
+                                          {o.tgCheck.exists && !o.tgCheck.deleted && o.tgCheck.registeredAt && (
+                                            <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/20 text-cyan-400">
+                                              {o.tgCheck.registeredAt}
+                                            </span>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-2 sm:py-3 text-muted capitalize hidden lg:table-cell">{o.country}</td>
+                            <td className="py-2 sm:py-3">
+                              {o.code ? (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-[family-name:var(--font-jetbrains-mono)] text-primary font-bold tracking-wider">
+                                    {o.code}
+                                  </span>
+                                  <button
+                                    onClick={() => handleCopyText(o.code!, `otp-${o.id}`)}
+                                    className="text-muted hover:text-primary transition-colors"
+                                    title="Salin kode OTP"
+                                  >
+                                    {copiedId === `otp-${o.id}` ? (
+                                      <CheckCircle className="w-3.5 h-3.5 text-success" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                            <td className="py-3">
+                              <Badge
+                                variant={o.status === "success" ? "success" : o.status === "waiting" ? "warning" : "error"}
+                              >
+                                {o.status === "success" ? t("status.order.success") : o.status === "waiting" ? t("status.order.waiting") : t("status.order.cancelled")}
+                              </Badge>
+                            </td>
+                            <td className="py-3">
+                              {o.status === "waiting" && (
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() => handleCancelOrder(o)}
+                                  disabled={cancellingId === o.id}
+                                >
+                                  {cancellingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                                  {t("status.order.cancelled")}
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-3 pt-3 border-t border-border">
+                    <span className="text-xs text-muted">
+                      {t("common.pageOf", { page: historyPage, total: historyTotalPages })}
+                    </span>
+                    <div className="flex items-center gap-0.5 sm:gap-1 flex-wrap justify-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-xs"
+                        disabled={historyPage <= 1}
+                        onClick={() => fetchHistory(historyPage - 1)}
+                      >
+                        {t("common.prev")}
+                      </Button>
+                      {Array.from({ length: Math.min(5, historyTotalPages) }, (_, i) => {
+                        let page: number;
+                        if (historyTotalPages <= 5) {
+                          page = i + 1;
+                        } else if (historyPage <= 3) {
+                          page = i + 1;
+                        } else if (historyPage >= historyTotalPages - 2) {
+                          page = historyTotalPages - 4 + i;
+                        } else {
+                          page = historyPage - 2 + i;
+                        }
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => fetchHistory(page)}
+                            className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg text-[10px] sm:text-xs font-medium transition-all ${historyPage === page
+                                ? "bg-primary text-background"
+                                : "text-muted hover:text-foreground hover:bg-surface-hover"
+                              }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 sm:h-7 px-1.5 sm:px-2 text-[10px] sm:text-xs"
+                        disabled={historyPage >= historyTotalPages}
+                        onClick={() => fetchHistory(historyPage + 1)}
+                      >
+                        {t("common.next")}
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

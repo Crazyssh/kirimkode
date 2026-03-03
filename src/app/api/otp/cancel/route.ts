@@ -25,8 +25,15 @@ export async function POST(req: NextRequest) {
 
     const { server, id } = validated.data;
 
-    // Cancel on JasaOTP
-    await cancelOrder(server, Number(id));
+    // Cancel on JasaOTP (jangan block refund kalau JasaOTP error)
+    let jasaotpError = "";
+    try {
+      await cancelOrder(server, Number(id));
+    } catch (e) {
+      jasaotpError = (e as Error).message || "Unknown error";
+      console.warn(`[Cancel] JasaOTP cancel error for order ${id}: ${jasaotpError}`);
+      // Lanjut proses refund — JasaOTP mungkin sudah cancel sebelumnya
+    }
 
     // Refund balance and update order status
     const order = await db.order.findFirst({
@@ -49,12 +56,21 @@ export async function POST(req: NextRequest) {
           data: { balance: { increment: order.price } },
         }),
       ]);
+      console.log(`[Cancel] Refunded Rp ${order.price} for order ${id} to user ${session.user.id}`);
+    } else {
+      console.warn(`[Cancel] Order ${id} not found or already cancelled for user ${session.user.id}`);
     }
 
-    logAction(session.user.id, "cancel", JSON.stringify({ orderId: id, server }));
+    logAction(session.user.id, "cancel", JSON.stringify({ orderId: id, server, jasaotpError }));
 
-    return NextResponse.json({ success: true, message: "Pesanan dibatalkan, saldo dikembalikan" });
-  } catch {
+    return NextResponse.json({
+      success: true,
+      message: "Pesanan dibatalkan, saldo dikembalikan",
+      ...(jasaotpError ? { warning: jasaotpError } : {}),
+    });
+  } catch (error) {
+    console.error("[Cancel] Error:", error);
     return NextResponse.json({ error: "Gagal membatalkan pesanan" }, { status: 500 });
   }
 }
+
