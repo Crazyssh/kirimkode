@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Kirim welcome email (fire & forget)
-    sendWelcomeEmail(user.email, { name: user.name || "User" }).catch(() => { });
+    sendWelcomeEmail(user.email, { name: user.name || "User" }).catch((e) => console.error("[Mail] Welcome email error:", e));
 
     return NextResponse.json({
       success: true,

@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
           amount: deposit.amount,
           trxId,
           balance: user.balance,
-        }).catch(() => { }); // fire & forget
+        }).catch((e) => console.error("[Mail] Email deposit error:", e));
       }
 
       console.log(`[Paymenku] VERIFIED & PAID: ${trxId} | +Rp ${deposit.amount} for user ${deposit.userId}`);

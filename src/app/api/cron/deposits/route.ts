@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
                         amount: deposit.amount,
                         trxId: deposit.trxId,
                         balance: paidUser.balance,
-                    }).catch(() => { });
+                    }).catch((e) => console.error("[Mail] Email deposit error:", e));
                 }
 
                 console.log(
