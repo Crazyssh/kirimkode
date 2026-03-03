@@ -30,7 +30,20 @@ function setCache(key: string, data: unknown, ttlMs: number) {
   }
 }
 
-async function fetchApi(server: ServerId, endpoint: string, params?: Record<string, string>) {
+// Custom error class untuk membedakan API error vs network error
+class ApiBusinessError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApiBusinessError";
+  }
+}
+
+async function fetchApi(
+  server: ServerId,
+  endpoint: string,
+  params?: Record<string, string>,
+  options?: { skipRetry?: boolean; skipCache?: boolean }
+) {
   const base = getBaseUrl(server);
   const url = new URL(`${base}/${endpoint}`);
 
@@ -42,11 +55,12 @@ async function fetchApi(server: ServerId, endpoint: string, params?: Record<stri
 
   const urlStr = url.toString();
 
-  // Check cache first
-  const cached = getCached(urlStr);
-  if (cached) return cached;
+  // Check cache first (hanya untuk read endpoints)
+  if (!options?.skipCache) {
+    const cached = getCached(urlStr);
+    if (cached) return cached;
+  }
 
-  // Fetch with timeout dan retry
   const doFetch = async () => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
@@ -59,11 +73,17 @@ async function fetchApi(server: ServerId, endpoint: string, params?: Record<stri
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.message || data?.error || `API error: ${res.status}`);
+        // Server error (5xx) → bisa retry
+        if (res.status >= 500) {
+          throw new Error(data?.message || `Server error: ${res.status}`);
+        }
+        // Client error (4xx) → API business error, jangan retry
+        throw new ApiBusinessError(data?.message || data?.error || `API error: ${res.status}`);
       }
 
+      // JasaOTP kadang return 200 tapi isinya error
       if (data?.success === false || data?.code === "error" || data?.status === "error") {
-        throw new Error(data?.message || data?.error || "Gagal memproses request ke provider");
+        throw new ApiBusinessError(data?.message || data?.error || "Gagal memproses request ke provider");
       }
 
       return data;
@@ -74,20 +94,30 @@ async function fetchApi(server: ServerId, endpoint: string, params?: Record<stri
 
   try {
     const data = await doFetch();
-    // Cache: 60s for layanan/operator, 5min for negara
-    const ttl = endpoint.includes("negara") ? 300000 : 60000;
-    setCache(urlStr, data, ttl);
-    return data;
-  } catch (err) {
-    // Retry 1x
-    console.warn(`[OTP API] First attempt failed for ${endpoint}, retrying...`, (err as Error).message);
-    try {
-      const data = await doFetch();
+    // Cache hanya untuk read endpoints
+    if (!options?.skipCache) {
       const ttl = endpoint.includes("negara") ? 300000 : 60000;
       setCache(urlStr, data, ttl);
+    }
+    return data;
+  } catch (err) {
+    // API business error → langsung throw, jangan retry
+    if (err instanceof ApiBusinessError || options?.skipRetry) {
+      throw err;
+    }
+
+    // Network/timeout error → retry 1x
+    console.warn(`[OTP API] Network error for ${endpoint}, retrying...`, (err as Error).message);
+    try {
+      const data = await doFetch();
+      if (!options?.skipCache) {
+        const ttl = endpoint.includes("negara") ? 300000 : 60000;
+        setCache(urlStr, data, ttl);
+      }
       return data;
     } catch (retryErr) {
-      console.error(`[OTP API] Retry also failed for ${endpoint}:`, (retryErr as Error).message);
+      if (retryErr instanceof ApiBusinessError) throw retryErr;
+      console.error(`[OTP API] Retry failed for ${endpoint}:`, (retryErr as Error).message);
       throw retryErr;
     }
   }
@@ -120,19 +150,19 @@ export async function createOrder(
     negara: String(negara),
     layanan,
     operator,
-  });
+  }, { skipRetry: true, skipCache: true });
 }
 
 export async function checkSms(server: ServerId, orderId: number) {
   return fetchApi(server, "sms.php", {
     api_key: API_KEY,
     id: String(orderId),
-  });
+  }, { skipRetry: true, skipCache: true });
 }
 
 export async function cancelOrder(server: ServerId, orderId: number) {
   return fetchApi(server, "cancel.php", {
     api_key: API_KEY,
     id: String(orderId),
-  });
+  }, { skipRetry: true, skipCache: true });
 }
