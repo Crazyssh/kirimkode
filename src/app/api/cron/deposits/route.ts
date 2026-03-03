@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { checkTransactionStatus } from "@/lib/paymenku";
+import { sendDepositSuccessEmail } from "@/lib/mail";
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
 const REFERRAL_COMMISSION_PERCENT = 5;
@@ -123,6 +124,18 @@ export async function GET(req: NextRequest) {
                 });
 
                 paid++;
+
+                // Kirim email notifikasi deposit berhasil (fallback dari cron)
+                const paidUser = await db.user.findUnique({ where: { id: deposit.userId }, select: { email: true, name: true, balance: true } });
+                if (paidUser?.email) {
+                    sendDepositSuccessEmail(paidUser.email, {
+                        name: paidUser.name || "User",
+                        amount: deposit.amount,
+                        trxId: deposit.trxId,
+                        balance: paidUser.balance,
+                    }).catch(() => { });
+                }
+
                 console.log(
                     `[CRON Deposits] PAID: ${deposit.trxId} | +Rp ${deposit.amount} for user ${deposit.userId}`
                 );

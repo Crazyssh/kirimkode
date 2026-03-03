@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { registerSchema, validateBody } from "@/lib/validations";
+import { sendWelcomeEmail } from "@/lib/mail";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 
@@ -68,6 +69,9 @@ export async function POST(req: NextRequest) {
         referredBy: referrerId,
       },
     });
+
+    // Kirim welcome email (fire & forget)
+    sendWelcomeEmail(user.email, { name: user.name || "User" }).catch(() => { });
 
     return NextResponse.json({
       success: true,

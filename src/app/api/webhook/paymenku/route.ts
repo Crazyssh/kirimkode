@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { checkTransactionStatus } from "@/lib/paymenku";
 import { giveReferralCommission } from "@/lib/referral";
+import { sendDepositSuccessEmail } from "@/lib/mail";
 
 /**
  * Webhook handler untuk Paymenku
@@ -94,6 +95,17 @@ export async function POST(req: NextRequest) {
 
       // Komisi referral 5% untuk inviter
       await giveReferralCommission(deposit.userId, deposit.amount);
+
+      // Kirim email notifikasi deposit berhasil
+      const user = await db.user.findUnique({ where: { id: deposit.userId }, select: { email: true, name: true, balance: true } });
+      if (user?.email) {
+        sendDepositSuccessEmail(user.email, {
+          name: user.name || "User",
+          amount: deposit.amount,
+          trxId,
+          balance: user.balance,
+        }).catch(() => { }); // fire & forget
+      }
 
       console.log(`[Paymenku] VERIFIED & PAID: ${trxId} | +Rp ${deposit.amount} for user ${deposit.userId}`);
     } else if (apiStatus === "expired" || apiStatus === "cancelled") {
