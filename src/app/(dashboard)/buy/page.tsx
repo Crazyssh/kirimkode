@@ -567,8 +567,8 @@ export default function BuyPage() {
                     key={server.id}
                     onClick={() => setSelectedServer(server)}
                     className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl border transition-all ${selectedServer.id === server.id
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-background/50 hover:border-primary/30"
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-background/50 hover:border-primary/30"
                       }`}
                   >
                     <div
@@ -583,8 +583,8 @@ export default function BuyPage() {
                         </span>
                         <span
                           className={`w-2 h-2 rounded-full ${server.status === "online"
-                              ? "bg-success"
-                              : "bg-warning"
+                            ? "bg-success"
+                            : "bg-warning"
                             }`}
                         />
                       </div>
@@ -665,9 +665,9 @@ export default function BuyPage() {
                                   setCountrySearch("");
                                 }}
                                 className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-hover transition-colors ${selectedNegara?.id_negara ===
-                                    negara.id_negara
-                                    ? "bg-primary/10 text-primary"
-                                    : ""
+                                  negara.id_negara
+                                  ? "bg-primary/10 text-primary"
+                                  : ""
                                   }`}
                               >
                                 {capitalizeFirst(negara.nama_negara)}
@@ -927,8 +927,8 @@ export default function BuyPage() {
                       key={f.value}
                       onClick={() => setHistoryFilter(f.value)}
                       className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${historyFilter === f.value
-                          ? "bg-primary text-background"
-                          : "bg-surface-hover text-muted hover:text-foreground"
+                        ? "bg-primary text-background"
+                        : "bg-surface-hover text-muted hover:text-foreground"
                         }`}
                     >
                       {f.label}
@@ -1012,8 +1012,8 @@ export default function BuyPage() {
                                     <div className="flex flex-wrap gap-1">
                                       {o.waCheck != null && (
                                         <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${o.waCheck.exists
-                                            ? "bg-green-500/20 text-green-400"
-                                            : "bg-zinc-500/20 text-zinc-400"
+                                          ? "bg-green-500/20 text-green-400"
+                                          : "bg-zinc-500/20 text-zinc-400"
                                           }`}>
                                           {o.waCheck.exists ? t("status.checker.waRegistered") : t("status.checker.waNotRegistered")}
                                         </span>
@@ -1021,10 +1021,10 @@ export default function BuyPage() {
                                       {o.tgCheck != null && (
                                         <>
                                           <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${o.tgCheck.deleted
-                                              ? "bg-red-500/20 text-red-400"
-                                              : o.tgCheck.exists
-                                                ? "bg-blue-500/20 text-blue-400"
-                                                : "bg-zinc-500/20 text-zinc-400"
+                                            ? "bg-red-500/20 text-red-400"
+                                            : o.tgCheck.exists
+                                              ? "bg-blue-500/20 text-blue-400"
+                                              : "bg-zinc-500/20 text-zinc-400"
                                             }`}>
                                             {o.tgCheck.deleted ? "Dibanned TG" : o.tgCheck.exists ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
                                           </span>
@@ -1076,17 +1076,29 @@ export default function BuyPage() {
                               </Badge>
                             </td>
                             <td className="py-3">
-                              {o.status === "waiting" && (
-                                <Button
-                                  variant="danger"
-                                  size="sm"
-                                  onClick={() => handleCancelOrder(o)}
-                                  disabled={cancellingId === o.id}
-                                >
-                                  {cancellingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                                  {t("status.order.cancelled")}
-                                </Button>
-                              )}
+                              {o.status === "waiting" && (() => {
+                                const orderAge = Date.now() - new Date(o.date).getTime();
+                                const threeMin = 3 * 60 * 1000;
+                                const canCancel = orderAge >= threeMin;
+                                const secsLeft = Math.ceil((threeMin - orderAge) / 1000);
+                                const minsLeft = Math.floor(secsLeft / 60);
+                                const secsRem = secsLeft % 60;
+                                return canCancel ? (
+                                  <Button
+                                    variant="danger"
+                                    size="sm"
+                                    onClick={() => handleCancelOrder(o)}
+                                    disabled={cancellingId === o.id}
+                                  >
+                                    {cancellingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                                    {t("status.order.cancelled")}
+                                  </Button>
+                                ) : (
+                                  <span className="text-[10px] text-muted whitespace-nowrap">
+                                    {minsLeft}:{String(secsRem).padStart(2, "0")}
+                                  </span>
+                                );
+                              })()}
                             </td>
                           </tr>
                         ))}
@@ -1125,8 +1137,8 @@ export default function BuyPage() {
                             key={page}
                             onClick={() => fetchHistory(page)}
                             className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg text-[10px] sm:text-xs font-medium transition-all ${historyPage === page
-                                ? "bg-primary text-background"
-                                : "text-muted hover:text-foreground hover:bg-surface-hover"
+                              ? "bg-primary text-background"
+                              : "text-muted hover:text-foreground hover:bg-surface-hover"
                               }`}
                           >
                             {page}
