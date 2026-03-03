@@ -11,6 +11,25 @@ function getBaseUrl(server: ServerId): string {
   return API_URLS[server];
 }
 
+// Simple in-memory cache
+const cache = new Map<string, { data: unknown; expiry: number }>();
+
+function getCached(key: string): unknown | null {
+  const entry = cache.get(key);
+  if (entry && Date.now() < entry.expiry) return entry.data;
+  if (entry) cache.delete(key);
+  return null;
+}
+
+function setCache(key: string, data: unknown, ttlMs: number) {
+  cache.set(key, { data, expiry: Date.now() + ttlMs });
+  // Limit cache size
+  if (cache.size > 500) {
+    const oldest = cache.keys().next().value;
+    if (oldest) cache.delete(oldest);
+  }
+}
+
 async function fetchApi(server: ServerId, endpoint: string, params?: Record<string, string>) {
   const base = getBaseUrl(server);
   const url = new URL(`${base}/${endpoint}`);
@@ -21,19 +40,57 @@ async function fetchApi(server: ServerId, endpoint: string, params?: Record<stri
     });
   }
 
-  const res = await fetch(url.toString(), { cache: "no-store" });
-  const data = await res.json();
+  const urlStr = url.toString();
 
-  if (!res.ok) {
-    throw new Error(data?.message || data?.error || `API error: ${res.status}`);
+  // Check cache first
+  const cached = getCached(urlStr);
+  if (cached) return cached;
+
+  // Fetch with timeout dan retry
+  const doFetch = async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const res = await fetch(urlStr, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || data?.error || `API error: ${res.status}`);
+      }
+
+      if (data?.success === false || data?.code === "error" || data?.status === "error") {
+        throw new Error(data?.message || data?.error || "Gagal memproses request ke provider");
+      }
+
+      return data;
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  try {
+    const data = await doFetch();
+    // Cache: 60s for layanan/operator, 5min for negara
+    const ttl = endpoint.includes("negara") ? 300000 : 60000;
+    setCache(urlStr, data, ttl);
+    return data;
+  } catch (err) {
+    // Retry 1x
+    console.warn(`[OTP API] First attempt failed for ${endpoint}, retrying...`, (err as Error).message);
+    try {
+      const data = await doFetch();
+      const ttl = endpoint.includes("negara") ? 300000 : 60000;
+      setCache(urlStr, data, ttl);
+      return data;
+    } catch (retryErr) {
+      console.error(`[OTP API] Retry also failed for ${endpoint}:`, (retryErr as Error).message);
+      throw retryErr;
+    }
   }
-
-  // JasaOTP sometimes returns 200 with error in body
-  if (data?.success === false || data?.code === "error" || data?.status === "error") {
-    throw new Error(data?.message || data?.error || "Gagal memproses request ke provider");
-  }
-
-  return data;
 }
 
 export async function getBalance(server: ServerId) {
