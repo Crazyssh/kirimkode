@@ -273,62 +273,68 @@ export default function BuyPage() {
 
   useEffect(() => { fetchHistory(1); }, [fetchHistory]);
 
-  // Poll OTP untuk order "waiting" + order success (< 5 menit) untuk tangkap resend
-  const otpPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // SSE: stream OTP untuk order aktif (waiting + success < 5 menit)
+  const sseRef = useRef<EventSource | null>(null);
   const prevCodesRef = useRef<Record<string, string>>({});
   useEffect(() => {
     const fiveMinAgo = Date.now() - 5 * 60 * 1000;
-    const pollableOrders = historyOrders.filter(
+    const streamableOrders = historyOrders.filter(
       (o) => o.server && o.orderId && (
         o.status === "waiting" ||
         (o.status === "success" && new Date(o.date).getTime() > fiveMinAgo)
       )
     );
 
-    if (pollableOrders.length === 0) return;
+    if (streamableOrders.length === 0) return;
 
-    // Track current codes for change detection
-    for (const o of pollableOrders) {
+    // Track current codes
+    for (const o of streamableOrders) {
       if (o.code && !prevCodesRef.current[o.id]) {
         prevCodesRef.current[o.id] = o.code;
       }
     }
 
-    otpPollRef.current = setInterval(async () => {
-      let gotNewOtp = false;
+    const orderIds = streamableOrders.map((o) => o.id).join(",");
+    const es = new EventSource(`/api/otp/stream?orders=${orderIds}`);
+    sseRef.current = es;
 
-      await Promise.all(
-        pollableOrders.map(async (order) => {
-          try {
-            const res = await fetch(
-              `/api/otp/sms?server=${order.server}&id=${order.orderId}`
-            );
-            const data = await res.json();
-            const otp = data.success ? data.data?.otp : null;
-            if (otp && typeof otp === "string" && !/^(menunggu|waiting|pending|processing)$/i.test(otp.trim())) {
-              if (!prevCodesRef.current[order.id] || prevCodesRef.current[order.id] !== otp) {
-                prevCodesRef.current[order.id] = otp;
-                gotNewOtp = true;
-              }
-            }
-          } catch {
-            // silently retry
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "otp") {
+          // New OTP received
+          if (!prevCodesRef.current[data.orderId] || prevCodesRef.current[data.orderId] !== data.code) {
+            prevCodesRef.current[data.orderId] = data.code;
+            playOtpSound();
+            toast.success(t("buy.otpReceived"), {
+              description: `${data.service}: ${data.code}`,
+            });
           }
-        })
-      );
-
-      if (gotNewOtp) {
-        playOtpSound();
-        toast.success(t("buy.otpReceived"), {
-          description: "Kode OTP baru telah masuk. Cek tabel riwayat order.",
-        });
+          fetchHistory(historyPage, true);
+        } else if (data.type === "status") {
+          // Order status changed (cancelled/timeout)
+          fetchHistory(historyPage, true);
+        } else if (data.type === "close") {
+          // Server closed the stream
+          es.close();
+          fetchHistory(historyPage, true);
+        }
+        // keepalive — do nothing
+      } catch {
+        // Invalid JSON, ignore
       }
-      // Always refresh history to pick up OTP updates from DB
+    };
+
+    es.onerror = () => {
+      // Auto-reconnect handled by browser EventSource
+      // Refresh history on reconnect
       fetchHistory(historyPage, true);
-    }, 5000);
+    };
 
     return () => {
-      if (otpPollRef.current) clearInterval(otpPollRef.current);
+      es.close();
+      sseRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyOrders, historyPage, fetchHistory]);
