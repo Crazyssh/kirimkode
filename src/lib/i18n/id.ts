@@ -61,8 +61,6 @@ export const id = {
     checker: {
       waRegistered: "Terdaftar WA",
       waNotRegistered: "Belum Terdaftar WA",
-      tgRegistered: "Terdaftar TG",
-      tgNotRegistered: "Belum Terdaftar TG",
     },
   },
   auth: {

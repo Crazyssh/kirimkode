@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { checkWhatsApp, checkTelegram, checkTelegramFull } from "@/lib/checker";
+import { checkWhatsApp } from "@/lib/checker";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -35,44 +35,27 @@ export async function POST(req: NextRequest) {
 
   const number = order.number;
   const rawSvc = order.service.toLowerCase();
-  // Normalize: "telegram" → "tg", "whatsapp" → "wa"
-  const service = rawSvc.startsWith("tg") || rawSvc.startsWith("telegram") ? "tg"
-    : rawSvc.startsWith("wa") || rawSvc.startsWith("whatsapp") ? "wa"
-    : rawSvc;
+  // Normalize: "whatsapp" → "wa"
+  const service = rawSvc.startsWith("wa") || rawSvc.startsWith("whatsapp") ? "wa" : rawSvc;
 
-  // Hanya cek untuk service WA dan TG
-  if (service !== "wa" && service !== "tg") {
+  // Hanya cek untuk service WA
+  if (service !== "wa") {
     return NextResponse.json({ success: true, data: { waCheck: null, tgCheck: null } });
   }
 
-  // Cek apakah user punya akses detail checker (admin kasih izin)
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { premiumChecker: true },
-  });
-
-  let waResult = null;
-  let tgResult = null;
-
-  if (service === "tg") {
-    tgResult = user?.premiumChecker
-      ? await checkTelegramFull(number)
-      : await checkTelegram(number);
-  } else {
-    waResult = await checkWhatsApp(number);
-  }
+  const waResult = await checkWhatsApp(number);
 
   await db.order.update({
     where: { id: order.id },
     data: {
       waCheck: waResult ? JSON.stringify(waResult) : null,
-      tgCheck: tgResult ? JSON.stringify(tgResult) : null,
+      tgCheck: null,
       checkedAt: new Date(),
     },
   });
 
   return NextResponse.json({
     success: true,
-    data: { waCheck: waResult, tgCheck: tgResult },
+    data: { waCheck: waResult, tgCheck: null },
   });
 }

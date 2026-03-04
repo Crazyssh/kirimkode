@@ -22,17 +22,6 @@ interface WaCheckData {
   profilePic?: string | null;
 }
 
-interface TgCheckData {
-  exists: boolean;
-  username?: string | null;
-  firstName?: string | null;
-  lastSeen?: string | null;
-  lastSeenLabel?: string | null;
-  registeredAt?: string | null;
-  deleted?: boolean;
-  profilePic?: string | null;
-}
-
 interface OrderItem {
   id: string;
   service: string;
@@ -45,7 +34,6 @@ interface OrderItem {
   server?: string;
   orderId?: number;
   waCheck?: WaCheckData | null;
-  tgCheck?: TgCheckData | null;
   checkedAt?: string | null;
 }
 
@@ -182,11 +170,10 @@ export default function HistoryPage() {
                 <button
                   key={sf.value}
                   onClick={() => setStatusFilter(sf.value)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    statusFilter === sf.value
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${statusFilter === sf.value
                       ? "bg-primary text-background"
                       : "bg-surface-hover text-muted hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   {sf.label}
                 </button>
@@ -234,41 +221,14 @@ export default function HistoryPage() {
                             </span>
                             {order.checkedAt && (
                               <div className="flex items-center gap-1.5">
-                                {order.tgCheck?.profilePic && (
-                                  <img src={order.tgCheck.profilePic} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
-                                )}
                                 <div className="flex flex-wrap gap-1">
                                   {order.waCheck != null && (
-                                    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                      order.waCheck.exists
+                                    <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${order.waCheck.exists
                                         ? "bg-green-500/20 text-green-400"
                                         : "bg-zinc-500/20 text-zinc-400"
-                                    }`}>
+                                      }`}>
                                       {order.waCheck.exists ? t("status.checker.waRegistered") : t("status.checker.waNotRegistered")}
                                     </span>
-                                  )}
-                                  {order.tgCheck != null && (
-                                    <>
-                                      <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
-                                        order.tgCheck.deleted
-                                          ? "bg-red-500/20 text-red-400"
-                                          : order.tgCheck.exists
-                                            ? "bg-blue-500/20 text-blue-400"
-                                            : "bg-zinc-500/20 text-zinc-400"
-                                      }`}>
-                                        {order.tgCheck.deleted ? "Dibanned TG" : order.tgCheck.exists ? t("status.checker.tgRegistered") : t("status.checker.tgNotRegistered")}
-                                      </span>
-                                      {order.tgCheck.exists && !order.tgCheck.deleted && order.tgCheck.lastSeenLabel && (
-                                        <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-purple-500/20 text-purple-400">
-                                          {order.tgCheck.lastSeenLabel}
-                                        </span>
-                                      )}
-                                      {order.tgCheck.exists && !order.tgCheck.deleted && order.tgCheck.registeredAt && (
-                                        <span className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-cyan-500/20 text-cyan-400">
-                                          {order.tgCheck.registeredAt}
-                                        </span>
-                                      )}
-                                    </>
                                   )}
                                 </div>
                               </div>
@@ -298,19 +258,19 @@ export default function HistoryPage() {
                               order.status === "success"
                                 ? "success"
                                 : order.status === "waiting"
-                                ? "warning"
-                                : "error"
+                                  ? "warning"
+                                  : "error"
                             }
                           >
                             {order.status === "success"
                               ? t("status.order.success")
                               : order.status === "waiting"
-                              ? t("status.order.waiting")
-                              : order.status === "cancelled"
-                              ? t("status.order.cancelled")
-                              : order.status === "timeout"
-                              ? t("status.order.timeout")
-                              : "Gagal"}
+                                ? t("status.order.waiting")
+                                : order.status === "cancelled"
+                                  ? t("status.order.cancelled")
+                                  : order.status === "timeout"
+                                    ? t("status.order.timeout")
+                                    : "Gagal"}
                           </Badge>
                         </td>
                         <td className="py-3 font-[family-name:var(--font-jetbrains-mono)] text-xs">

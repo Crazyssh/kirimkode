@@ -61,8 +61,6 @@ export const en = {
     checker: {
       waRegistered: "WA Registered",
       waNotRegistered: "WA Not Registered",
-      tgRegistered: "TG Registered",
-      tgNotRegistered: "TG Not Registered",
     },
   },
   auth: {

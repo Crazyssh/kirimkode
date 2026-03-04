@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { checkSms, cancelOrder } from "@/lib/otp";
 import { extractOtp } from "@/lib/otp-extract";
-import { checkWhatsApp, checkTelegram, checkTelegramFull } from "@/lib/checker";
+import { checkWhatsApp } from "@/lib/checker";
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
 const EXPIRE_MINUTES = 20;
@@ -67,23 +67,13 @@ export async function GET(req: NextRequest) {
 
       const otp = extractOtp(data as Record<string, unknown>);
       if (otp) {
-        // Auto-check nomor di WA/TG jika belum dicek (hanya untuk service wa/tg)
+        // Auto-check nomor di WA jika belum dicek (hanya untuk service wa)
         let waCheck = null;
-        let tgCheck = null;
         const rawSvc = order.service.toLowerCase();
-        // Normalize: "telegram" → "tg", "whatsapp" → "wa"
-        const svc = rawSvc.startsWith("tg") || rawSvc.startsWith("telegram") ? "tg"
-          : rawSvc.startsWith("wa") || rawSvc.startsWith("whatsapp") ? "wa"
-          : rawSvc;
-        if (!order.checkedAt && (svc === "wa" || svc === "tg")) {
+        const svc = rawSvc.startsWith("wa") || rawSvc.startsWith("whatsapp") ? "wa" : rawSvc;
+        if (!order.checkedAt && svc === "wa") {
           try {
-            if (svc === "tg") {
-              tgCheck = order.user.premiumChecker
-                ? await checkTelegramFull(order.number)
-                : await checkTelegram(order.number);
-            } else {
-              waCheck = await checkWhatsApp(order.number);
-            }
+            waCheck = await checkWhatsApp(order.number);
           } catch { /* checker failure is non-critical */ }
         }
 
@@ -94,7 +84,7 @@ export async function GET(req: NextRequest) {
             status: "success",
             ...(order.checkedAt ? {} : {
               waCheck: waCheck ? JSON.stringify(waCheck) : null,
-              tgCheck: tgCheck ? JSON.stringify(tgCheck) : null,
+              tgCheck: null,
               checkedAt: new Date(),
             }),
           },
