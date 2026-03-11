@@ -1,20 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { authenticateApiKey, checkRateLimit } from "@/lib/api-auth";
-import { getLayanan, getNegara } from "@/lib/otp";
+import { withApiAuth } from "@/lib/api-auth";
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { getLayanan } from "@/lib/otp";
 
-export async function GET(req: NextRequest) {
-  const user = await authenticateApiKey(req);
-  if (!user) {
-    return NextResponse.json({ status: "error", message: "Invalid API key" }, { status: 401 });
-  }
-  const rateLimited = checkRateLimit(user.id);
-  if (rateLimited) return rateLimited;
-
+export const GET = withApiAuth(async (req) => {
   const server = (req.nextUrl.searchParams.get("server") || "api1") as "api1" | "api2";
   const negara = Number(req.nextUrl.searchParams.get("country") || "6");
 
   if (!["api1", "api2"].includes(server)) {
-    return NextResponse.json({ status: "error", message: "Invalid server (api1 or api2)" }, { status: 400 });
+    return apiError("Invalid server (api1 or api2)", 400, "INVALID_SERVER");
   }
 
   try {
@@ -34,8 +27,8 @@ export async function GET(req: NextRequest) {
         };
       });
 
-    return NextResponse.json({ status: "success", data: services });
+    return apiSuccess(services);
   } catch {
-    return NextResponse.json({ status: "error", message: "Failed to fetch services" }, { status: 500 });
+    return apiError("Failed to fetch services", 500, "FETCH_FAILED");
   }
-}
+});

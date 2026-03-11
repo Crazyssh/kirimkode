@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
     try {
-        // Rate limit: max 10 login per IP per menit
         const rateLimited = checkRouteRateLimit(req, "v1-auth-login", 10, 60000);
         if (rateLimited) return rateLimited;
 
@@ -13,10 +13,7 @@ export async function POST(req: NextRequest) {
         const { email, password } = body;
 
         if (!email || !password) {
-            return NextResponse.json(
-                { success: false, error: "Email dan password wajib diisi" },
-                { status: 400 }
-            );
+            return apiError("Email dan password wajib diisi", 400, "MISSING_FIELDS");
         }
 
         const normalizedEmail = email.toLowerCase().trim();
@@ -37,46 +34,31 @@ export async function POST(req: NextRequest) {
         });
 
         if (!user || !user.password) {
-            return NextResponse.json(
-                { success: false, error: "Email atau password salah" },
-                { status: 401 }
-            );
+            return apiError("Email atau password salah", 401, "INVALID_CREDENTIALS");
         }
 
         const isValid = await bcrypt.compare(password, user.password);
         if (!isValid) {
-            return NextResponse.json(
-                { success: false, error: "Email atau password salah" },
-                { status: 401 }
-            );
+            return apiError("Email atau password salah", 401, "INVALID_CREDENTIALS");
         }
 
         if (user.status === "banned") {
-            return NextResponse.json(
-                { success: false, error: "Akun Anda telah diblokir. Hubungi admin." },
-                { status: 403 }
-            );
+            return apiError("Akun Anda telah diblokir. Hubungi admin.", 403, "ACCOUNT_BANNED");
         }
 
-        return NextResponse.json({
-            success: true,
-            data: {
-                apiKey: user.apiKey,
-                user: {
-                    id: user.id,
-                    name: user.name,
-                    email: user.email,
-                    image: user.image,
-                    phone: user.phone,
-                    balance: user.balance,
-                },
+        return apiSuccess({
+            api_key: user.apiKey,
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+                phone: user.phone,
+                balance: user.balance,
             },
         });
     } catch (error) {
         console.error("[v1/auth/login] Error:", error);
-        return NextResponse.json(
-            { success: false, error: "Terjadi kesalahan server" },
-            { status: 500 }
-        );
+        return apiError("Terjadi kesalahan server", 500, "SERVER_ERROR");
     }
 }

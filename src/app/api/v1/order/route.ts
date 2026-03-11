@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { authenticateApiKey, checkRateLimit } from "@/lib/api-auth";
+import { withApiAuth } from "@/lib/api-auth";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
 import { applyPricing } from "@/lib/pricing";
@@ -22,24 +22,17 @@ async function getServerPrice(server: "api1" | "api2", country: number, service:
   return applyPricing(serviceInfo.harga, service, country);
 }
 
-export async function POST(req: NextRequest) {
-  const user = await authenticateApiKey(req);
-  if (!user) {
-    return NextResponse.json({ status: "error", message: "Invalid API key" }, { status: 401 });
-  }
-  const rateLimited = checkRateLimit(user.id);
-  if (rateLimited) return rateLimited;
-
+export const POST = withApiAuth(async (req, user) => {
   try {
     const body = await req.json();
     const { server = "api1", country = 6, service, operator = "any" } = body;
 
     if (!service) {
-      return NextResponse.json({ status: "error", message: "service is required" }, { status: 400 });
+      return apiError("service is required", 400, "MISSING_FIELDS");
     }
 
     if (!["api1", "api2"].includes(server)) {
-      return NextResponse.json({ status: "error", message: "Invalid server (api1 or api2)" }, { status: 400 });
+      return apiError("Invalid server (api1 or api2)", 400, "INVALID_SERVER");
     }
 
     // Harga WAJIB dari server, bukan dari client
@@ -88,29 +81,25 @@ export async function POST(req: NextRequest) {
       return { orderId, number: String(number) };
     });
 
-    return NextResponse.json({
-      status: "success",
-      data: {
-        order_id: result.orderId,
-        number: result.number,
-        service,
-        price: orderPrice,
-        expires_at: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
-      },
+    return apiSuccess({
+      order_id: result.orderId,
+      number: result.number,
+      service,
+      price: orderPrice,
+      expires_at: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
     });
   } catch (error) {
     const rawMsg = error instanceof Error ? error.message : "";
 
     if (rawMsg === "INSUFFICIENT_BALANCE") {
-      return NextResponse.json({ status: "error", message: "Insufficient balance" }, { status: 402 });
+      return apiError("Insufficient balance", 402, "INSUFFICIENT_BALANCE");
     }
 
-    // Deteksi error stok habis dari JasaOTP
     const isStock = /stok|stock|habis|unavailable|empty|sold.?out|not.?available|no.?number/i.test(rawMsg);
     if (isStock) {
-      return NextResponse.json({ status: "error", message: "Out of stock for this service" }, { status: 409 });
+      return apiError("Out of stock for this service", 409, "OUT_OF_STOCK");
     }
 
-    return NextResponse.json({ status: "error", message: "Failed to create order" }, { status: 500 });
+    return apiError("Failed to create order", 500, "ORDER_FAILED");
   }
-}
+});

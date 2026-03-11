@@ -1,58 +1,40 @@
-import { NextRequest, NextResponse } from "next/server";
-import { authenticateApiKey } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { withApiAuth } from "@/lib/api-auth";
+import { apiSuccess, apiError } from "@/lib/api-response";
 
-export async function GET(req: NextRequest) {
-    const user = await authenticateApiKey(req);
-    if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const GET = withApiAuth(async (_req, user) => {
+    const userData = await db.user.findUnique({
+        where: { id: user.id },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            phone: true,
+            balance: true,
+            role: true,
+            apiKey: true,
+            webhookUrl: true,
+            favorites: true,
+            theme: true,
+        },
+    });
+
+    if (!userData) {
+        return apiError("User not found", 404, "USER_NOT_FOUND");
     }
 
-    try {
-        const userData = await db.user.findUnique({
-            where: { id: user.id },
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                image: true,
-                phone: true,
-                balance: true,
-                role: true,
-                apiKey: true,
-            },
-        });
-
-        if (!userData) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 });
-        }
-
-        // Coba ambil field tambahan
-        let extras = { webhookUrl: null as string | null, favorites: "", theme: "dark" };
-        try {
-            const full = await db.user.findUnique({
-                where: { id: user.id },
-                select: { webhookUrl: true, favorites: true, theme: true },
-            });
-            if (full) {
-                extras = {
-                    webhookUrl: full.webhookUrl,
-                    favorites: full.favorites,
-                    theme: full.theme,
-                };
-            }
-        } catch {
-            // New fields might not exist yet
-        }
-
-        return NextResponse.json({
-            data: { ...userData, ...extras },
-        });
-    } catch (error) {
-        console.error("[v1/user/me] Error:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
-    }
-}
+    return apiSuccess({
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        image: userData.image,
+        phone: userData.phone,
+        balance: userData.balance,
+        role: userData.role,
+        api_key: userData.apiKey,
+        webhook_url: userData.webhookUrl,
+        favorites: userData.favorites,
+        theme: userData.theme,
+    });
+});

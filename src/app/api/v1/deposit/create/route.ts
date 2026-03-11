@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
-import { authenticateApiKey } from "@/lib/api-auth";
+import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { checkRouteRateLimit } from "@/lib/rate-limit";
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { authenticateApiKey } from "@/lib/api-auth";
 import {
     createTransaction,
     generateReferenceId,
 } from "@/lib/paymenku";
-import { checkRouteRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
     try {
@@ -14,24 +15,18 @@ export async function POST(req: NextRequest) {
 
         const authUser = await authenticateApiKey(req);
         if (!authUser) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return apiError("Invalid API key", 401, "UNAUTHORIZED");
         }
 
         const body = await req.json();
         const { amount, channel } = body;
 
         if (!amount || !channel) {
-            return NextResponse.json(
-                { error: "amount and channel are required" },
-                { status: 400 }
-            );
+            return apiError("amount and channel are required", 400, "MISSING_FIELDS");
         }
 
         if (amount < 5000) {
-            return NextResponse.json(
-                { error: "Minimal deposit Rp 5.000" },
-                { status: 400 }
-            );
+            return apiError("Minimal deposit Rp 5.000", 400, "MIN_AMOUNT");
         }
 
         // Anti double charge
@@ -40,10 +35,7 @@ export async function POST(req: NextRequest) {
         });
 
         if (pendingCount >= 3) {
-            return NextResponse.json(
-                { error: "Anda sudah memiliki 3 deposit pending" },
-                { status: 429 }
-            );
+            return apiError("Anda sudah memiliki 3 deposit pending", 429, "MAX_PENDING");
         }
 
         // Fetch full user data for payment
@@ -53,7 +45,7 @@ export async function POST(req: NextRequest) {
         });
 
         if (!user) {
-            return NextResponse.json({ error: "User not found" }, { status: 404 });
+            return apiError("User not found", 404, "USER_NOT_FOUND");
         }
 
         const referenceId = generateReferenceId(user.id);
@@ -82,20 +74,13 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        return NextResponse.json({
-            status: "success",
-            data: {
-                trx_id: result.data.trx_id,
-                amount: result.data.amount,
-                pay_url: result.data.pay_url,
-                payment_url: result.data.pay_url,
-            },
+        return apiSuccess({
+            trx_id: result.data.trx_id,
+            amount: result.data.amount,
+            pay_url: result.data.pay_url,
         });
     } catch (error) {
         console.error("[v1/deposit] Error:", error);
-        return NextResponse.json(
-            { error: "Gagal membuat deposit" },
-            { status: 500 }
-        );
+        return apiError("Gagal membuat deposit", 500, "DEPOSIT_FAILED");
     }
 }

@@ -1,28 +1,31 @@
-import { NextRequest, NextResponse } from "next/server";
-import { authenticateApiKey } from "@/lib/api-auth";
+import { withApiAuthParams } from "@/lib/api-auth";
+import { apiMessage, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { cancelOrder } from "@/lib/otp";
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user = await authenticateApiKey(req);
-  if (!user) {
-    return NextResponse.json({ status: "error", message: "Invalid API key" }, { status: 401 });
-  }
-
-  const { id } = await params;
+export const POST = withApiAuthParams(async (_req, user, params) => {
+  const { id } = params;
 
   const order = await db.order.findFirst({
     where: { id, userId: user.id, status: "waiting" },
   });
 
   if (!order) {
-    return NextResponse.json({ status: "error", message: "Order not found or already completed" }, { status: 404 });
+    return apiError("Order not found or already completed", 404, "ORDER_NOT_FOUND");
   }
 
+  // Check 3-minute rule
+  const diffMs = Date.now() - new Date(order.createdAt).getTime();
+  if (diffMs < 3 * 60 * 1000) {
+    return apiError("Cannot cancel within 3 minutes of order", 400, "CANCEL_TOO_EARLY");
+  }
+
+  let jasaotpWarning: string | undefined;
   try {
     await cancelOrder(order.server as "api1" | "api2", order.orderId);
-  } catch {
-    // JasaOTP cancel may fail
+  } catch (e) {
+    console.warn("[v1/order/cancel] JasaOTP error (proceeding with refund):", e);
+    jasaotpWarning = "JasaOTP returned an error but refund was processed";
   }
 
   await db.$transaction([
@@ -36,8 +39,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }),
   ]);
 
-  return NextResponse.json({
-    status: "success",
-    message: "Order dibatalkan, saldo dikembalikan",
-  });
-}
+  return apiMessage(
+    jasaotpWarning
+      ? `Order cancelled and balance refunded. Warning: ${jasaotpWarning}`
+      : "Order cancelled and balance refunded"
+  );
+});
