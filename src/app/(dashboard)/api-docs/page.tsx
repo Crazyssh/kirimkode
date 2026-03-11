@@ -53,7 +53,7 @@ const balance = await fetch(\`\${BASE}/balance\`, {
 }).then(r => r.json());
 console.log("Saldo:", balance.data.balance);
 
-// Order nomor virtual WhatsApp
+// Order nomor virtual (Indonesia)
 const order = await fetch(\`\${BASE}/order\`, {
   method: "POST",
   headers: {
@@ -61,8 +61,10 @@ const order = await fetch(\`\${BASE}/order\`, {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    service: "whatsapp",
-    country: "ID",
+    server: "api1",
+    country: 6,
+    service: "wa",
+    operator: "any",
   }),
 }).then(r => r.json());
 console.log("Nomor:", order.data.number);
@@ -78,7 +80,6 @@ const checkOtp = async (orderId) => {
     console.log("OTP:", res.data.code);
     return res.data.code;
   }
-  // Coba lagi dalam 5 detik
   await new Promise(r => setTimeout(r, 5000));
   return checkOtp(orderId);
 };
@@ -98,12 +99,14 @@ headers = {"X-API-Key": API_KEY}
 balance = requests.get(f"{BASE}/balance", headers=headers).json()
 print(f"Saldo: {balance['data']['balance']}")
 
-# Order nomor virtual WhatsApp
+# Order nomor virtual (Indonesia)
 order = requests.post(f"{BASE}/order", headers={
     **headers, "Content-Type": "application/json"
 }, json={
-    "service": "whatsapp",
-    "country": "ID"
+    "server": "api1",
+    "country": 6,
+    "service": "wa",
+    "operator": "any"
 }).json()
 print(f"Nomor: {order['data']['number']}")
 
@@ -132,7 +135,7 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $balance = json_decode(curl_exec($ch), true);
 echo "Saldo: " . $balance["data"]["balance"] . "\\n";
 
-// Order nomor virtual WhatsApp
+// Order nomor virtual (Indonesia)
 $ch = curl_init("$base/order");
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -140,8 +143,10 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
     "Content-Type: application/json"
 ]);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
-    "service" => "whatsapp",
-    "country" => "ID"
+    "server" => "api1",
+    "country" => 6,
+    "service" => "wa",
+    "operator" => "any"
 ]));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $order = json_decode(curl_exec($ch), true);
@@ -167,11 +172,11 @@ while (true) {
 curl -H "X-API-Key: YOUR_API_KEY" \\
   https://api.kirimkode.com/v1/balance
 
-# Order nomor virtual WhatsApp
+# Order nomor virtual (Indonesia)
 curl -X POST \\
   -H "X-API-Key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"service":"whatsapp","country":"ID"}' \\
+  -d '{"server":"api1","country":6,"service":"wa","operator":"any"}' \\
   https://api.kirimkode.com/v1/order
 
 # Cek status OTP
@@ -186,13 +191,12 @@ curl -X POST \\
   };
 
   const apiEndpoints = [
-    { method: "GET", path: "/api/v1/balance", description: t("apiDocs.descBalance"), example: `{\n  "status": "success",\n  "data": {\n    "balance": 125000,\n    "currency": "IDR"\n  }\n}` },
-    { method: "GET", path: "/api/v1/services", description: t("apiDocs.descServices"), example: `{\n  "status": "success",\n  "data": [\n    {\n      "id": "whatsapp",\n      "name": "WhatsApp",\n      "category": "Messenger",\n      "price": 1500,\n      "available": 342\n    }\n  ]\n}` },
-    { method: "GET", path: "/api/v1/countries", description: t("apiDocs.descCountries"), example: `{\n  "status": "success",\n  "data": [\n    {\n      "code": "ID",\n      "name": "Indonesia",\n      "flag": "\ud83c\uddee\ud83c\udde9",\n      "price_multiplier": 1.0\n    }\n  ]\n}` },
-    { method: "POST", path: "/api/v1/order", description: t("apiDocs.descOrder"), example: `// Request\n{\n  "service": "whatsapp",\n  "country": "ID"\n}\n\n// Response\n{\n  "status": "success",\n  "data": {\n    "order_id": "ORD-048",\n    "number": "+6281234567890",\n    "service": "whatsapp",\n    "expires_at": "2026-02-19T15:00:00Z"\n  }\n}` },
-    { method: "GET", path: "/api/v1/order/{id}/status", description: t("apiDocs.descStatus"), example: `{\n  "status": "success",\n  "data": {\n    "order_id": "ORD-048",\n    "number": "+6281234567890",\n    "code": "482916",\n    "status": "completed",\n    "received_at": "2026-02-19T14:42:15Z"\n  }\n}` },
-    { method: "POST", path: "/api/v1/order/{id}/cancel", description: t("apiDocs.descCancel"), example: `{\n  "status": "success",\n  "message": "Order cancelled, balance refunded"\n}` },
-    { method: "GET", path: "/api/v1/history", description: t("apiDocs.descHistory"), example: `{\n  "status": "success",\n  "data": [...],\n  "pagination": {\n    "page": 1,\n    "per_page": 20,\n    "total": 47\n  }\n}` },
+    { method: "GET", path: "/balance", description: t("apiDocs.descBalance"), example: `{\n  "success": true,\n  "data": {\n    "balance": 125000,\n    "currency": "IDR"\n  },\n  "timestamp": "2026-03-11T16:31:48.817Z"\n}` },
+    { method: "GET", path: "/services", description: t("apiDocs.descServices"), example: `// Query: ?server=api1&country=6\n\n{\n  "success": true,\n  "data": [\n    {\n      "code": "wa",\n      "name": "WhatsApp",\n      "price": 1500,\n      "stock": 342\n    }\n  ],\n  "timestamp": "2026-03-11T16:32:03.746Z"\n}` },
+    { method: "POST", path: "/order", description: t("apiDocs.descOrder"), example: `// Request\n{\n  "server": "api1",\n  "country": 6,\n  "service": "wa",\n  "operator": "any"\n}\n\n// Response\n{\n  "success": true,\n  "data": {\n    "order_id": 12003637,\n    "number": "+62881025274888",\n    "service": "wa",\n    "price": 1500,\n    "expires_at": "2026-03-11T16:54:58.177Z"\n  },\n  "timestamp": "2026-03-11T16:34:58.177Z"\n}` },
+    { method: "GET", path: "/order/{id}/status", description: t("apiDocs.descStatus"), example: `{\n  "success": true,\n  "data": {\n    "order_id": "cmmm9f3ei000r3xkpvjnwtkfy",\n    "number": "+62881025274888",\n    "code": "482916",\n    "status": "success",\n    "received_at": "2026-03-11T14:42:15Z"\n  },\n  "timestamp": "2026-03-11T14:42:15.123Z"\n}` },
+    { method: "POST", path: "/order/{id}/cancel", description: t("apiDocs.descCancel"), example: `// Success\n{\n  "success": true,\n  "message": "Order cancelled and balance refunded",\n  "timestamp": "2026-03-11T14:45:00.123Z"\n}\n\n// Error (cancel terlalu cepat)\n{\n  "success": false,\n  "error": {\n    "message": "Cannot cancel within 3 minutes of order",\n    "code": "CANCEL_TOO_EARLY"\n  },\n  "timestamp": "2026-03-11T14:42:30.456Z"\n}` },
+    { method: "GET", path: "/orders", description: t("apiDocs.descHistory"), example: `{\n  "success": true,\n  "data": [\n    {\n      "id": "cmmm9f3ei000r3xkpvjnwtkfy",\n      "order_id": 12003637,\n      "service": "wa",\n      "number": "+62881025274888",\n      "code": "482916",\n      "status": "success",\n      "price": 1500\n    }\n  ],\n  "pagination": {\n    "page": 1,\n    "limit": 20,\n    "total": 47,\n    "total_pages": 3\n  },\n  "timestamp": "2026-03-11T16:35:30.077Z"\n}` },
   ];
 
   const errorCodes = [
@@ -201,8 +205,9 @@ curl -X POST \\
     { code: 401, status: "Unauthorized", desc: t("apiDocs.err401") },
     { code: 402, status: "Payment Required", desc: t("apiDocs.err402") },
     { code: 404, status: "Not Found", desc: t("apiDocs.err404") },
+    { code: 409, status: "Conflict", desc: "Stok habis / Order sudah diproses" },
     { code: 429, status: "Too Many Requests", desc: t("apiDocs.err429") },
-    { code: 503, status: "Service Unavailable", desc: t("apiDocs.err503") },
+    { code: 500, status: "Server Error", desc: "Kesalahan internal server" },
   ];
 
   const handleRegenerate = async () => {
@@ -462,19 +467,19 @@ curl -X POST \\
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                {[
-                  { limit: "100", plan: "Starter" },
-                  { limit: "500", plan: "Pro" },
-                  { limit: "Unlimited", plan: "Enterprise" },
-                ].map((r) => (
-                  <div key={r.plan} className="p-3 sm:p-4 rounded-xl bg-background/50 text-center">
-                    <div className="text-lg sm:text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-primary">
-                      {r.limit}
-                    </div>
-                    <div className="text-[10px] sm:text-xs text-muted">{t("apiDocs.requestPerMin")} ({r.plan})</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="p-3 sm:p-4 rounded-xl bg-background/50 text-center">
+                  <div className="text-lg sm:text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-primary">
+                    60
                   </div>
-                ))}
+                  <div className="text-[10px] sm:text-xs text-muted">{t("apiDocs.requestPerMin")}</div>
+                </div>
+                <div className="p-3 sm:p-4 rounded-xl bg-background/50 text-center">
+                  <div className="text-lg sm:text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-primary">
+                    10
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-muted">Auth & Deposit /menit</div>
+                </div>
               </div>
             </CardContent>
           </Card>
