@@ -9,11 +9,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userId = session.user.id;
     const { code, depositAmount } = await req.json();
 
     if (!code) {
       return NextResponse.json({ error: "Kode voucher diperlukan" }, { status: 400 });
     }
+
+    // Ambil IP dari request
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || req.headers.get("x-real-ip")
+      || "unknown";
 
     // Cari voucher
     const voucher = await db.voucher.findFirst({
@@ -30,42 +36,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Voucher sudah kadaluarsa" }, { status: 400 });
     }
 
-    // Cek max usage
+    // Cek max usage global
     if (voucher.maxUsage > 0 && voucher._count.usages >= voucher.maxUsage) {
       return NextResponse.json({ error: "Voucher sudah mencapai batas penggunaan" }, { status: 400 });
-    }
-
-    // Cek max per user
-    const userUsageCount = await db.voucherUsage.count({
-      where: { voucherId: voucher.id, userId: session.user.id },
-    });
-    if (userUsageCount >= voucher.maxPerUser) {
-      return NextResponse.json({ error: "Kamu sudah pernah menggunakan voucher ini" }, { status: 400 });
-    }
-
-    // Cek per device — voucher hanya bisa dipakai 1x per perangkat (fingerprint)
-    const currentUser = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { fingerprint: true },
-    });
-    if (currentUser?.fingerprint) {
-      const usersWithSameDevice = await db.user.findMany({
-        where: { fingerprint: currentUser.fingerprint },
-        select: { id: true },
-      });
-      const deviceUserIds = usersWithSameDevice.map((u) => u.id);
-      const deviceUsageCount = await db.voucherUsage.count({
-        where: { voucherId: voucher.id, userId: { in: deviceUserIds } },
-      });
-      if (deviceUsageCount > 0) {
-        return NextResponse.json({ error: "Voucher sudah pernah digunakan di perangkat ini" }, { status: 400 });
-      }
     }
 
     // Cek first deposit only
     if (voucher.firstDeposit) {
       const paidDeposits = await db.deposit.count({
-        where: { userId: session.user.id, status: "paid" },
+        where: { userId, status: "paid" },
       });
       if (paidDeposits > 0) {
         return NextResponse.json({ error: "Voucher ini hanya untuk deposit pertama" }, { status: 400 });
@@ -91,20 +70,96 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Simpan usage dan tambah saldo
-    await db.$transaction([
-      db.voucherUsage.create({
-        data: {
-          voucherId: voucher.id,
-          userId: session.user.id,
-          bonus,
-        },
-      }),
-      db.user.update({
-        where: { id: session.user.id },
-        data: { balance: { increment: bonus } },
-      }),
-    ]);
+    // ============================================================
+    // ATOMIC TRANSACTION: Semua check + create dalam satu transaction
+    // Mencegah race condition DAN multi-akun abuse
+    // ============================================================
+    try {
+      await db.$transaction(async (tx) => {
+        // 1. Cek per user
+        const userUsageCount = await tx.voucherUsage.count({
+          where: { voucherId: voucher.id, userId },
+        });
+        if (userUsageCount >= voucher.maxPerUser) {
+          throw new Error("ALREADY_USED");
+        }
+
+        // 2. Cek per device (fingerprint) — anti multi-akun via device
+        const currentUser = await tx.user.findUnique({
+          where: { id: userId },
+          select: { fingerprint: true },
+        });
+        if (currentUser?.fingerprint) {
+          const usersWithSameDevice = await tx.user.findMany({
+            where: { fingerprint: currentUser.fingerprint },
+            select: { id: true },
+          });
+          const deviceUserIds = usersWithSameDevice.map((u) => u.id);
+          const deviceUsageCount = await tx.voucherUsage.count({
+            where: { voucherId: voucher.id, userId: { in: deviceUserIds } },
+          });
+          if (deviceUsageCount > 0) {
+            throw new Error("DEVICE_USED");
+          }
+        }
+
+        // 3. Cek per IP — anti multi-akun via IP address
+        if (ip !== "unknown") {
+          const ipUsageCount = await tx.voucherUsage.count({
+            where: { voucherId: voucher.id, ip },
+          });
+          if (ipUsageCount > 0) {
+            throw new Error("IP_USED");
+          }
+        }
+
+        // 4. Re-check max usage global di dalam transaction
+        const currentTotalUsage = await tx.voucherUsage.count({
+          where: { voucherId: voucher.id },
+        });
+        if (voucher.maxUsage > 0 && currentTotalUsage >= voucher.maxUsage) {
+          throw new Error("MAX_USAGE_REACHED");
+        }
+
+        // 5. Buat usage record (dengan IP)
+        await tx.voucherUsage.create({
+          data: {
+            voucherId: voucher.id,
+            userId,
+            bonus,
+            ip,
+          },
+        });
+
+        // 6. Tambah saldo
+        await tx.user.update({
+          where: { id: userId },
+          data: { balance: { increment: bonus } },
+        });
+      });
+    } catch (txError) {
+      const msg = txError instanceof Error ? txError.message : "";
+
+      if (msg === "ALREADY_USED") {
+        return NextResponse.json({ error: "Kamu sudah pernah menggunakan voucher ini" }, { status: 400 });
+      }
+      if (msg === "DEVICE_USED") {
+        return NextResponse.json({ error: "Voucher sudah pernah digunakan di perangkat ini" }, { status: 400 });
+      }
+      if (msg === "IP_USED") {
+        return NextResponse.json({ error: "Voucher sudah pernah digunakan dari jaringan ini" }, { status: 400 });
+      }
+      if (msg === "MAX_USAGE_REACHED") {
+        return NextResponse.json({ error: "Voucher sudah mencapai batas penggunaan" }, { status: 400 });
+      }
+
+      // Unique constraint violation (database-level protection)
+      if (msg.includes("Unique constraint")) {
+        return NextResponse.json({ error: "Kamu sudah pernah menggunakan voucher ini" }, { status: 400 });
+      }
+
+      throw txError;
+    }
 
     return NextResponse.json({
       success: true,

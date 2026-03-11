@@ -213,11 +213,13 @@ model VoucherUsage {
   userId    String
   depositId String?  // deposit yang dapat bonus
   bonus     Int      // bonus yang didapat
+  ip        String?  // IP address saat redeem (anti multi-akun)
   createdAt DateTime @default(now())
 
   voucher Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([voucherId, userId]) // 1 voucher = 1 user (anti double-use)
   @@index([voucherId])
   @@index([userId])
   @@map("voucher_usages")
