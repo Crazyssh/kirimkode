@@ -151,73 +151,7 @@ async function fetchProviderJson(
   }
 }
 
-// --- Service name mapping ---
-// SMS-Activate format uses short codes. This map provides readable names.
-const SERVICE_NAME_MAP: Record<string, string> = {
-  // Messaging
-  wa: "WhatsApp",
-  tg: "Telegram",
-  ds: "Discord",
-  vi: "Viber",
-  ig: "Instagram",
-  fb: "Facebook",
-  signal: "Signal",
-  line: "LINE",
-  wc: "WeChat",
-  ka: "KakaoTalk",
-
-  // Social Media
-  tw: "Twitter/X",
-  tk: "TikTok",
-  sn: "Snapchat",
-  rd: "Reddit",
-  pi: "Pinterest",
-  li: "LinkedIn",
-  vk: "VKontakte",
-  ok: "Odnoklassniki",
-
-  // Big Tech
-  go: "Google/Gmail",
-  ma: "Microsoft",
-  ap: "Apple",
-  am: "Amazon",
-
-  // E-commerce & Finance
-  al: "AliExpress",
-  lz: "Lazada",
-  sp: "Shopee",
-  grab: "Grab",
-  gojek: "Gojek",
-  ovo: "OVO",
-  dana: "DANA",
-  gopay: "GoPay",
-  pp: "PayPal",
-  wise: "Wise",
-
-  // Services
-  ya: "Yandex",
-  mb: "Yahoo",
-  nf: "Netflix",
-  dp: "Spotify",
-  uber: "Uber",
-  bw: "Binance",
-  ot: "Any Other",
-
-  // Dating
-  tn: "Tinder",
-  bm: "Bumble",
-  bd: "Badoo",
-
-  // Gaming
-  st: "Steam",
-  ep: "Epic Games",
-
-  // Others
-  qq: "QQ",
-  wb: "Weibo",
-  mt: "Microsoft Teams",
-  zm: "Zoom",
-};
+// --- Service names from API ---
 
 let serviceNamesCache: Record<string, string> | null = null;
 let serviceNamesCacheTime = 0;
@@ -229,33 +163,35 @@ async function getServiceNames(): Promise<Record<string, string>> {
     return serviceNamesCache;
   }
 
-  // Start with hardcoded map
-  const names: Record<string, string> = { ...SERVICE_NAME_MAP };
+  const names: Record<string, string> = {};
 
   try {
     const data = await fetchProviderJson({ action: "getServicesList" });
 
     if (data && typeof data === "object") {
-      for (const [code, info] of Object.entries(
-        data as Record<string, unknown>
-      )) {
-        // Only override if API provides a longer/better name
-        const apiName =
-          info && typeof info === "object" && "name" in info
-            ? (info as { name: string }).name
-            : typeof info === "string"
-            ? info
-            : null;
+      // Format: { "status": "success", "services": [{ "code": "wa", "name": "Whatsapp" }, ...] }
+      const services = (data as { services?: Array<{ code: string; name: string }> }).services;
 
-        if (apiName && apiName.length > (names[code]?.length || 0)) {
-          names[code] = apiName;
-        } else if (!names[code] && apiName) {
-          names[code] = apiName;
+      if (Array.isArray(services)) {
+        for (const svc of services) {
+          if (svc.code && svc.name) {
+            names[svc.code] = svc.name;
+          }
+        }
+      } else {
+        // Fallback: map format { "code": "name" } or { "code": { "name": "..." } }
+        for (const [code, info] of Object.entries(data as Record<string, unknown>)) {
+          if (typeof info === "string") {
+            names[code] = info;
+          } else if (info && typeof info === "object" && "name" in info) {
+            names[code] = (info as { name: string }).name;
+          }
         }
       }
     }
   } catch {
-    // Use hardcoded map as fallback
+    // Return whatever we have cached
+    if (serviceNamesCache) return serviceNamesCache;
   }
 
   serviceNamesCache = names;
