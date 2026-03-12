@@ -583,7 +583,7 @@ export default function BuyPage() {
                         />
                       </div>
                       <span className="text-xs text-muted">
-                        {server.id === "api1" ? t("buy.serverMainDesc") : t("buy.serverBackupDesc")}
+                        {server.description}
                       </span>
                     </div>
                     {selectedServer.id === server.id && (
@@ -686,7 +686,7 @@ export default function BuyPage() {
             </CardContent>
           </Card>
 
-          {/* Provider Dropdown - hidden for api2/Jupiter */}
+          {/* Provider Dropdown - only shown for api1/Mars */}
           {selectedServer.id === "api1" && (
             <Card className="relative z-15" style={{ overflow: "visible" }}>
               <CardHeader>

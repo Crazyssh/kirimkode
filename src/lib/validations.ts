@@ -14,7 +14,7 @@ export const registerSchema = z.object({
 // ==================== OTP ====================
 
 export const otpOrderSchema = z.object({
-    server: z.enum(["api1", "api2"], { message: "Server harus api1 atau api2" }),
+    server: z.enum(["api1", "api2", "api3"], { message: "Server harus api1, api2, atau api3" }),
     negara: z.union([z.number(), z.string()]).transform(Number),
     layanan: z.string().min(1, "Layanan wajib diisi"),
     operator: z.string().default("any"),
@@ -23,7 +23,7 @@ export const otpOrderSchema = z.object({
 });
 
 export const otpCancelSchema = z.object({
-    server: z.enum(["api1", "api2"], { message: "Server harus api1 atau api2" }),
+    server: z.enum(["api1", "api2", "api3"], { message: "Server harus api1, api2, atau api3" }),
     id: z.union([z.number(), z.string()]).transform(Number),
 });
 
@@ -96,7 +96,7 @@ export const adminVoucherSchema = z.object({
 // ==================== V1 API ====================
 
 export const v1OrderSchema = z.object({
-    server: z.enum(["api1", "api2"]),
+    server: z.enum(["api1", "api2", "api3"]),
     country_id: z.union([z.number(), z.string()]).transform(Number),
     service: z.string().min(1),
     operator: z.string().default("any"),

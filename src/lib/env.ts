@@ -20,6 +20,9 @@ const envSchema = z.object({
     // JasaOTP
     JASA_OTP_API_KEY: z.string().optional(),
 
+    // Provider 3
+    PROVIDER3_API_KEY: z.string().optional(),
+
     // Turnstile
     TURNSTILE_SECRET_KEY: z.string().optional(),
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),

@@ -1,3 +1,5 @@
+import * as provider3 from "@/lib/provider3";
+
 const API_URLS = {
   api1: process.env.JASAOTP_API1_URL || "https://api.jasaotp.id/v1",
   api2: process.env.JASAOTP_API2_URL || "https://api.jasaotp.id/v2",
@@ -5,9 +7,11 @@ const API_URLS = {
 
 const API_KEY = process.env.JASAOTP_API_KEY || "";
 
-type ServerId = "api1" | "api2";
+export type ServerId = "api1" | "api2" | "api3";
 
-function getBaseUrl(server: ServerId): string {
+type JasaOtpServerId = "api1" | "api2";
+
+function getBaseUrl(server: JasaOtpServerId): string {
   return API_URLS[server];
 }
 
@@ -39,7 +43,7 @@ class ApiBusinessError extends Error {
 }
 
 async function fetchApi(
-  server: ServerId,
+  server: JasaOtpServerId,
   endpoint: string,
   params?: Record<string, string>,
   options?: { skipRetry?: boolean; skipCache?: boolean }
@@ -125,18 +129,22 @@ async function fetchApi(
 }
 
 export async function getBalance(server: ServerId) {
+  if (server === "api3") return provider3.getBalance();
   return fetchApi(server, "balance.php", { api_key: API_KEY });
 }
 
 export async function getNegara(server: ServerId) {
+  if (server === "api3") return provider3.getNegara();
   return fetchApi(server, "negara.php");
 }
 
 export async function getOperator(server: ServerId, negara: number) {
+  if (server === "api3") return provider3.getOperator(negara);
   return fetchApi(server, "operator.php", { negara: String(negara) });
 }
 
 export async function getLayanan(server: ServerId, negara: number) {
+  if (server === "api3") return provider3.getLayanan(negara);
   return fetchApi(server, "layanan.php", { negara: String(negara) });
 }
 
@@ -146,6 +154,7 @@ export async function createOrder(
   layanan: string,
   operator: string
 ) {
+  if (server === "api3") return provider3.createOrder(negara, layanan, operator);
   return fetchApi(server, "order.php", {
     api_key: API_KEY,
     negara: String(negara),
@@ -155,6 +164,7 @@ export async function createOrder(
 }
 
 export async function checkSms(server: ServerId, orderId: number) {
+  if (server === "api3") return provider3.checkSms(orderId);
   return fetchApi(server, "sms.php", {
     api_key: API_KEY,
     id: String(orderId),
@@ -162,6 +172,7 @@ export async function checkSms(server: ServerId, orderId: number) {
 }
 
 export async function cancelOrder(server: ServerId, orderId: number) {
+  if (server === "api3") return provider3.cancelOrder(orderId);
   return fetchApi(server, "cancel.php", {
     api_key: API_KEY,
     id: String(orderId),

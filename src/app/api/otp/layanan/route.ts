@@ -3,11 +3,11 @@ import { getLayanan } from "@/lib/otp";
 import { applyPricing } from "@/lib/pricing";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2"].includes(server)) {
-    return NextResponse.json({ error: "Server parameter required (api1 or api2)" }, { status: 400 });
+  if (!server || !["api1", "api2", "api3"].includes(server)) {
+    return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
   if (!negara) {
