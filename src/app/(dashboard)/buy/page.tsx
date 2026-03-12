@@ -105,6 +105,7 @@ export default function BuyPage() {
   const [ordering, setOrdering] = useState<string | null>(null);
   const [bulkOrdering, setBulkOrdering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [serverHealth, setServerHealth] = useState<Record<string, string>>({});
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const operatorDropdownRef = useRef<HTMLDivElement>(null);
   const serviceDropdownRef = useRef<HTMLDivElement>(null);
@@ -117,6 +118,22 @@ export default function BuyPage() {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Poll server health status every 30 seconds
+  useEffect(() => {
+    const fetchHealth = async () => {
+      try {
+        const res = await fetch("/api/health/status");
+        if (res.ok) {
+          const data = await res.json();
+          setServerHealth(data);
+        }
+      } catch { /* silent */ }
+    };
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Close country dropdown on click outside
@@ -576,10 +593,11 @@ export default function BuyPage() {
                           {server.name}
                         </span>
                         <span
-                          className={`w-2 h-2 rounded-full ${server.status === "online"
-                            ? "bg-success"
-                            : "bg-warning"
-                            }`}
+                          className={`w-2 h-2 rounded-full ${
+                            (server.id === "api3" ? server.status : (serverHealth[server.id] || server.status)) === "online"
+                              ? "bg-success"
+                              : "bg-red-500"
+                          }`}
                         />
                       </div>
                       <span className="text-xs text-muted">
