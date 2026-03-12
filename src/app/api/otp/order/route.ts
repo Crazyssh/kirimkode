@@ -8,10 +8,11 @@ import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { otpOrderSchema, validateBody } from "@/lib/validations";
 
 /**
- * Ambil harga dari server JasaOTP + apply pricing rules.
+ * Ambil harga dari server + apply pricing rules.
  * TIDAK BOLEH percaya harga dari client.
+ * Untuk api3: harga sudah final dari adapter (USD→IDR + markup), skip applyPricing.
  */
-async function getServerPrice(server: "api1" | "api2", negara: number, layanan: string): Promise<number> {
+async function getServerPrice(server: "api1" | "api2" | "api3", negara: number, layanan: string): Promise<number> {
   const data = await getLayanan(server, negara);
   const negaraKey = String(negara);
 
@@ -21,6 +22,9 @@ async function getServerPrice(server: "api1" | "api2", negara: number, layanan: 
   if (!serviceInfo || typeof serviceInfo.harga !== "number") {
     throw new Error("Layanan tidak ditemukan atau harga tidak tersedia");
   }
+
+  // api3: harga sudah termasuk konversi + markup dari adapter
+  if (server === "api3") return serviceInfo.harga;
 
   return applyPricing(serviceInfo.harga, layanan, negara);
 }
@@ -47,7 +51,7 @@ export async function POST(req: NextRequest) {
     const { server, negara, layanan, operator, serviceName, countryName } = validated.data;
 
     // Harga WAJIB dari server, bukan dari client
-    const orderPrice = await getServerPrice(server as "api1" | "api2", Number(negara), layanan);
+    const orderPrice = await getServerPrice(server as "api1" | "api2" | "api3", Number(negara), layanan);
 
     // Atomic balance check + deduct dalam interactive transaction
     const result = await db.$transaction(async (tx) => {
@@ -62,8 +66,8 @@ export async function POST(req: NextRequest) {
         throw new Error("INSUFFICIENT_BALANCE");
       }
 
-      // Call JasaOTP untuk buat order
-      const data = await createOrder(server as "api1" | "api2", Number(negara), layanan, operator);
+      // Call provider untuk buat order
+      const data = await createOrder(server as "api1" | "api2" | "api3", Number(negara), layanan, operator);
 
       const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
       const number = data?.number ?? data?.data?.number ?? "";

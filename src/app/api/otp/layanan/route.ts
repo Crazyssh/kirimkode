@@ -31,8 +31,8 @@ export async function GET(req: NextRequest) {
       serviceData = data.data[negaraKey];
     }
 
-    if (serviceData) {
-      // Apply pricing rules to each service
+    if (serviceData && server !== "api3") {
+      // Apply pricing rules to each service (skip for api3 — pricing already handled by adapter)
       for (const [code, info] of Object.entries(serviceData)) {
         if (info && typeof info === "object" && "harga" in info) {
           const customPrice = await applyPricing(info.harga, code, negaraId);
