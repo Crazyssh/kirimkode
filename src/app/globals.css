@@ -21,11 +21,11 @@
   --shadow-primary-hover: rgba(0, 230, 118, 0.5);
 }
 
-/* Light theme - override Tailwind v4 @theme variables */
+/* Light theme - softer, easier on the eyes */
 [data-theme="light"],
 [data-theme="light"] * {
-  --color-background: #EFF3F8;
-  --color-foreground: #0F172A;
+  --color-background: #F8FAFC;
+  --color-foreground: #1E293B;
   --color-primary: #059669;
   --color-primary-hover: #047857;
   --color-secondary: #E2E8F0;
@@ -33,7 +33,7 @@
   --color-surface: #FFFFFF;
   --color-surface-hover: #F1F5F9;
   --color-border: #CBD5E1;
-  --color-muted: #475569;
+  --color-muted: #64748B;
   --color-success: #059669;
   --color-error: #DC2626;
   --color-warning: #D97706;
@@ -50,6 +50,60 @@
   scrollbar-color: #CBD5E1 #F8FAFC;
 }
 
+/* Light mode: fix semua input, select, dropdown biar jelas */
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  background-color: #FFFFFF !important;
+  color: #1E293B !important;
+  border-color: #CBD5E1 !important;
+}
+
+[data-theme="light"] input::placeholder {
+  color: #94A3B8 !important;
+}
+
+/* Light mode: fix buttons dan cards */
+[data-theme="light"] button {
+  color: #1E293B;
+}
+
+[data-theme="light"] [class*="bg-background"] {
+  background-color: #F8FAFC !important;
+}
+
+[data-theme="light"] [class*="bg-surface"] {
+  background-color: #FFFFFF !important;
+}
+
+/* Light mode: fix dropdown items dan list */
+[data-theme="light"] [role="option"],
+[data-theme="light"] [role="listbox"] > *,
+[data-theme="light"] .dropdown-item {
+  color: #1E293B !important;
+}
+
+/* Light mode: fix badge readability */
+[data-theme="light"] [class*="bg-secondary"] {
+  background-color: #E2E8F0 !important;
+  color: #334155 !important;
+}
+
+/* Light mode: fix muted text - pastikan cukup kontras */
+[data-theme="light"] [class*="text-muted"] {
+  color: #64748B !important;
+}
+
+/* Light mode: table headers */
+[data-theme="light"] th {
+  color: #475569 !important;
+  border-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] td {
+  border-color: #F1F5F9 !important;
+}
+
 [data-theme="light"] ::selection {
   background: rgba(5, 150, 105, 0.3);
 }
@@ -62,8 +116,8 @@ body {
 }
 
 [data-theme="light"] body {
-  background: #EFF3F8;
-  color: #0F172A;
+  background: #F8FAFC;
+  color: #1E293B;
 }
 
 ::selection {
