@@ -151,7 +151,73 @@ async function fetchProviderJson(
   }
 }
 
-// --- Service name cache ---
+// --- Service name mapping ---
+// SMS-Activate format uses short codes. This map provides readable names.
+const SERVICE_NAME_MAP: Record<string, string> = {
+  // Messaging
+  wa: "WhatsApp",
+  tg: "Telegram",
+  ds: "Discord",
+  vi: "Viber",
+  ig: "Instagram",
+  fb: "Facebook",
+  signal: "Signal",
+  line: "LINE",
+  wc: "WeChat",
+  ka: "KakaoTalk",
+
+  // Social Media
+  tw: "Twitter/X",
+  tk: "TikTok",
+  sn: "Snapchat",
+  rd: "Reddit",
+  pi: "Pinterest",
+  li: "LinkedIn",
+  vk: "VKontakte",
+  ok: "Odnoklassniki",
+
+  // Big Tech
+  go: "Google/Gmail",
+  ma: "Microsoft",
+  ap: "Apple",
+  am: "Amazon",
+
+  // E-commerce & Finance
+  al: "AliExpress",
+  lz: "Lazada",
+  sp: "Shopee",
+  grab: "Grab",
+  gojek: "Gojek",
+  ovo: "OVO",
+  dana: "DANA",
+  gopay: "GoPay",
+  pp: "PayPal",
+  wise: "Wise",
+
+  // Services
+  ya: "Yandex",
+  mb: "Yahoo",
+  nf: "Netflix",
+  dp: "Spotify",
+  uber: "Uber",
+  bw: "Binance",
+  ot: "Any Other",
+
+  // Dating
+  tn: "Tinder",
+  bm: "Bumble",
+  bd: "Badoo",
+
+  // Gaming
+  st: "Steam",
+  ep: "Epic Games",
+
+  // Others
+  qq: "QQ",
+  wb: "Weibo",
+  mt: "Microsoft Teams",
+  zm: "Zoom",
+};
 
 let serviceNamesCache: Record<string, string> | null = null;
 let serviceNamesCacheTime = 0;
@@ -163,28 +229,38 @@ async function getServiceNames(): Promise<Record<string, string>> {
     return serviceNamesCache;
   }
 
+  // Start with hardcoded map
+  const names: Record<string, string> = { ...SERVICE_NAME_MAP };
+
   try {
     const data = await fetchProviderJson({ action: "getServicesList" });
-    const names: Record<string, string> = {};
 
     if (data && typeof data === "object") {
       for (const [code, info] of Object.entries(
         data as Record<string, unknown>
       )) {
-        if (info && typeof info === "object" && "name" in info) {
-          names[code] = (info as { name: string }).name;
-        } else if (typeof info === "string") {
-          names[code] = info;
+        // Only override if API provides a longer/better name
+        const apiName =
+          info && typeof info === "object" && "name" in info
+            ? (info as { name: string }).name
+            : typeof info === "string"
+            ? info
+            : null;
+
+        if (apiName && apiName.length > (names[code]?.length || 0)) {
+          names[code] = apiName;
+        } else if (!names[code] && apiName) {
+          names[code] = apiName;
         }
       }
     }
-
-    serviceNamesCache = names;
-    serviceNamesCacheTime = now;
-    return names;
   } catch {
-    return serviceNamesCache || {};
+    // Use hardcoded map as fallback
   }
+
+  serviceNamesCache = names;
+  serviceNamesCacheTime = now;
+  return names;
 }
 
 // --- Public API (matches otp.ts format) ---
