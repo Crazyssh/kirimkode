@@ -333,10 +333,15 @@ export async function createOrder(
   if (text.startsWith("ACCESS_NUMBER:")) {
     const parts = text.split(":");
     const orderId = parseInt(parts[1], 10);
-    const number = parts[2];
+    let number = parts[2];
 
     if (!orderId || !number) {
       throw new Error("Invalid order response format");
+    }
+
+    // Tambah prefix + jika belum ada
+    if (!number.startsWith("+")) {
+      number = "+" + number;
     }
 
     return { order_id: orderId, number };
