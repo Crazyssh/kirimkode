@@ -1,6 +1,6 @@
 /**
  * Provider 4 Adapter — Neptune 🔵
- * Calls the Neptune Express API server (otp.ditznesia.id wrapper).
+ * Calls the Neptune Express API server.
  * All responses match the format returned by provider 1 & 2 (JasaOTP).
  */
 
