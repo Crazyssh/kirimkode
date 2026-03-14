@@ -594,7 +594,7 @@ export default function BuyPage() {
                         </span>
                         <span
                           className={`w-2 h-2 rounded-full ${
-                            (server.id === "api3" ? server.status : (serverHealth[server.id] || server.status)) === "online"
+                            (server.id === "api3" || server.id === "api4" ? server.status : (serverHealth[server.id] || server.status)) === "online"
                               ? "bg-success"
                               : "bg-red-500"
                           }`}
