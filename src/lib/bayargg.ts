@@ -20,6 +20,7 @@ export interface BayarGGCreatePaymentParams {
   customer_phone?: string;
   callback_url?: string;
   redirect_url?: string;
+  use_qris_converter?: boolean;
 }
 
 export interface BayarGGCreatePaymentResponse {
@@ -48,6 +49,7 @@ export interface BayarGGCheckPaymentResponse {
   invoice_id: string;
   status: "pending" | "paid" | "expired" | "cancelled";
   amount: number;
+  unique_code: number;
   final_amount: number;
   paid_at: string | null;
   expires_at: string;
@@ -92,6 +94,7 @@ export async function createPayment(
     body: JSON.stringify({
       ...params,
       payment_method: "gopay_qris",
+      use_qris_converter: true,
     }),
   });
 }

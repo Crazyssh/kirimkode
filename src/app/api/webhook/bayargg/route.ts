@@ -59,7 +59,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (verified.status === "paid") {
-      const fee = Math.ceil(deposit.amount * 0.005); // 0.5%
+      // Saldo yang masuk = final_amount (termasuk kode unik)
+      // Supaya user tidak rugi bayar lebih dari saldo yang didapat
+      const creditAmount = verified.final_amount || deposit.amount;
 
       // Interactive transaction dengan re-check
       const processed = await db.$transaction(async (tx) => {
@@ -74,13 +76,14 @@ export async function POST(req: NextRequest) {
           data: {
             status: "paid",
             paidAt: verified.paid_at ? new Date(verified.paid_at) : new Date(),
-            fee,
-            totalPaid: deposit.amount + fee,
+            fee: 0,
+            amount: creditAmount,
+            totalPaid: creditAmount,
           },
         });
         await tx.user.update({
           where: { id: deposit.userId },
-          data: { balance: { increment: deposit.amount } },
+          data: { balance: { increment: creditAmount } },
         });
         return true;
       });
@@ -89,11 +92,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ status: "already_processed" });
       }
 
-      console.log(`[BAYAR.GG] VERIFIED & PAID: ${invoiceId} | +Rp ${deposit.amount} for user ${deposit.userId}`);
+      console.log(`[BAYAR.GG] VERIFIED & PAID: ${invoiceId} | +Rp ${creditAmount} (incl unique code) for user ${deposit.userId}`);
 
       // Komisi referral (non-blocking)
       try {
-        await giveReferralCommission(deposit.userId, deposit.amount);
+        await giveReferralCommission(deposit.userId, creditAmount);
       } catch (e) {
         console.error("[BAYAR.GG] Referral commission error:", e);
       }

@@ -53,7 +53,6 @@ export async function POST(req: NextRequest) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const description = bayarggDescription(user.id, amount);
-    const { fee } = bayarggFee(amount);
 
     const result = await bayarggCreatePayment({
       amount,
@@ -73,7 +72,7 @@ export async function POST(req: NextRequest) {
         trxId: result.data.invoice_id,
         referenceId,
         amount,
-        fee,
+        fee: 0,
         channelCode: "gopay_qris",
         channelName: "GoPay QRIS",
         gateway: "bayargg",

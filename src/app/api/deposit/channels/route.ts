@@ -13,8 +13,8 @@ export async function GET() {
     description: "Bayar via GoPay Merchant QRIS",
     fee: {
       flat: 0,
-      percent: 0.5,
-      display: "0.5%",
+      percent: 0,
+      display: "Gratis",
     },
   };
 

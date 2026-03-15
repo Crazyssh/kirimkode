@@ -42,12 +42,15 @@ export async function GET(req: NextRequest) {
     let totalFee = 0;
     let amountReceived = 0;
 
+    let creditAmount = deposit.amount;
+
     if (deposit.gateway === "bayargg") {
       const result = await bayarggCheckPayment(orderId);
       apiStatus = result.status;
       paidAt = result.paid_at;
-      totalFee = Math.ceil(deposit.amount * 0.005);
-      amountReceived = result.amount;
+      totalFee = 0;
+      amountReceived = result.final_amount || result.amount;
+      creditAmount = result.final_amount || deposit.amount; // termasuk kode unik
     } else {
       // Legacy: deposit lama yang masih pakai Paymenku
       const result = await checkTransactionStatus(orderId);
@@ -67,15 +70,16 @@ export async function GET(req: NextRequest) {
           where: { trxId: orderId },
           data: {
             status: "paid",
-            fee: totalFee,
-            totalPaid: amountReceived + totalFee,
+            fee: 0,
+            amount: creditAmount,
+            totalPaid: creditAmount,
             paidAt: paidAt ? new Date(paidAt) : new Date(),
           },
         });
 
         await tx.user.update({
           where: { id: deposit.userId },
-          data: { balance: { increment: deposit.amount } },
+          data: { balance: { increment: creditAmount } },
         });
 
         const user = await tx.user.findUnique({
