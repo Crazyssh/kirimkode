@@ -4,7 +4,7 @@ import { authenticateApiKey } from "@/lib/api-auth";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 
-const BOT_OTP_PRICE = 3000; // Rp 3000 per OTP
+const BOT_OTP_PRICE = 15000; // Rp 15.000 per OTP
 
 /**
  * POST /api/v1/bot/deduct
