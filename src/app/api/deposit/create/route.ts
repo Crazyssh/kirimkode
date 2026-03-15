@@ -110,9 +110,10 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Deposit create error:", error);
+    const message = error instanceof Error ? error.message : "Gagal membuat deposit";
+    console.error("Deposit create error:", message);
     return NextResponse.json(
-      { error: "Gagal membuat deposit" },
+      { error: message },
       { status: 500 }
     );
   }
