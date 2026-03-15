@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Topbar } from "@/components/dashboard/topbar";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -18,13 +19,25 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    async function fetchAnnouncements() {
+    async function checkUserAndAnnouncements() {
       try {
+        // Cek status banned
+        const meRes = await fetch("/api/user/me");
+        if (meRes.ok) {
+          const meData = await meRes.json();
+          if (meData.data?.status === "banned") {
+            router.replace("/banned");
+            return;
+          }
+        }
+
+        // Fetch announcements
         const res = await fetch("/api/announcements");
         if (res.ok) {
           const json = await res.json();
@@ -32,8 +45,8 @@ export default function DashboardLayout({
         }
       } catch { /* silent */ }
     }
-    fetchAnnouncements();
-  }, []);
+    checkUserAndAnnouncements();
+  }, [router]);
 
   const visibleAnnouncements = announcements.filter((a) => !dismissed.has(a.id));
 

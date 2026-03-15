@@ -22,6 +22,7 @@ export async function GET() {
         phone: true,
         balance: true,
         role: true,
+        status: true,
         apiKey: true,
       },
     });

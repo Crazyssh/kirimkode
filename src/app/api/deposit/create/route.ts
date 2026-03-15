@@ -44,11 +44,15 @@ export async function POST(req: NextRequest) {
 
     const user = await db.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, name: true, email: true, phone: true },
+      select: { id: true, name: true, email: true, phone: true, status: true },
     });
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    if (user.status === "banned") {
+      return NextResponse.json({ error: "Akun Anda telah diblokir. Hubungi admin." }, { status: 403 });
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";

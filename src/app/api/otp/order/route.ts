@@ -57,10 +57,14 @@ export async function POST(req: NextRequest) {
     const result = await db.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
         where: { id: userId },
-        select: { balance: true },
+        select: { balance: true, status: true },
       });
 
       if (!user) throw new Error("User not found");
+
+      if (user.status === "banned") {
+        throw new Error("ACCOUNT_BANNED");
+      }
 
       if (user.balance < orderPrice) {
         throw new Error("INSUFFICIENT_BALANCE");
@@ -114,6 +118,13 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Order error:", error);
     const rawMsg = error instanceof Error ? error.message : "";
+
+    if (rawMsg === "ACCOUNT_BANNED") {
+      return NextResponse.json(
+        { error: "Akun Anda telah diblokir. Hubungi admin." },
+        { status: 403 }
+      );
+    }
 
     if (rawMsg === "INSUFFICIENT_BALANCE") {
       return NextResponse.json(
