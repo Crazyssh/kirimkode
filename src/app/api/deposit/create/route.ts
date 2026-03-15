@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import {
   createPayment as bayarggCreatePayment,
   generateDescription as bayarggDescription,
+  convertQris,
 } from "@/lib/bayargg";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { depositCreateSchema, validateBody } from "@/lib/validations";
@@ -92,18 +93,31 @@ export async function POST(req: NextRequest) {
       }).catch((e) => console.error("[Mail] Email deposit pending error:", e));
     }
 
+    // Panggil QRIS Converter untuk generate QR dengan nominal
+    let qrImageUrl: string | null = null;
+    try {
+      const finalAmount = result.data.final_amount || result.data.amount;
+      const qrisResult = await convertQris(finalAmount);
+      qrImageUrl = qrisResult.data.qr_image_url;
+      console.log(`[BAYAR.GG] QRIS converted: ${qrImageUrl} (Rp ${finalAmount})`);
+    } catch (e) {
+      console.error("[BAYAR.GG] QRIS converter error (fallback to pay_url):", e);
+    }
+
     return NextResponse.json({
       status: "success",
       data: {
         trx_id: result.data.invoice_id,
         reference_id: referenceId,
         amount: String(result.data.amount),
+        final_amount: String(result.data.final_amount || result.data.amount),
+        unique_code: String(result.data.unique_code || 0),
         status: result.data.status,
         pay_url: result.data.payment_url,
         payment_info: {
           transaction_id: result.data.invoice_id,
           transaction_status: result.data.status,
-          qr_url: result.data.qris_converter?.qr_image_url || null,
+          qr_url: qrImageUrl,
           checkout_url: result.data.payment_url,
           expiration_date: result.data.expires_at,
         },

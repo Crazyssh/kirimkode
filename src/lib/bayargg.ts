@@ -9,6 +9,7 @@
 
 const BAYARGG_BASE_URL = process.env.BAYARGG_BASE_URL || "https://www.bayar.gg/api";
 const BAYARGG_API_KEY = process.env.BAYARGG_API_KEY || "";
+const BAYARGG_QRIS_STRING = process.env.BAYARGG_QRIS_STRING || "";
 
 // ==================== TYPES ====================
 
@@ -123,4 +124,34 @@ export function generateDescription(userId: string, amount: number): string {
 export function calculateFee(amount: number): { fee: number; total: number } {
   const fee = Math.ceil(amount * 0.005); // 0.5%
   return { fee, total: amount + fee };
+}
+
+// ==================== QRIS CONVERTER ====================
+
+export interface QrisConvertResponse {
+  success: boolean;
+  data: {
+    original_qris: string;
+    converted_qris: string;
+    nominal: number;
+    merchant_name: string;
+    merchant_city: string;
+    qr_image_url: string;
+  };
+}
+
+/**
+ * Convert QRIS string + nominal → QR image URL dengan nominal tertanam
+ */
+export async function convertQris(nominal: number): Promise<QrisConvertResponse> {
+  if (!BAYARGG_QRIS_STRING) {
+    throw new Error("BAYARGG_QRIS_STRING not configured");
+  }
+  return bayarRequest<QrisConvertResponse>("/qris-convert.php", {
+    method: "POST",
+    body: JSON.stringify({
+      qris: BAYARGG_QRIS_STRING,
+      nominal,
+    }),
+  });
 }

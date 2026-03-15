@@ -174,10 +174,13 @@ export default function DepositPage() {
         setPaymentStatus("pending");
         setStep("payment");
 
-        // Auto buka halaman pembayaran di tab baru
-        const payUrl = data.data.payment_info?.checkout_url || data.data.pay_url;
-        if (payUrl) {
-          window.open(payUrl, "_blank");
+        // Auto buka tab baru HANYA jika QR tidak tersedia (fallback)
+        const qrUrl = data.data.payment_info?.qr_url;
+        if (!qrUrl) {
+          const payUrl = data.data.payment_info?.checkout_url || data.data.pay_url;
+          if (payUrl) {
+            window.open(payUrl, "_blank");
+          }
         }
 
         if (typeof window !== "undefined" && window.gtag) {
