@@ -79,20 +79,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async signIn({ user, account }) {
-      // Block banned users dari SEMUA provider (Google OAuth, Credentials, dll)
-      // Credentials provider sudah cek di authorize(), ini untuk OAuth providers
-      if (account?.provider !== "credentials" && user?.id) {
-        try {
-          const dbUser = await db.user.findUnique({
-            where: { id: user.id },
-            select: { status: true },
-          });
-          if (dbUser?.status === "banned") {
-            return false; // Block sign in
-          }
-        } catch {
-          // Kalau user baru (belum ada di DB), izinkan — akan dibuat oleh adapter
-        }
+      // Banned users: izinkan login, tapi nanti redirect ke /banned oleh dashboard layout
+      // Sebelumnya di-block di sini, tapi user cuma lihat "Access Denied" tanpa penjelasan
+      // Credentials provider tetap block di authorize() dengan error message yang jelas
+      if (account?.provider === "credentials") {
+        // Credentials: sudah di-handle di authorize() dengan throw Error
+        return true;
       }
       return true;
     },

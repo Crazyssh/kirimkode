@@ -26,7 +26,7 @@ export default function BannedPage() {
             Jika Anda merasa ini adalah kesalahan, silakan hubungi admin melalui:
           </p>
           <a
-            href="https://wa.me/6285183092627"
+            href="https://wa.me/19053297645"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-sm text-primary hover:underline"
