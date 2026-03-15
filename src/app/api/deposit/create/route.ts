@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import {
   createPayment as bayarggCreatePayment,
   generateDescription as bayarggDescription,
-  calculateFee as bayarggFee,
 } from "@/lib/bayargg";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { depositCreateSchema, validateBody } from "@/lib/validations";
