@@ -149,18 +149,23 @@ export default function DepositPage() {
     return () => clearInterval(interval);
   }, [step, depositResult, checkStatus]);
 
-  // Buat deposit ke Paymenku
+  // Buat deposit ke Paymenku atau BAYAR.GG
   async function handleCreateDeposit() {
     setLoading(true);
     setError("");
 
     try {
+      // Detect gateway dari channel code
+      const isBayarGG = selectedChannel === "bayargg_gopay_qris";
+      const gateway = isBayarGG ? "bayargg" : "paymenku";
+
       const res = await fetch("/api/deposit/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount,
-          channel_code: selectedChannel,
+          channel_code: isBayarGG ? "gopay_qris" : selectedChannel,
+          gateway,
           customer_name: "KirimKode User",
           customer_email: "user@kirimkode.com",
         }),

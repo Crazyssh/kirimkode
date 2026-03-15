@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkTransactionStatus } from "@/lib/paymenku";
+import { checkPayment as bayarggCheckPayment } from "@/lib/bayargg";
 import { sendDepositSuccessEmail } from "@/lib/mail";
 
 const REFERRAL_COMMISSION_PERCENT = 5;
@@ -36,13 +37,30 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    const result = await checkTransactionStatus(orderId);
+    // ─── CEK STATUS BERDASARKAN GATEWAY ─────────────────
+    let apiStatus: string;
+    let paidAt: string | null = null;
+    let totalFee = 0;
+    let amountReceived = 0;
+
+    if (deposit.gateway === "bayargg") {
+      // BAYAR.GG check
+      const result = await bayarggCheckPayment(orderId);
+      apiStatus = result.status;
+      paidAt = result.paid_at;
+      totalFee = Math.ceil(deposit.amount * 0.005); // 0.5% fee
+      amountReceived = result.amount;
+    } else {
+      // Paymenku check (default)
+      const result = await checkTransactionStatus(orderId);
+      apiStatus = result.data.status;
+      paidAt = result.data.paid_at;
+      totalFee = Math.floor(parseFloat(result.data.total_fee || "0"));
+      amountReceived = Math.floor(parseFloat(result.data.amount_received || result.data.amount));
+    }
 
     // Update deposit & balance if paid (atomic transaction + re-check)
-    if (result.data.status === "paid" && deposit.status !== "paid") {
-      const amountReceived = Math.floor(parseFloat(result.data.amount_received || result.data.amount));
-      const totalFee = Math.floor(parseFloat(result.data.total_fee || "0"));
-
+    if (apiStatus === "paid" && deposit.status !== "paid") {
       const processed = await db.$transaction(async (tx) => {
         // Re-check status dalam transaction untuk prevent race condition
         const freshDeposit = await tx.deposit.findUnique({ where: { trxId: orderId } });
@@ -54,7 +72,7 @@ export async function GET(req: NextRequest) {
             status: "paid",
             fee: totalFee,
             totalPaid: amountReceived + totalFee,
-            paidAt: result.data.paid_at ? new Date(result.data.paid_at) : new Date(),
+            paidAt: paidAt ? new Date(paidAt) : new Date(),
           },
         });
 
@@ -83,7 +101,7 @@ export async function GET(req: NextRequest) {
 
       // Kirim email deposit berhasil (di luar transaction)
       if (processed) {
-        console.log(`[Deposit Status] PAID: ${orderId} | +Rp ${deposit.amount} for user ${deposit.userId}`);
+        console.log(`[Deposit Status] PAID (${deposit.gateway}): ${orderId} | +Rp ${deposit.amount} for user ${deposit.userId}`);
         try {
           const user = await db.user.findUnique({
             where: { id: deposit.userId },
@@ -108,14 +126,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       status: "success",
       data: {
-        trx_id: result.data.trx_id,
-        reference_id: result.data.reference_id,
-        amount: result.data.amount,
-        total_fee: result.data.total_fee,
-        amount_received: result.data.amount_received,
-        status: result.data.status,
-        payment_channel: result.data.payment_channel,
-        paid_at: result.data.paid_at,
+        trx_id: orderId,
+        reference_id: deposit.referenceId,
+        amount: String(deposit.amount),
+        total_fee: String(totalFee),
+        amount_received: String(amountReceived),
+        status: apiStatus,
+        payment_channel: { code: deposit.channelCode, name: deposit.channelName },
+        paid_at: paidAt,
       },
     });
   } catch (error) {

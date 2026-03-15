@@ -118,13 +118,14 @@ model Order {
 model Deposit {
   id            String   @id @default(cuid())
   userId        String
-  trxId         String   @unique // Paymenku trx_id
+  trxId         String   @unique // Paymenku trx_id or BAYAR.GG invoice_id
   referenceId   String   @unique // our reference ID
   amount        Int      // deposit amount in IDR
   fee           Int      @default(0) // payment fee
   totalPaid     Int      @default(0) // amount + fee
   channelCode   String   // payment channel code
   channelName   String   // payment channel name
+  gateway       String   @default("paymenku") // paymenku | bayargg
   status        String   @default("pending") // pending | paid | expired | cancelled
   payUrl        String?  // payment URL
   paidAt        DateTime?
