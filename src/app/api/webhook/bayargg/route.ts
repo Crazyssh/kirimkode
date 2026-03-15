@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     if (verified.status === "paid") {
       // Saldo yang masuk = final_amount (termasuk kode unik)
       // Supaya user tidak rugi bayar lebih dari saldo yang didapat
-      const creditAmount = verified.final_amount || deposit.amount;
+      const creditAmount = Math.floor(parseFloat(verified.final_amount || verified.amount)) || deposit.amount;
 
       // Interactive transaction dengan re-check
       const processed = await db.$transaction(async (tx) => {

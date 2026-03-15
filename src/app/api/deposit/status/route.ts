@@ -47,13 +47,13 @@ export async function GET(req: NextRequest) {
     if (deposit.gateway === "bayargg") {
       const rawResult = await bayarggCheckPayment(orderId);
       console.log(`[BAYAR.GG Status] Raw response for ${orderId}:`, JSON.stringify(rawResult));
-      // BAYAR.GG bisa return { status } langsung atau { data: { status } }
       const result = (rawResult as any).data || rawResult;
       apiStatus = result.status;
       paidAt = result.paid_at || null;
       totalFee = 0;
-      amountReceived = result.final_amount || result.amount || deposit.amount;
-      creditAmount = result.final_amount || deposit.amount;
+      const parsedAmount = Math.floor(parseFloat(result.final_amount || result.amount || deposit.amount));
+      amountReceived = parsedAmount;
+      creditAmount = parsedAmount || deposit.amount;
     } else {
       // Legacy: deposit lama yang masih pakai Paymenku
       const result = await checkTransactionStatus(orderId);
