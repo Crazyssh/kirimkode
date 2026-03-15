@@ -45,9 +45,12 @@ export async function POST(req: NextRequest) {
     }
 
     // === CALLBACK VERIFICATION ===
-    const verified = await checkPayment(invoiceId);
+    const rawVerified = await checkPayment(invoiceId);
+    console.log(`[BAYAR.GG Webhook] Verification response:`, JSON.stringify(rawVerified));
+    // Handle nested response: { data: { status } } or { status }
+    const verified = (rawVerified as any).data || rawVerified;
 
-    if (!verified.success) {
+    if (!rawVerified.success && !(rawVerified as any).data) {
       console.error(`[BAYAR.GG Webhook] Verification failed for ${invoiceId}:`, verified);
       return NextResponse.json({ status: "verification_failed" });
     }
