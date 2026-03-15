@@ -497,8 +497,8 @@ export default function DepositPage() {
                   </div>
                 )}
 
-                {/* QRIS QR Code */}
-                {depositResult.payment_info.qr_url && (
+                {/* QRIS QR Code - langsung dari BAYAR.GG */}
+                {depositResult.payment_info.qr_url ? (
                   <div className="text-center">
                     <div className="w-64 h-64 mx-auto bg-white rounded-2xl p-4 flex items-center justify-center">
                       <img
@@ -511,21 +511,17 @@ export default function DepositPage() {
                     </div>
                     <p className="text-xs text-muted mt-2">Scan QR dengan e-wallet atau mobile banking</p>
                   </div>
-                )}
-
-                {/* Pay URL / Checkout URL */}
-                {(depositResult.pay_url || depositResult.payment_info.checkout_url) && (
-                  <a
-                    href={depositResult.payment_info.checkout_url || depositResult.pay_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button variant="secondary" className="w-full">
-                      <ExternalLink className="w-4 h-4" />
-                      {t("deposit.openPaymentPage")}
-                    </Button>
-                  </a>
-                )}
+                ) : (depositResult.pay_url || depositResult.payment_info.checkout_url) ? (
+                  <div className="w-full rounded-xl overflow-hidden border border-border">
+                    <iframe
+                      src={depositResult.payment_info.checkout_url || depositResult.pay_url}
+                      className="w-full border-0"
+                      style={{ height: "600px" }}
+                      title="Halaman Pembayaran"
+                      allow="clipboard-write"
+                    />
+                  </div>
+                ) : null}
 
                 {paymentStatus === "pending" && (
                   <div className="flex items-center justify-center gap-2 text-xs text-muted">
