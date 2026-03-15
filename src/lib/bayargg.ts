@@ -75,7 +75,8 @@ async function bayarRequest<T>(
   const data = await res.json();
 
   if (!res.ok || data.success === false) {
-    throw new Error(data.message || `BAYAR.GG API error: ${res.status}`);
+    console.error(`[BAYAR.GG] API Error:`, JSON.stringify(data));
+    throw new Error(data.message || data.error || `BAYAR.GG API error: ${res.status} - ${JSON.stringify(data)}`);
   }
 
   return data as T;
@@ -94,7 +95,6 @@ export async function createPayment(
     body: JSON.stringify({
       ...params,
       payment_method: "gopay_qris",
-      use_qris_converter: true,
     }),
   });
 }
