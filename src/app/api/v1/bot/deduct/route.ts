@@ -48,11 +48,14 @@ export async function POST(req: NextRequest) {
       });
 
       // Buat order record
+      // orderId harus fit di Int PostgreSQL (max 2,147,483,647)
+      // Date.now() = ~1.7 triliun → overflow! Pakai modular + random
+      const safeOrderId = (Date.now() % 1_000_000_000) + Math.floor(Math.random() * 1000);
       const order = await tx.order.create({
         data: {
           userId: user.id,
           server: "bot",
-          orderId: Date.now(), // unique timestamp as orderId
+          orderId: safeOrderId,
           service: service || "wa",
           serviceName: serviceName || "WhatsApp",
           country: country || "unknown",
