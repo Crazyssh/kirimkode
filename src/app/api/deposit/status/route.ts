@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { checkTransactionStatus } from "@/lib/paymenku";
 import { checkPayment as bayarggCheckPayment } from "@/lib/bayargg";
+import { checkTransactionStatus } from "@/lib/paymenku";
 import { sendDepositSuccessEmail } from "@/lib/mail";
 
 const REFERRAL_COMMISSION_PERCENT = 5;
@@ -24,7 +24,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Ownership check — user hanya bisa cek deposit miliknya sendiri
     const deposit = await db.deposit.findUnique({
       where: { trxId: orderId },
     });
@@ -37,21 +36,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // ─── CEK STATUS BERDASARKAN GATEWAY ─────────────────
+    // Cek status berdasarkan gateway
     let apiStatus: string;
     let paidAt: string | null = null;
     let totalFee = 0;
     let amountReceived = 0;
 
     if (deposit.gateway === "bayargg") {
-      // BAYAR.GG check
       const result = await bayarggCheckPayment(orderId);
       apiStatus = result.status;
       paidAt = result.paid_at;
-      totalFee = Math.ceil(deposit.amount * 0.005); // 0.5% fee
+      totalFee = Math.ceil(deposit.amount * 0.005);
       amountReceived = result.amount;
     } else {
-      // Paymenku check (default)
+      // Legacy: deposit lama yang masih pakai Paymenku
       const result = await checkTransactionStatus(orderId);
       apiStatus = result.data.status;
       paidAt = result.data.paid_at;
@@ -59,10 +57,9 @@ export async function GET(req: NextRequest) {
       amountReceived = Math.floor(parseFloat(result.data.amount_received || result.data.amount));
     }
 
-    // Update deposit & balance if paid (atomic transaction + re-check)
+    // Update deposit & balance if paid
     if (apiStatus === "paid" && deposit.status !== "paid") {
       const processed = await db.$transaction(async (tx) => {
-        // Re-check status dalam transaction untuk prevent race condition
         const freshDeposit = await tx.deposit.findUnique({ where: { trxId: orderId } });
         if (!freshDeposit || freshDeposit.status === "paid") return false;
 
@@ -81,7 +78,6 @@ export async function GET(req: NextRequest) {
           data: { balance: { increment: deposit.amount } },
         });
 
-        // Referral commission DALAM transaction
         const user = await tx.user.findUnique({
           where: { id: deposit.userId },
           select: { referredBy: true },
@@ -99,7 +95,6 @@ export async function GET(req: NextRequest) {
         return true;
       });
 
-      // Kirim email deposit berhasil (di luar transaction)
       if (processed) {
         console.log(`[Deposit Status] PAID (${deposit.gateway}): ${orderId} | +Rp ${deposit.amount} for user ${deposit.userId}`);
         try {
@@ -108,14 +103,12 @@ export async function GET(req: NextRequest) {
             select: { email: true, name: true, balance: true },
           });
           if (user?.email) {
-            console.log(`[Mail] Sending deposit email to ${user.email}...`);
             await sendDepositSuccessEmail(user.email, {
               name: user.name || "User",
               amount: deposit.amount,
               trxId: orderId,
               balance: user.balance,
             });
-            console.log(`[Mail] Deposit email sent to ${user.email}`);
           }
         } catch (e) {
           console.error("[Mail] Email deposit error:", e);
