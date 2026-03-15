@@ -174,6 +174,12 @@ export default function DepositPage() {
         setPaymentStatus("pending");
         setStep("payment");
 
+        // Auto buka halaman pembayaran di tab baru
+        const payUrl = data.data.payment_info?.checkout_url || data.data.pay_url;
+        if (payUrl) {
+          window.open(payUrl, "_blank");
+        }
+
         if (typeof window !== "undefined" && window.gtag) {
           window.gtag("event", "begin_checkout", {
             currency: "IDR",
@@ -497,7 +503,7 @@ export default function DepositPage() {
                   </div>
                 )}
 
-                {/* QRIS QR Code - langsung dari BAYAR.GG */}
+                {/* QRIS QR Code */}
                 {depositResult.payment_info.qr_url ? (
                   <div className="text-center">
                     <div className="w-64 h-64 mx-auto bg-white rounded-2xl p-4 flex items-center justify-center">
@@ -512,14 +518,18 @@ export default function DepositPage() {
                     <p className="text-xs text-muted mt-2">Scan QR dengan e-wallet atau mobile banking</p>
                   </div>
                 ) : (depositResult.pay_url || depositResult.payment_info.checkout_url) ? (
-                  <div className="w-full rounded-xl overflow-hidden border border-border">
-                    <iframe
-                      src={depositResult.payment_info.checkout_url || depositResult.pay_url}
-                      className="w-full border-0"
-                      style={{ height: "600px" }}
-                      title="Halaman Pembayaran"
-                      allow="clipboard-write"
-                    />
+                  <div className="text-center space-y-3">
+                    <p className="text-sm text-muted">Halaman pembayaran sudah terbuka di tab baru.</p>
+                    <a
+                      href={depositResult.payment_info.checkout_url || depositResult.pay_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button variant="secondary" className="w-full">
+                        <ExternalLink className="w-4 h-4" />
+                        Buka Ulang Halaman Pembayaran
+                      </Button>
+                    </a>
                   </div>
                 ) : null}
 
