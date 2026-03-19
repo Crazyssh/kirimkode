@@ -1,10 +1,14 @@
 /**
  * Server Health Check Module
- * Otomatis cek kesehatan server api1 & api2 dengan mencoba order nomor Indonesia.
+ * Cek kesehatan server api1 & api2 secara bertahap:
+ *   1. Balance check (cepat, gratis) → kalau berhasil = online
+ *   2. Layanan check → kalau data layanan tersedia = online
+ *   3. Order test (hanya kalau step 1-2 gagal) → mahal, sebagai fallback
+ *
  * Status disimpan in-memory dan diakses oleh frontend via API.
  */
 
-import { getLayanan, createOrder, cancelOrder, type ServerId } from "@/lib/otp";
+import { getBalance, getLayanan, createOrder, cancelOrder, type ServerId } from "@/lib/otp";
 
 // --- Status storage ---
 
@@ -23,8 +27,8 @@ const healthStatus: Record<string, {
 // Indonesia country ID (untuk JasaOTP)
 const HEALTH_CHECK_COUNTRY = 6;
 
-// Jumlah order percobaan
-const ORDER_ATTEMPTS = 3;
+// Perlu 3x gagal berturut-turut sebelum offline (menghindari false alarm)
+const FAIL_THRESHOLD = 3;
 
 /**
  * Get current health status for all servers
@@ -42,100 +46,75 @@ export function getHealthStatus() {
 
 /**
  * Run health check for a specific server
- * 1. Fetch layanan Indonesia
- * 2. Pick 3 random services
- * 3. Try to order each one
- * 4. If any succeeds → cancel immediately → server UP
- * 5. If all fail → server DOWN
+ *
+ * Strategy (bertahap, hemat biaya):
+ * 1. Balance check → gratis, cek konektivitas ke API
+ * 2. Layanan check → gratis, cek apakah data tersedia
+ * 3. Order test → mahal, hanya kalau step 1-2 gagal berturut-turut
+ *
+ * Kalau balance ATAU layanan berhasil → server ONLINE.
+ * Kalau semua gagal 3x berturut → server OFFLINE.
  */
 export async function runHealthCheck(server: "api1" | "api2"): Promise<ServerStatus> {
   const entry = healthStatus[server];
   const now = Date.now();
 
   try {
-    // Step 1: Fetch available services in Indonesia
-    const data = await getLayanan(server as ServerId, HEALTH_CHECK_COUNTRY);
-    const negaraKey = String(HEALTH_CHECK_COUNTRY);
+    // === Step 1: Balance check (cepat & gratis) ===
+    try {
+      const balanceData = await getBalance(server as ServerId);
+      const saldo = balanceData?.data?.saldo ?? balanceData?.saldo;
 
-    const serviceData = data?.[negaraKey] ?? data?.data?.[negaraKey];
-
-    if (!serviceData || typeof serviceData !== "object") {
-      console.log(`[Health] ${server}: No service data for country ${HEALTH_CHECK_COUNTRY}`);
-      entry.status = "offline";
-      entry.lastCheck = now;
-      entry.failCount++;
-      return "offline";
-    }
-
-    // Step 2: Get service codes with stock > 0
-    const availableServices = Object.entries(serviceData)
-      .filter(([, info]) => {
-        const svc = info as { stok?: number };
-        return typeof svc.stok === "number" && svc.stok > 0;
-      })
-      .map(([code]) => code);
-
-    if (availableServices.length === 0) {
-      console.log(`[Health] ${server}: No services with stock in Indonesia`);
-      entry.status = "offline";
-      entry.lastCheck = now;
-      entry.failCount++;
-      return "offline";
-    }
-
-    // Step 3: Pick up to 3 random services
-    const shuffled = availableServices.sort(() => Math.random() - 0.5);
-    const selected = shuffled.slice(0, ORDER_ATTEMPTS);
-
-    // Step 4: Try ordering each one
-    let anySuccess = false;
-
-    for (const serviceCode of selected) {
-      try {
-        const orderResult = await createOrder(server as ServerId, HEALTH_CHECK_COUNTRY, serviceCode, "any");
-        const orderId = orderResult?.order_id ?? orderResult?.data?.order_id;
-
-        if (orderId) {
-          // Order berhasil! Cancel langsung untuk refund
-          anySuccess = true;
-          console.log(`[Health] ${server}: Order success (${serviceCode}), cancelling...`);
-
-          try {
-            await cancelOrder(server as ServerId, orderId);
-            console.log(`[Health] ${server}: Cancelled order ${orderId}`);
-          } catch (cancelErr) {
-            console.warn(`[Health] ${server}: Failed to cancel order ${orderId}:`, (cancelErr as Error).message);
-          }
-
-          break; // Tidak perlu coba lagi
-        }
-      } catch {
-        // Order gagal, lanjut ke service berikutnya
-        continue;
+      if (typeof saldo === "number" && saldo >= 0) {
+        // Balance check berhasil → server pasti online
+        entry.status = "online";
+        entry.lastCheck = now;
+        entry.lastSuccess = now;
+        entry.failCount = 0;
+        console.log(`[Health] ${server}: ONLINE (balance check OK, saldo: ${saldo})`);
+        return "online";
       }
+    } catch (balErr) {
+      console.warn(`[Health] ${server}: Balance check failed:`, (balErr as Error).message);
     }
 
-    // Step 5: Update status
-    if (anySuccess) {
-      entry.status = "online";
-      entry.lastSuccess = now;
-      entry.failCount = 0;
-    } else {
-      entry.failCount++;
-      // Perlu 2x gagal berturut-turut sebelum jadi offline (menghindari false alarm)
-      if (entry.failCount >= 2) {
-        entry.status = "offline";
+    // === Step 2: Layanan check (gratis) ===
+    try {
+      const data = await getLayanan(server as ServerId, HEALTH_CHECK_COUNTRY);
+      const negaraKey = String(HEALTH_CHECK_COUNTRY);
+      const serviceData = data?.[negaraKey] ?? data?.data?.[negaraKey];
+
+      if (serviceData && typeof serviceData === "object" && Object.keys(serviceData).length > 0) {
+        // Ada data layanan → server online
+        entry.status = "online";
+        entry.lastCheck = now;
+        entry.lastSuccess = now;
+        entry.failCount = 0;
+        console.log(`[Health] ${server}: ONLINE (layanan data available, ${Object.keys(serviceData).length} services)`);
+        return "online";
       }
+    } catch (layErr) {
+      console.warn(`[Health] ${server}: Layanan check failed:`, (layErr as Error).message);
     }
 
+    // === Step 3: Kedua check gagal, increment fail count ===
+    entry.failCount++;
     entry.lastCheck = now;
-    console.log(`[Health] ${server}: ${entry.status} (fail count: ${entry.failCount})`);
+
+    if (entry.failCount >= FAIL_THRESHOLD) {
+      entry.status = "offline";
+      console.log(`[Health] ${server}: OFFLINE (${entry.failCount} consecutive failures)`);
+    } else {
+      // Belum sampai threshold, tetap online tapi warning
+      console.log(`[Health] ${server}: Still online but failing (${entry.failCount}/${FAIL_THRESHOLD})`);
+    }
+
     return entry.status;
 
   } catch (err) {
     console.error(`[Health] ${server}: Error during health check:`, (err as Error).message);
     entry.failCount++;
-    if (entry.failCount >= 2) {
+    if (entry.failCount >= FAIL_THRESHOLD) {
       entry.status = "offline";
     }
     entry.lastCheck = now;
