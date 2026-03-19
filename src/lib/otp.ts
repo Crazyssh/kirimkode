@@ -68,7 +68,8 @@ async function fetchApi(
 
   const doFetch = async () => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeoutMs = options?.skipCache ? 20000 : 15000; // order/sms: 20s, read: 15s
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const res = await fetch(urlStr, {

@@ -151,10 +151,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Forward error message asli dari provider (bukan generic "Gagal membuat pesanan")
-    const userMsg = rawMsg && rawMsg !== "fetch failed"
-      ? rawMsg
-      : "Gagal membuat pesanan. Coba lagi atau pilih server/negara lain.";
+    // Forward error message asli dari provider
+    // Translate error teknis ke pesan user-friendly
+    let userMsg = "Gagal membuat pesanan. Coba lagi atau pilih server/negara lain.";
+    if (rawMsg && !["fetch failed", "This operation was aborted"].includes(rawMsg)) {
+      userMsg = rawMsg;
+    } else if (/aborted|timeout/i.test(rawMsg)) {
+      userMsg = "Server provider terlalu lambat merespons. Coba lagi dalam beberapa detik.";
+    }
 
     return NextResponse.json({ error: userMsg }, { status: 500 });
   }
