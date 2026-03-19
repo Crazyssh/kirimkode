@@ -116,8 +116,8 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Order error:", error);
     const rawMsg = error instanceof Error ? error.message : "";
+    console.error("Order error:", rawMsg);
 
     if (rawMsg === "ACCOUNT_BANNED") {
       return NextResponse.json(
@@ -142,6 +142,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ error: "Gagal membuat pesanan" }, { status: 500 });
+    // Deteksi error harga/layanan tidak ditemukan
+    const isPriceError = /layanan tidak ditemukan|harga tidak tersedia|not found/i.test(rawMsg);
+    if (isPriceError) {
+      return NextResponse.json(
+        { error: "Layanan tidak tersedia untuk negara ini. Coba server atau negara lain." },
+        { status: 404 }
+      );
+    }
+
+    // Forward error message asli dari provider (bukan generic "Gagal membuat pesanan")
+    const userMsg = rawMsg && rawMsg !== "fetch failed"
+      ? rawMsg
+      : "Gagal membuat pesanan. Coba lagi atau pilih server/negara lain.";
+
+    return NextResponse.json({ error: userMsg }, { status: 500 });
   }
 }
