@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { checkTransactionStatus } from "@/lib/paymenku";
+import { checkPayment as bayarggCheckPayment } from "@/lib/bayargg";
 import { sendDepositSuccessEmail } from "@/lib/mail";
+import { giveReferralCommission } from "@/lib/referral";
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
-const REFERRAL_COMMISSION_PERCENT = 5;
 
 /**
- * Cron job: Cek semua deposit pending ke API Paymenku
- * 
- * Ini FALLBACK jika webhook Paymenku gagal (timeout, network error, dll).
- * Jalankan setiap 2 menit via Vercel Cron atau external scheduler.
- * 
+ * Cron job: Cek semua deposit pending ke API gateway
+ *
+ * Support: Paymenku + BAYAR.GG
+ * - Deposit dengan expiresAt → auto-expire saat waktu habis (sinkron dgn gateway)
+ * - Deposit tanpa expiresAt + > 24 jam → auto-expire (fallback)
+ * - Deposit BAYAR.GG → cek via checkPayment API
+ * - Deposit Paymenku → cek via checkTransactionStatus API
+ *
  * Trigger: GET /api/cron/deposits
  * Auth: Bearer {CRON_SECRET}
  */
@@ -28,28 +32,40 @@ export async function GET(req: NextRequest) {
     }
 
     const now = new Date();
-    // Hanya cek deposit pending yang dibuat dalam 24 jam terakhir
-    // Deposit lebih lama dari itu kemungkinan sudah expired di Paymenku
     const cutoff24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    // Auto-expire: deposit pending > 24 jam langsung set expired
-    // Supaya slot pending user terbebas (maks 3 pending)
-    const autoExpired = await db.deposit.updateMany({
+    // === AUTO-EXPIRE ===
+    // 1. Deposit yang punya expiresAt dan sudah lewat → expired (sinkron dgn gateway)
+    const autoExpiredByGateway = await db.deposit.updateMany({
         where: {
             status: "pending",
+            expiresAt: { not: null, lte: now },
+        },
+        data: { status: "expired" },
+    });
+
+    if (autoExpiredByGateway.count > 0) {
+        console.log(`[CRON Deposits] Auto-expired ${autoExpiredByGateway.count} deposits (gateway expiresAt passed)`);
+    }
+
+    // 2. Deposit tanpa expiresAt + > 24 jam → expired (fallback lama)
+    const autoExpiredFallback = await db.deposit.updateMany({
+        where: {
+            status: "pending",
+            expiresAt: null,
             createdAt: { lt: cutoff24h },
         },
         data: { status: "expired" },
     });
 
-    if (autoExpired.count > 0) {
-        console.log(`[CRON Deposits] Auto-expired ${autoExpired.count} deposits older than 24h`);
+    if (autoExpiredFallback.count > 0) {
+        console.log(`[CRON Deposits] Auto-expired ${autoExpiredFallback.count} deposits (24h fallback, no expiresAt)`);
     }
 
+    // === CEK STATUS DEPOSIT PENDING ===
     const pendingDeposits = await db.deposit.findMany({
         where: {
             status: "pending",
-            createdAt: { gte: cutoff24h },
         },
         orderBy: { createdAt: "asc" },
     });
@@ -63,96 +79,174 @@ export async function GET(req: NextRequest) {
 
     for (const deposit of pendingDeposits) {
         try {
-            const result = await checkTransactionStatus(deposit.trxId);
-            checked++;
+            if (deposit.gateway === "bayargg") {
+                // === BAYAR.GG === (checkPayment sudah normalize response)
+                const result = await bayarggCheckPayment(deposit.trxId);
+                checked++;
 
-            if (result.status !== "success" || !result.data) {
-                errors++;
-                continue;
-            }
-
-            const apiStatus = result.data.status;
-
-            if (apiStatus === "paid") {
-                // Atomic transaction dengan re-check untuk prevent race condition
-                // (webhook dan cron bisa jalan bersamaan)
-                await db.$transaction(async (tx) => {
-                    const freshDeposit = await tx.deposit.findUnique({
-                        where: { trxId: deposit.trxId },
-                    });
-
-                    // Sudah di-update oleh webhook atau user polling
-                    if (!freshDeposit || freshDeposit.status !== "pending") return;
-
-                    const totalFee = Math.floor(parseFloat(result.data.total_fee || "0"));
-                    const amountReceived = Math.floor(
-                        parseFloat(result.data.amount_received || result.data.amount)
-                    );
-
-                    await tx.deposit.update({
-                        where: { trxId: deposit.trxId },
-                        data: {
-                            status: "paid",
-                            fee: totalFee,
-                            totalPaid: amountReceived + totalFee,
-                            paidAt: result.data.paid_at ? new Date(result.data.paid_at) : new Date(),
-                        },
-                    });
-
-                    await tx.user.update({
-                        where: { id: deposit.userId },
-                        data: { balance: { increment: deposit.amount } },
-                    });
-
-                    // Referral commission dalam transaction
-                    const user = await tx.user.findUnique({
-                        where: { id: deposit.userId },
-                        select: { referredBy: true },
-                    });
-
-                    if (user?.referredBy) {
-                        const commission = Math.floor(
-                            (deposit.amount * REFERRAL_COMMISSION_PERCENT) / 100
-                        );
-                        if (commission > 0) {
-                            await tx.user.update({
-                                where: { id: user.referredBy },
-                                data: { balance: { increment: commission } },
-                            });
-                        }
-                    }
-                });
-
-                paid++;
-
-                // Kirim email notifikasi deposit berhasil (fallback dari cron)
-                const paidUser = await db.user.findUnique({ where: { id: deposit.userId }, select: { email: true, name: true, balance: true } });
-                if (paidUser?.email) {
-                    sendDepositSuccessEmail(paidUser.email, {
-                        name: paidUser.name || "User",
-                        amount: deposit.amount,
-                        trxId: deposit.trxId,
-                        balance: paidUser.balance,
-                    }).catch((e) => console.error("[Mail] Email deposit error:", e));
+                if (result.status === "unknown") {
+                    errors++;
+                    continue;
                 }
 
-                console.log(
-                    `[CRON Deposits] PAID: ${deposit.trxId} | +Rp ${deposit.amount} for user ${deposit.userId}`
-                );
-            } else if (apiStatus === "expired") {
-                await db.deposit.update({
-                    where: { trxId: deposit.trxId },
-                    data: { status: "expired" },
-                });
-                expired++;
-            } else if (apiStatus === "cancelled") {
-                await db.deposit.update({
-                    where: { trxId: deposit.trxId },
-                    data: { status: "cancelled" },
-                });
-                cancelled++;
+                if (result.status === "paid") {
+                    const creditAmount = Math.floor(result.final_amount || result.amount) || deposit.amount;
+
+                    const processed = await db.$transaction(async (tx) => {
+                        const freshDeposit = await tx.deposit.findUnique({ where: { trxId: deposit.trxId } });
+                        if (!freshDeposit || freshDeposit.status !== "pending") return false;
+
+                        await tx.deposit.update({
+                            where: { trxId: deposit.trxId },
+                            data: {
+                                status: "paid",
+                                paidAt: result.paid_at ? new Date(result.paid_at) : new Date(),
+                                fee: 0,
+                                amount: creditAmount,
+                                totalPaid: creditAmount,
+                            },
+                        });
+                        await tx.user.update({
+                            where: { id: deposit.userId },
+                            data: { balance: { increment: creditAmount } },
+                        });
+                        return true;
+                    });
+
+                    if (!processed) {
+                        stillPending++;
+                        continue;
+                    }
+
+                    paid++;
+                    console.log(`[CRON Deposits] BAYAR.GG PAID: ${deposit.trxId} | +Rp ${creditAmount} for user ${deposit.userId}`);
+
+                    // Referral commission
+                    try {
+                        await giveReferralCommission(deposit.userId, creditAmount);
+                    } catch (e) {
+                        console.error("[CRON] Referral commission error:", e);
+                    }
+
+                    // Email notifikasi
+                    try {
+                        const paidUser = await db.user.findUnique({ where: { id: deposit.userId }, select: { email: true, name: true, balance: true } });
+                        if (paidUser?.email) {
+                            sendDepositSuccessEmail(paidUser.email, {
+                                name: paidUser.name || "User",
+                                amount: creditAmount,
+                                trxId: deposit.trxId,
+                                balance: paidUser.balance,
+                            }).catch((e) => console.error("[Mail] Email deposit error:", e));
+                        }
+                    } catch (e) {
+                        console.error("[Mail] Email lookup error:", e);
+                    }
+                } else if (result.status === "expired") {
+                    await db.deposit.update({
+                        where: { trxId: deposit.trxId },
+                        data: { status: "expired" },
+                    });
+                    expired++;
+                } else if (result.status === "cancelled") {
+                    await db.deposit.update({
+                        where: { trxId: deposit.trxId },
+                        data: { status: "cancelled" },
+                    });
+                    cancelled++;
+                } else {
+                    stillPending++;
+                }
             } else {
-                stillPending++;
+                // === PAYMENKU (existing logic) ===
+                const result = await checkTransactionStatus(deposit.trxId);
+                checked++;
+
+                if (result.status !== "success" || !result.data) {
+                    errors++;
+                    continue;
+                }
+
+                const apiStatus = result.data.status;
+
+                if (apiStatus === "paid") {
+                    await db.$transaction(async (tx) => {
+                        const freshDeposit = await tx.deposit.findUnique({
+                            where: { trxId: deposit.trxId },
+                        });
+
+                        if (!freshDeposit || freshDeposit.status !== "pending") return;
+
+                        const totalFee = Math.floor(parseFloat(result.data.total_fee || "0"));
+                        const amountReceived = Math.floor(
+                            parseFloat(result.data.amount_received || result.data.amount)
+                        );
+
+                        await tx.deposit.update({
+                            where: { trxId: deposit.trxId },
+                            data: {
+                                status: "paid",
+                                fee: totalFee,
+                                totalPaid: amountReceived + totalFee,
+                                paidAt: result.data.paid_at ? new Date(result.data.paid_at) : new Date(),
+                            },
+                        });
+
+                        await tx.user.update({
+                            where: { id: deposit.userId },
+                            data: { balance: { increment: deposit.amount } },
+                        });
+
+                        // Referral commission
+                        const user = await tx.user.findUnique({
+                            where: { id: deposit.userId },
+                            select: { referredBy: true },
+                        });
+
+                        if (user?.referredBy) {
+                            const REFERRAL_COMMISSION_PERCENT = 5;
+                            const commission = Math.floor(
+                                (deposit.amount * REFERRAL_COMMISSION_PERCENT) / 100
+                            );
+                            if (commission > 0) {
+                                await tx.user.update({
+                                    where: { id: user.referredBy },
+                                    data: { balance: { increment: commission } },
+                                });
+                            }
+                        }
+                    });
+
+                    paid++;
+
+                    const paidUser = await db.user.findUnique({ where: { id: deposit.userId }, select: { email: true, name: true, balance: true } });
+                    if (paidUser?.email) {
+                        sendDepositSuccessEmail(paidUser.email, {
+                            name: paidUser.name || "User",
+                            amount: deposit.amount,
+                            trxId: deposit.trxId,
+                            balance: paidUser.balance,
+                        }).catch((e) => console.error("[Mail] Email deposit error:", e));
+                    }
+
+                    console.log(
+                        `[CRON Deposits] PAYMENKU PAID: ${deposit.trxId} | +Rp ${deposit.amount} for user ${deposit.userId}`
+                    );
+                } else if (apiStatus === "expired") {
+                    await db.deposit.update({
+                        where: { trxId: deposit.trxId },
+                        data: { status: "expired" },
+                    });
+                    expired++;
+                } else if (apiStatus === "cancelled") {
+                    await db.deposit.update({
+                        where: { trxId: deposit.trxId },
+                        data: { status: "cancelled" },
+                    });
+                    cancelled++;
+                } else {
+                    stillPending++;
+                }
             }
         } catch (error) {
             console.error(`[CRON Deposits] Error checking ${deposit.trxId}:`, error);
@@ -168,7 +262,8 @@ export async function GET(req: NextRequest) {
         success: true,
         timestamp: now.toISOString(),
         results: {
-            autoExpired: autoExpired.count,
+            autoExpiredByGateway: autoExpiredByGateway.count,
+            autoExpiredFallback: autoExpiredFallback.count,
             totalPending: pendingDeposits.length,
             checked,
             paid,

@@ -45,18 +45,17 @@ export async function POST(req: NextRequest) {
     }
 
     // === CALLBACK VERIFICATION ===
-    const rawVerified = await checkPayment(invoiceId);
-    console.log(`[BAYAR.GG Webhook] Verification response:`, JSON.stringify(rawVerified));
-    // Handle nested response: { data: { status } } or { status }
-    const verified = (rawVerified as any).data || rawVerified;
+    // checkPayment() sudah normalize response (flat/nested) dan tidak throw error
+    const verified = await checkPayment(invoiceId);
+    console.log(`[BAYAR.GG Webhook] Verification response:`, JSON.stringify(verified));
 
-    if (!rawVerified.success && !(rawVerified as any).data) {
+    if (verified.status === "unknown") {
       console.error(`[BAYAR.GG Webhook] Verification failed for ${invoiceId}:`, verified);
       return NextResponse.json({ status: "verification_failed" });
     }
 
-    // Cocokkan amount
-    if (verified.amount !== deposit.amount) {
+    // Cocokkan amount (skip jika API return 0 = data tidak lengkap)
+    if (verified.amount !== 0 && verified.amount !== deposit.amount) {
       console.error(`[BAYAR.GG Webhook] Amount mismatch: API=${verified.amount}, DB=${deposit.amount}`);
       return NextResponse.json({ status: "mismatch" });
     }
@@ -64,7 +63,7 @@ export async function POST(req: NextRequest) {
     if (verified.status === "paid") {
       // Saldo yang masuk = final_amount (termasuk kode unik)
       // Supaya user tidak rugi bayar lebih dari saldo yang didapat
-      const creditAmount = Math.floor(parseFloat(verified.final_amount || verified.amount)) || deposit.amount;
+      const creditAmount = Math.floor(verified.final_amount || verified.amount) || deposit.amount;
 
       // Interactive transaction dengan re-check
       const processed = await db.$transaction(async (tx) => {

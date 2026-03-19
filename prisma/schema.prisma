@@ -129,6 +129,7 @@ model Deposit {
   status        String   @default("pending") // pending | paid | expired | cancelled
   payUrl        String?  // payment URL
   paidAt        DateTime?
+  expiresAt     DateTime? // waktu expire dari payment gateway
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
         gateway: "bayargg",
         status: "pending",
         payUrl: result.data.payment_url,
+        expiresAt: result.data.expires_at ? new Date(result.data.expires_at) : null,
       },
     });
 

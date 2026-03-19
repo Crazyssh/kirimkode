@@ -48,7 +48,7 @@ export interface BayarGGCreatePaymentResponse {
 export interface BayarGGCheckPaymentResponse {
   success: boolean;
   invoice_id: string;
-  status: "pending" | "paid" | "expired" | "cancelled";
+  status: "pending" | "paid" | "expired" | "cancelled" | "unknown";
   amount: number;
   unique_code: number;
   final_amount: number;
@@ -102,13 +102,40 @@ export async function createPayment(
 
 /**
  * Cek status pembayaran
+ *
+ * PENTING: Fungsi ini TIDAK pakai bayarRequest() karena bayarRequest() throw
+ * error saat success === false. Untuk check-payment, kita butuh response
+ * apapun (termasuk "success: false") supaya caller bisa cek status.
+ * Ini mencegah bug di mana deposit tetap pending karena handler tidak pernah
+ * sampai ke logika parsing status "paid".
  */
 export async function checkPayment(
   invoiceId: string
 ): Promise<BayarGGCheckPaymentResponse> {
-  return bayarRequest<BayarGGCheckPaymentResponse>(
-    `/check-payment?invoice=${encodeURIComponent(invoiceId)}`
-  );
+  const url = `${BAYARGG_BASE_URL}/check-payment?invoice=${encodeURIComponent(invoiceId)}`;
+
+  const res = await fetch(url, {
+    headers: {
+      "X-API-Key": BAYARGG_API_KEY,
+      "Content-Type": "application/json",
+    },
+  });
+
+  const raw = await res.json();
+
+  // Normalize: response bisa { success, status, ... } (flat) atau { data: { status, ... } } (nested)
+  const data = raw.data || raw;
+
+  return {
+    success: raw.success ?? true,
+    invoice_id: data.invoice_id || invoiceId,
+    status: data.status || "unknown",
+    amount: data.amount || 0,
+    unique_code: data.unique_code || 0,
+    final_amount: data.final_amount || data.amount || 0,
+    paid_at: data.paid_at || null,
+    expires_at: data.expires_at || "",
+  };
 }
 
 /**
