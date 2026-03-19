@@ -53,34 +53,38 @@ export async function POST(req: NextRequest) {
     // Harga WAJIB dari server, bukan dari client
     const orderPrice = await getServerPrice(server as "api1" | "api2" | "api3", Number(negara), layanan);
 
-    // Atomic balance check + deduct dalam interactive transaction
+    // Step 1: Pre-check user balance + status (quick DB read, no transaction needed)
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { balance: true, status: true },
+    });
+
+    if (!user) throw new Error("User not found");
+    if (user.status === "banned") throw new Error("ACCOUNT_BANNED");
+    if (user.balance < orderPrice) throw new Error("INSUFFICIENT_BALANCE");
+
+    // Step 2: Call provider API (bisa lambat, HARUS di luar transaction)
+    const data = await createOrder(server as "api1" | "api2" | "api3", Number(negara), layanan, operator);
+
+    const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
+    const number = data?.number ?? data?.data?.number ?? "";
+
+    if (!orderId || !number) {
+      throw new Error(data?.message || "Gagal membuat pesanan, respons tidak valid");
+    }
+
+    // Step 3: Atomic deduct + save order (cepat, hanya DB operations)
     const result = await db.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
+      // Re-check balance di dalam transaction (race condition protection)
+      const freshUser = await tx.user.findUnique({
         where: { id: userId },
-        select: { balance: true, status: true },
+        select: { balance: true },
       });
 
-      if (!user) throw new Error("User not found");
-
-      if (user.status === "banned") {
-        throw new Error("ACCOUNT_BANNED");
-      }
-
-      if (user.balance < orderPrice) {
+      if (!freshUser || freshUser.balance < orderPrice) {
         throw new Error("INSUFFICIENT_BALANCE");
       }
 
-      // Call provider untuk buat order
-      const data = await createOrder(server as "api1" | "api2" | "api3", Number(negara), layanan, operator);
-
-      const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
-      const number = data?.number ?? data?.data?.number ?? "";
-
-      if (!orderId || !number) {
-        throw new Error(data?.message || "Gagal membuat pesanan, respons tidak valid");
-      }
-
-      // Deduct balance dan simpan order (atomic)
       await tx.user.update({
         where: { id: userId },
         data: { balance: { decrement: orderPrice } },
