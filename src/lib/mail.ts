@@ -1,13 +1,19 @@
 import Mailgun from "mailgun.js";
 import formData from "form-data";
 
-const mailgun = new Mailgun(formData);
-
 const DOMAIN = process.env.MAILGUN_DOMAIN || "kirimkode.com";
 const API_KEY = process.env.MAILGUN_API_KEY || "";
 const FROM_EMAIL = process.env.MAILGUN_FROM || "KirimKode <noreply@kirimkode.com>";
 
-const mg = mailgun.client({ username: "api", key: API_KEY });
+// Lazy init: supaya tidak crash saat build ketika API_KEY kosong
+let _mg: ReturnType<InstanceType<typeof Mailgun>["client"]> | null = null;
+function getMg() {
+  if (!_mg) {
+    const mailgun = new Mailgun(formData);
+    _mg = mailgun.client({ username: "api", key: API_KEY || "dummy" });
+  }
+  return _mg;
+}
 
 // ==================== SEND EMAIL ====================
 
@@ -25,7 +31,7 @@ export async function sendMail({ to, subject, html, text }: SendMailOptions) {
   }
 
   try {
-    const result = await mg.messages.create(DOMAIN, {
+    const result = await getMg().messages.create(DOMAIN, {
       from: FROM_EMAIL,
       to: [to],
       subject,
