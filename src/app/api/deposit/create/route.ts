@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import {
   createPayment as bayarggCreatePayment,
   generateDescription as bayarggDescription,
-  convertQris,
 } from "@/lib/bayargg";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { depositCreateSchema, validateBody } from "@/lib/validations";
@@ -66,6 +65,7 @@ export async function POST(req: NextRequest) {
       customer_phone: user.phone || undefined,
       callback_url: `${appUrl}/api/webhook/bayargg`,
       redirect_url: `${appUrl}/deposit?status=success`,
+      use_qris_converter: true,
     });
 
     const referenceId = `BGG-${user.id}-${Date.now()}`;
@@ -98,15 +98,10 @@ export async function POST(req: NextRequest) {
       }).catch((e) => console.error("[Mail] Email deposit pending error:", e));
     }
 
-    // Panggil QRIS Converter untuk generate QR dengan nominal
-    let qrImageUrl: string | null = null;
-    try {
-      const finalAmount = result.data.final_amount || result.data.amount;
-      const qrisResult = await convertQris(finalAmount);
-      qrImageUrl = qrisResult.data.qr_image_url;
-      console.log(`[BAYAR.GG] QRIS converted: ${qrImageUrl} (Rp ${finalAmount})`);
-    } catch (e) {
-      console.error("[BAYAR.GG] QRIS converter error (fallback to pay_url):", e);
+    // Ambil QR image dari qris_converter bawaan BAYAR.GG API
+    const qrImageUrl = result.data.qris_converter?.qr_image_url || null;
+    if (qrImageUrl) {
+      console.log(`[BAYAR.GG] QRIS inline ready: ${qrImageUrl}`);
     }
 
     return NextResponse.json({
