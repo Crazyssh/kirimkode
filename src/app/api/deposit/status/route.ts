@@ -37,28 +37,61 @@ export async function GET(req: NextRequest) {
     }
 
     // Cek status berdasarkan gateway
-    let apiStatus: string;
+    // Jika sudah paid di DB, langsung return tanpa call API lagi
+    if (deposit.status === "paid") {
+      return NextResponse.json({
+        status: "success",
+        data: {
+          trx_id: orderId,
+          reference_id: deposit.referenceId,
+          amount: String(deposit.amount),
+          total_fee: "0",
+          amount_received: String(deposit.amount),
+          status: "paid",
+          payment_channel: { code: deposit.channelCode, name: deposit.channelName },
+          paid_at: deposit.paidAt?.toISOString() || null,
+        },
+      });
+    }
+
+    let apiStatus: string = deposit.status; // fallback ke DB status
     let paidAt: string | null = null;
     let totalFee = 0;
     let amountReceived = 0;
-
     let creditAmount = deposit.amount;
 
     if (deposit.gateway === "bayargg") {
-      const result = await bayarggCheckPayment(orderId);
-      console.log(`[BAYAR.GG Status] Check response for ${orderId}:`, JSON.stringify(result));
-      apiStatus = result.status;
-      paidAt = result.paid_at || null;
-      totalFee = 0;
-      creditAmount = Math.floor(result.final_amount || result.amount) || deposit.amount;
-      amountReceived = creditAmount;
+      try {
+        const result = await bayarggCheckPayment(orderId);
+        console.log(`[BAYAR.GG Status] Check response for ${orderId}:`, JSON.stringify(result));
+        // Hanya update jika API return status yang valid (bukan "unknown")
+        if (result.status && result.status !== "unknown") {
+          apiStatus = result.status;
+          paidAt = result.paid_at || null;
+          totalFee = 0;
+          creditAmount = Math.floor(result.final_amount || result.amount) || deposit.amount;
+          amountReceived = creditAmount;
+        } else {
+          console.warn(`[BAYAR.GG Status] Got unknown status for ${orderId}, using DB status: ${deposit.status}`);
+        }
+      } catch (e) {
+        console.error(`[BAYAR.GG Status] API call failed for ${orderId}, using DB status:`, e);
+        // Fallback: gunakan status dari DB
+      }
     } else {
       // Legacy: deposit lama yang masih pakai Paymenku
-      const result = await checkTransactionStatus(orderId);
-      apiStatus = result.data.status;
-      paidAt = result.data.paid_at;
-      totalFee = Math.floor(parseFloat(result.data.total_fee || "0"));
-      amountReceived = Math.floor(parseFloat(result.data.amount_received || result.data.amount));
+      try {
+        const result = await checkTransactionStatus(orderId);
+        if (result.data) {
+          apiStatus = result.data.status;
+          paidAt = result.data.paid_at;
+          totalFee = Math.floor(parseFloat(result.data.total_fee || "0"));
+          amountReceived = Math.floor(parseFloat(result.data.amount_received || result.data.amount));
+        }
+      } catch (e) {
+        console.error(`[Paymenku Status] API call failed for ${orderId}, using DB status:`, e);
+        // Fallback: gunakan status dari DB
+      }
     }
 
     // Update deposit & balance if paid

@@ -114,28 +114,43 @@ export async function checkPayment(
 ): Promise<BayarGGCheckPaymentResponse> {
   const url = `${BAYARGG_BASE_URL}/check-payment?invoice=${encodeURIComponent(invoiceId)}`;
 
-  const res = await fetch(url, {
-    headers: {
-      "X-API-Key": BAYARGG_API_KEY,
-      "Content-Type": "application/json",
-    },
-  });
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "X-API-Key": BAYARGG_API_KEY,
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(15000), // 15 detik timeout
+    });
 
-  const raw = await res.json();
+    const raw = await res.json();
 
-  // Normalize: response bisa { success, status, ... } (flat) atau { data: { status, ... } } (nested)
-  const data = raw.data || raw;
+    // Normalize: response bisa { success, status, ... } (flat) atau { data: { status, ... } } (nested)
+    const data = raw.data || raw;
 
-  return {
-    success: raw.success ?? true,
-    invoice_id: data.invoice_id || invoiceId,
-    status: data.status || "unknown",
-    amount: data.amount || 0,
-    unique_code: data.unique_code || 0,
-    final_amount: data.final_amount || data.amount || 0,
-    paid_at: data.paid_at || null,
-    expires_at: data.expires_at || "",
-  };
+    return {
+      success: raw.success ?? true,
+      invoice_id: data.invoice_id || invoiceId,
+      status: data.status || "unknown",
+      amount: data.amount || 0,
+      unique_code: data.unique_code || 0,
+      final_amount: data.final_amount || data.amount || 0,
+      paid_at: data.paid_at || null,
+      expires_at: data.expires_at || "",
+    };
+  } catch (e) {
+    console.error(`[BAYAR.GG] checkPayment failed for ${invoiceId}:`, e);
+    return {
+      success: false,
+      invoice_id: invoiceId,
+      status: "unknown",
+      amount: 0,
+      unique_code: 0,
+      final_amount: 0,
+      paid_at: null,
+      expires_at: "",
+    };
+  }
 }
 
 /**
