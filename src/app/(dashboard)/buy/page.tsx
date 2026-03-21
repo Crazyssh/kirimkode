@@ -851,7 +851,7 @@ export default function BuyPage() {
                         <Button
                           className="flex-1 text-xs sm:text-sm"
                           onClick={() => handleBuy(selectedService)}
-                          disabled={ordering !== null || bulkOrdering || selectedService.stock === 0}
+                          disabled={ordering !== null || bulkOrdering}
                         >
                           {ordering ? (
                             <><Loader2 className="w-4 h-4 animate-spin" /> {t("common.processing")}</>
@@ -862,7 +862,7 @@ export default function BuyPage() {
                         <Button
                           className="flex-1 text-xs sm:text-sm"
                           onClick={() => handleBulkBuy(selectedService, 5)}
-                          disabled={ordering !== null || bulkOrdering || selectedService.stock < 5}
+                          disabled={ordering !== null || bulkOrdering}
                         >
                           {bulkOrdering ? (
                             <><Loader2 className="w-4 h-4 animate-spin" /> {t("common.processing")}</>
