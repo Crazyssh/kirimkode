@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getNegara } from "@/lib/otp";
+import { db } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4";
@@ -9,6 +10,38 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // api1/api2: baca dari database (cached by cron sync)
+    if (server === "api1" || server === "api2") {
+      const countries = await db.providerCountry.findMany({
+        where: { serverId: server },
+        select: { externalId: true, name: true },
+        orderBy: { name: "asc" },
+      });
+
+      // Kalau DB kosong (belum pernah sync), fallback ke API langsung
+      if (countries.length === 0) {
+        const data = await getNegara(server);
+        return NextResponse.json(data, {
+          headers: {
+            "Cache-Control": "public, s-maxage=600, stale-while-revalidate=1200",
+          },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: countries.map((c) => ({
+          id_negara: c.externalId,
+          nama_negara: c.name,
+        })),
+      }, {
+        headers: {
+          "Cache-Control": "public, s-maxage=600, stale-while-revalidate=1200",
+        },
+      });
+    }
+
+    // api3/api4: tetap fetch langsung dari provider API
     const data = await getNegara(server);
     return NextResponse.json(data, {
       headers: {

@@ -267,3 +267,54 @@ model BlogPost {
   @@index([publishedAt])
   @@map("blog_posts")
 }
+
+// ==================== PROVIDER CACHE (JasaOTP api1/api2) ====================
+
+model ProviderCountry {
+  id         String   @id @default(cuid())
+  serverId   String   // "api1" | "api2"
+  externalId Int      // id_negara dari JasaOTP
+  name       String   // nama negara
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  services  ProviderService[]
+  operators ProviderOperator[]
+
+  @@unique([serverId, externalId])
+  @@index([serverId])
+  @@map("provider_countries")
+}
+
+model ProviderService {
+  id        String   @id @default(cuid())
+  serverId  String   // "api1" | "api2"
+  countryId String   // FK ke ProviderCountry
+  code      String   // kode layanan (e.g. "wa", "tg")
+  name      String   // nama layanan (e.g. "WhatsApp")
+  price     Int      // harga asli dari JasaOTP (IDR)
+  stock     Int      // stok tersedia
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  country ProviderCountry @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, countryId, code])
+  @@index([serverId, countryId])
+  @@map("provider_services")
+}
+
+model ProviderOperator {
+  id        String   @id @default(cuid())
+  serverId  String   // "api1" | "api2"
+  countryId String   // FK ke ProviderCountry
+  operator  String   // nama operator (e.g. "any", "telkomsel")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  country ProviderCountry @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  @@unique([serverId, countryId, operator])
+  @@index([serverId, countryId])
+  @@map("provider_operators")
+}
