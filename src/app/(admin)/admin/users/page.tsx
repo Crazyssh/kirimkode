@@ -17,6 +17,7 @@ import {
   Save,
   Ban,
   CheckCircle,
+  ArrowUpDown,
 } from "lucide-react";
 
 interface UserItem {
@@ -45,6 +46,7 @@ export default function AdminUsersPage() {
     page: 1, limit: 20, total: 0, totalPages: 1,
   });
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
   const [loading, setLoading] = useState(true);
 
   // Edit modal state
@@ -62,6 +64,13 @@ export default function AdminUsersPage() {
     try {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (search) params.set("search", search);
+      if (sortBy === "orders") {
+        params.set("sortBy", "orders");
+        params.set("sortOrder", "desc");
+      } else if (sortBy === "balance") {
+        params.set("sortBy", "balance");
+        params.set("sortOrder", "desc");
+      }
       const res = await fetch(`/api/admin/users?${params}`);
       const json = await res.json();
       if (res.ok) {
@@ -72,7 +81,7 @@ export default function AdminUsersPage() {
       }
     } catch (err) { console.error("Admin users fetch error:", err); }
     finally { setLoading(false); }
-  }, [search]);
+  }, [search, sortBy]);
 
   useEffect(() => { fetchUsers(1); }, [fetchUsers]);
 
@@ -132,17 +141,31 @@ export default function AdminUsersPage() {
         <p className="text-sm text-muted">Kelola semua pengguna platform</p>
       </div>
 
-      {/* Search */}
+      {/* Search & Sort */}
       <Card>
         <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-            <Input
-              placeholder="Cari nama atau email..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+              <Input
+                placeholder="Cari nama atau email..."
+                className="pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="relative min-w-[200px]">
+              <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-background border border-border text-sm focus:outline-none focus:border-primary/50 text-foreground appearance-none cursor-pointer"
+              >
+                <option value="createdAt">Terbaru</option>
+                <option value="orders">Order Terbanyak</option>
+                <option value="balance">Saldo Terbanyak</option>
+              </select>
+            </div>
           </div>
         </CardContent>
       </Card>
