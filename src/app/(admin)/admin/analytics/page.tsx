@@ -14,6 +14,15 @@ import {
   Target,
   DollarSign,
 } from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 interface DayAmount { date: string; amount: number }
 interface DayCount { date: string; count: number }
@@ -44,30 +53,123 @@ const PERIODS = [
   { label: "90 Hari", value: 90 },
 ];
 
-function BarChart({ data, type, color }: { data: { label: string; value: number }[]; type: "amount" | "count"; color: string }) {
-  const maxVal = Math.max(...data.map((d) => d.value), 1);
-  // Show max ~30 bars, skip labels if too many
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* ───── Custom Tooltip ───── */
+function ChartTooltip({
+  active,
+  payload,
+  label,
+  formatter,
+}: {
+  active?: boolean;
+  payload?: any[];
+  label?: string;
+  formatter: (v: number) => string;
+}) {
+  if (!active || !payload?.length) return null;
+  const dateStr = label
+    ? new Date(label).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "";
+  return (
+    <div className="bg-surface/95 backdrop-blur-sm border border-border rounded-xl px-4 py-3 shadow-xl">
+      <p className="text-[11px] text-muted mb-1">{dateStr}</p>
+      <p className="text-sm font-bold font-[family-name:var(--font-jetbrains-mono)]">
+        {formatter(payload[0].value)}
+      </p>
+    </div>
+  );
+}
+
+/* ───── Reusable Area Chart ───── */
+function AnalyticsAreaChart({
+  data,
+  dataKey,
+  color,
+  gradientId,
+  formatter,
+}: {
+  data: { date: string; value: number }[];
+  dataKey: string;
+  color: string;
+  gradientId: string;
+  formatter: (v: number) => string;
+}) {
   const showEvery = data.length > 14 ? Math.ceil(data.length / 10) : 1;
 
   return (
-    <div className="flex items-end gap-[2px] h-44 overflow-x-auto">
-      {data.map((d, i) => (
-        <div key={d.label} className="flex-1 min-w-[6px] flex flex-col items-center gap-0.5 group relative">
-          <div className="hidden group-hover:block absolute -top-8 bg-surface border border-border rounded-lg px-2 py-1 text-[10px] font-[family-name:var(--font-jetbrains-mono)] whitespace-nowrap z-10 shadow-lg">
-            {type === "amount" ? formatRupiah(d.value) : d.value} — {d.label}
-          </div>
-          <div
-            className={`w-full rounded-t-sm ${color} transition-all duration-300 min-h-[2px]`}
-            style={{ height: `${(d.value / maxVal) * 100}%` }}
-          />
-          {i % showEvery === 0 && (
-            <span className="text-[8px] text-muted whitespace-nowrap">
-              {new Date(d.label).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit" })}
-            </span>
+    <ResponsiveContainer width="100%" height={220}>
+      <AreaChart data={data} margin={{ top: 8, right: 4, left: -16, bottom: 0 }}>
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+            <stop offset="95%" stopColor={color} stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid
+          strokeDasharray="3 6"
+          stroke="currentColor"
+          className="text-border"
+          opacity={0.3}
+          vertical={false}
+        />
+        <XAxis
+          dataKey="date"
+          tickLine={false}
+          axisLine={false}
+          tick={{ fontSize: 10, fill: "var(--color-muted, #6b7280)" }}
+          interval={showEvery - 1}
+          tickFormatter={(v: string) =>
+            new Date(v).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "2-digit",
+            })
+          }
+        />
+        <YAxis
+          tickLine={false}
+          axisLine={false}
+          tick={{ fontSize: 10, fill: "var(--color-muted, #6b7280)" }}
+          tickFormatter={(v: number) =>
+            v >= 1_000_000
+              ? `${(v / 1_000_000).toFixed(1)}M`
+              : v >= 1_000
+              ? `${(v / 1_000).toFixed(0)}K`
+              : String(v)
+          }
+          width={48}
+        />
+        <Tooltip
+          content={(props: any) => (
+            <ChartTooltip
+              active={props.active}
+              payload={props.payload}
+              label={props.label}
+              formatter={formatter}
+            />
           )}
-        </div>
-      ))}
-    </div>
+        />
+        <Area
+          type="monotone"
+          dataKey={dataKey}
+          stroke={color}
+          strokeWidth={2.5}
+          fill={`url(#${gradientId})`}
+          dot={false}
+          activeDot={{
+            r: 5,
+            fill: color,
+            stroke: "var(--color-surface, #1a1a2e)",
+            strokeWidth: 2,
+          }}
+          animationDuration={800}
+          animationEasing="ease-out"
+        />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -107,6 +209,9 @@ export default function AnalyticsPage() {
     { label: "Success Rate", value: `${data.summary.successRate}%`, icon: Target, color: "text-success", bg: "bg-success/10" },
     { label: "Avg Order", value: formatRupiah(data.summary.avgOrderValue), icon: DollarSign, color: "text-primary", bg: "bg-primary/10" },
   ];
+
+  const fmtRupiah = (v: number) => formatRupiah(v);
+  const fmtCount = (v: number) => String(v);
 
   return (
     <div className="space-y-6">
@@ -163,10 +268,12 @@ export default function AnalyticsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <BarChart
-            data={data.revenuePerDay.map((d) => ({ label: d.date, value: d.amount }))}
-            type="amount"
-            color="bg-primary/80"
+          <AnalyticsAreaChart
+            data={data.revenuePerDay.map((d) => ({ date: d.date, value: d.amount }))}
+            dataKey="value"
+            color="#22d3ee"
+            gradientId="gradRevenue"
+            formatter={fmtRupiah}
           />
         </CardContent>
       </Card>
@@ -181,10 +288,12 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <BarChart
-              data={data.depositsPerDay.map((d) => ({ label: d.date, value: d.amount }))}
-              type="amount"
-              color="bg-success/80"
+            <AnalyticsAreaChart
+              data={data.depositsPerDay.map((d) => ({ date: d.date, value: d.amount }))}
+              dataKey="value"
+              color="#34d399"
+              gradientId="gradDeposit"
+              formatter={fmtRupiah}
             />
           </CardContent>
         </Card>
@@ -197,10 +306,12 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <BarChart
-              data={data.ordersPerDay.map((d) => ({ label: d.date, value: d.count }))}
-              type="count"
-              color="bg-accent/80"
+            <AnalyticsAreaChart
+              data={data.ordersPerDay.map((d) => ({ date: d.date, value: d.count }))}
+              dataKey="value"
+              color="#fbbf24"
+              gradientId="gradOrders"
+              formatter={fmtCount}
             />
           </CardContent>
         </Card>
@@ -215,10 +326,12 @@ export default function AnalyticsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <BarChart
-            data={data.newUsersPerDay.map((d) => ({ label: d.date, value: d.count }))}
-            type="count"
-            color="bg-blue-500/80"
+          <AnalyticsAreaChart
+            data={data.newUsersPerDay.map((d) => ({ date: d.date, value: d.count }))}
+            dataKey="value"
+            color="#818cf8"
+            gradientId="gradUsers"
+            formatter={fmtCount}
           />
         </CardContent>
       </Card>
