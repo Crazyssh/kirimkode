@@ -46,6 +46,15 @@ interface DisplayService {
   stock: number;
 }
 
+interface ProviderOption {
+  serverId: string;
+  name: string;
+  icon: string;
+  price: number;
+  stock: number;
+  negaraId: number;
+}
+
 interface WaCheckData {
   exists: boolean;
   profilePic?: string | null;
@@ -109,6 +118,12 @@ export default function BuyPage() {
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const operatorDropdownRef = useRef<HTMLDivElement>(null);
   const serviceDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Provider picker state (for unified mode)
+  const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
+  const isUnified = selectedServer.id === "unified";
 
   // Close dropdowns on click outside
   useEffect(() => {
@@ -269,6 +284,32 @@ export default function BuyPage() {
     fetchLayanan();
   }, [selectedNegara, selectedServer]);
 
+  // Fetch provider options when service is selected in unified mode
+  useEffect(() => {
+    if (!isUnified || !selectedService || !selectedNegara) {
+      setProviderOptions([]);
+      setSelectedProvider(null);
+      return;
+    }
+
+    const fetchProviders = async () => {
+      setLoadingProviders(true);
+      setSelectedProvider(null);
+      try {
+        const res = await fetch(
+          `/api/otp/layanan/providers?negara=${selectedNegara.id_negara}&code=${selectedService.code}`
+        );
+        const data = await res.json();
+        setProviderOptions(data.providers || []);
+      } catch {
+        setProviderOptions([]);
+      } finally {
+        setLoadingProviders(false);
+      }
+    };
+    fetchProviders();
+  }, [isUnified, selectedService, selectedNegara]);
+
   // Fetch riwayat order
   const fetchHistory = useCallback(async (page = 1, silent = false) => {
     if (!silent) setHistoryLoading(true);
@@ -396,13 +437,13 @@ export default function BuyPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          server: selectedServer.id,
-          negara: selectedNegara.id_negara,
+          server: isUnified && selectedProvider ? selectedProvider.serverId : selectedServer.id,
+          negara: isUnified && selectedProvider ? selectedProvider.negaraId : selectedNegara.id_negara,
           layanan: service.code,
           operator: selectedOperator,
           serviceName: service.name,
           countryName: selectedNegara.nama_negara,
-          price: service.price,
+          price: isUnified && selectedProvider ? selectedProvider.price : service.price,
         }),
       });
       const data = await res.json();
@@ -462,13 +503,13 @@ export default function BuyPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            server: selectedServer.id,
-            negara: selectedNegara.id_negara,
+            server: isUnified && selectedProvider ? selectedProvider.serverId : selectedServer.id,
+            negara: isUnified && selectedProvider ? selectedProvider.negaraId : selectedNegara.id_negara,
             layanan: service.code,
             operator: selectedOperator,
             serviceName: service.name,
             countryName: selectedNegara.nama_negara,
-            price: service.price,
+            price: isUnified && selectedProvider ? selectedProvider.price : service.price,
           }),
         });
         const data = await res.json();
@@ -704,7 +745,7 @@ export default function BuyPage() {
             </CardContent>
           </Card>
 
-          {/* Provider Dropdown - only shown for api1/Mars */}
+          {/* Provider Dropdown - only shown for api1/Mars (not unified mode) */}
           {selectedServer.id === "api1" && (
             <Card className="relative z-15" style={{ overflow: "visible" }}>
               <CardHeader>
@@ -829,48 +870,125 @@ export default function BuyPage() {
                     </div>
                   )}
 
-                  {/* Selected service info + Buy button */}
+                  {/* Selected service info + Buy button / Provider picker */}
                   {selectedService && (
                     <div className="mt-3 p-3 rounded-xl bg-background/50 space-y-3">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted">{t("buy.service")}</span>
                         <span className="font-medium">{capitalizeFirst(selectedService.name)}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted">{t("buy.price")}</span>
-                        <span className="font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary">{formatRupiah(selectedService.price)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted">{t("buy.stock")}</span>
-                        <span className="flex items-center gap-1">
-                          <div className={`w-1.5 h-1.5 rounded-full ${selectedService.stock > 100 ? "bg-success" : selectedService.stock > 20 ? "bg-accent" : "bg-error"}`} />
-                          {selectedService.stock} {t("buy.available")}
-                        </span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button
-                          className="flex-1 text-xs sm:text-sm"
-                          onClick={() => handleBuy(selectedService)}
-                          disabled={ordering !== null || bulkOrdering}
-                        >
-                          {ordering ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" /> {t("common.processing")}</>
+
+                      {/* Unified mode: Provider picker */}
+                      {isUnified ? (
+                        <>
+                          <div className="text-xs text-muted font-medium uppercase tracking-wide mt-2">Pilih Provider:</div>
+                          {loadingProviders ? (
+                            <div className="flex items-center justify-center py-4 text-muted">
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              <span className="text-sm">Memuat provider...</span>
+                            </div>
+                          ) : providerOptions.length === 0 ? (
+                            <div className="text-center py-3 text-xs text-muted">
+                              Tidak ada provider tersedia untuk layanan ini
+                            </div>
                           ) : (
-                            <><ShoppingCart className="w-4 h-4" /> {t("buy.buyButton")} — {formatRupiah(selectedService.price)}</>
+                            <div className="space-y-1.5">
+                              {providerOptions.map((provider) => (
+                                <button
+                                  key={provider.serverId}
+                                  onClick={() => setSelectedProvider(provider)}
+                                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-sm ${
+                                    selectedProvider?.serverId === provider.serverId
+                                      ? "border-primary bg-primary/10"
+                                      : "border-border bg-background/50 hover:border-primary/30"
+                                  }`}
+                                >
+                                  <span className="text-lg">{provider.icon}</span>
+                                  <div className="flex-1 text-left">
+                                    <span className="font-medium">{provider.name}</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary">
+                                      {formatRupiah(provider.price)}
+                                    </div>
+                                    <div className="text-[10px] text-muted">stok: {provider.stock}</div>
+                                  </div>
+                                  {selectedProvider?.serverId === provider.serverId && (
+                                    <CheckCircle className="w-4 h-4 text-primary shrink-0" />
+                                  )}
+                                </button>
+                              ))}
+                            </div>
                           )}
-                        </Button>
-                        <Button
-                          className="flex-1 text-xs sm:text-sm"
-                          onClick={() => handleBulkBuy(selectedService, 5)}
-                          disabled={ordering !== null || bulkOrdering}
-                        >
-                          {bulkOrdering ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" /> {t("common.processing")}</>
-                          ) : (
-                            <><ShoppingCart className="w-4 h-4" /> 5x — {formatRupiah(selectedService.price * 5)}</>
+
+                          {/* Buy button (only when provider is selected) */}
+                          {selectedProvider && (
+                            <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                              <Button
+                                className="flex-1 text-xs sm:text-sm"
+                                onClick={() => handleBuy(selectedService)}
+                                disabled={ordering !== null || bulkOrdering}
+                              >
+                                {ordering ? (
+                                  <><Loader2 className="w-4 h-4 animate-spin" /> {t("common.processing")}</>
+                                ) : (
+                                  <><ShoppingCart className="w-4 h-4" /> {t("buy.buyButton")} — {formatRupiah(selectedProvider.price)}</>
+                                )}
+                              </Button>
+                              <Button
+                                className="flex-1 text-xs sm:text-sm"
+                                onClick={() => handleBulkBuy(selectedService, 5)}
+                                disabled={ordering !== null || bulkOrdering}
+                              >
+                                {bulkOrdering ? (
+                                  <><Loader2 className="w-4 h-4 animate-spin" /> {t("common.processing")}</>
+                                ) : (
+                                  <><ShoppingCart className="w-4 h-4" /> 5x — {formatRupiah(selectedProvider.price * 5)}</>
+                                )}
+                              </Button>
+                            </div>
                           )}
-                        </Button>
-                      </div>
+                        </>
+                      ) : (
+                        /* Normal mode: Direct buy */
+                        <>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted">{t("buy.price")}</span>
+                            <span className="font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary">{formatRupiah(selectedService.price)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted">{t("buy.stock")}</span>
+                            <span className="flex items-center gap-1">
+                              <div className={`w-1.5 h-1.5 rounded-full ${selectedService.stock > 100 ? "bg-success" : selectedService.stock > 20 ? "bg-accent" : "bg-error"}`} />
+                              {selectedService.stock} {t("buy.available")}
+                            </span>
+                          </div>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button
+                              className="flex-1 text-xs sm:text-sm"
+                              onClick={() => handleBuy(selectedService)}
+                              disabled={ordering !== null || bulkOrdering}
+                            >
+                              {ordering ? (
+                                <><Loader2 className="w-4 h-4 animate-spin" /> {t("common.processing")}</>
+                              ) : (
+                                <><ShoppingCart className="w-4 h-4" /> {t("buy.buyButton")} — {formatRupiah(selectedService.price)}</>
+                              )}
+                            </Button>
+                            <Button
+                              className="flex-1 text-xs sm:text-sm"
+                              onClick={() => handleBulkBuy(selectedService, 5)}
+                              disabled={ordering !== null || bulkOrdering}
+                            >
+                              {bulkOrdering ? (
+                                <><Loader2 className="w-4 h-4 animate-spin" /> {t("common.processing")}</>
+                              ) : (
+                                <><ShoppingCart className="w-4 h-4" /> 5x — {formatRupiah(selectedService.price * 5)}</>
+                              )}
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
