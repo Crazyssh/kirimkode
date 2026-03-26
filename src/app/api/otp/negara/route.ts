@@ -4,9 +4,9 @@ import { db } from "@/lib/db";
 import { getUnifiedNegara } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "unified";
 
-  if (!server || !["api1", "api2", "api3", "api4", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // api3/api4: tetap fetch langsung dari provider API
+    // fallback: fetch langsung dari provider API
     const data = await getNegara(server);
     return NextResponse.json(data, {
       headers: {

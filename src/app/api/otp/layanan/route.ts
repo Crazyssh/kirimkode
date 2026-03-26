@@ -5,10 +5,10 @@ import { db } from "@/lib/db";
 import { getUnifiedLayanan } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "unified";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
       // Fallback: kalau belum ada di DB, fetch dari API langsung
     }
 
-    // api4 atau fallback (DB kosong): fetch langsung dari provider API
+    // fallback (DB kosong): fetch langsung dari provider API
     const data = await getLayanan(server, negaraId);
 
     // Apply custom pricing (skip for api3, already handled by adapter)

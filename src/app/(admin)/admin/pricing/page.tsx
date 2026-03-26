@@ -514,7 +514,6 @@ export default function PricingPage() {
                   { id: "api1", name: "Mars", icon: "🔴" },
                   { id: "api2", name: "Jupiter", icon: "🟠" },
                   { id: "api3", name: "Saturn", icon: "🟣" },
-                  { id: "api4", name: "Neptune", icon: "🔵" },
                 ].map((s) => (
                   <button
                     key={s.id}
@@ -551,7 +550,7 @@ export default function PricingPage() {
                 />
               </div>
               {globalServiceSearch && (
-                <p className="text-[10px] text-muted mt-1.5">Min. 2 karakter. Cari di semua negara server {selectedServer === "api1" ? "Mars" : selectedServer === "api2" ? "Jupiter" : selectedServer === "api4" ? "Neptune" : "Saturn"}.</p>
+                <p className="text-[10px] text-muted mt-1.5">Min. 2 karakter. Cari di semua negara server {selectedServer === "api1" ? "Mars" : selectedServer === "api2" ? "Jupiter" : "Saturn"}.</p>
               )}
             </CardContent>
           </Card>

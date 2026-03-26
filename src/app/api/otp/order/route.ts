@@ -12,9 +12,8 @@ import { otpOrderSchema, validateBody } from "@/lib/validations";
  * TIDAK BOLEH percaya harga dari client.
  * Untuk api1/api2: ambil harga dari database (cached by cron sync).
  * Untuk api3: harga sudah final dari adapter (USD→IDR + markup), skip applyPricing.
- * Untuk api4: harga sudah final dari adapter (markup 40%), skip applyPricing.
  */
-async function getServerPrice(server: "api1" | "api2" | "api3" | "api4", negara: number, layanan: string): Promise<number> {
+async function getServerPrice(server: "api1" | "api2" | "api3", negara: number, layanan: string): Promise<number> {
   // api1/api2/api3: coba ambil dari database dulu
   if (server === "api1" || server === "api2" || server === "api3") {
     const country = await db.providerCountry.findUnique({
@@ -59,8 +58,8 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "api4", negara:
     throw new Error("Layanan tidak ditemukan atau harga tidak tersedia");
   }
 
-  // api3 & api4: harga sudah termasuk konversi + markup dari adapter
-  if (server === "api3" || server === "api4") return serviceInfo.harga;
+  // api3: harga sudah termasuk konversi + markup dari adapter
+  if (server === "api3") return serviceInfo.harga;
 
   return applyPricing(serviceInfo.harga, layanan, negara);
 }
@@ -88,7 +87,7 @@ export async function POST(req: NextRequest) {
     const { server, negara, layanan, operator, serviceName, countryName } = validated.data;
 
     // Harga WAJIB dari server, bukan dari client
-    const orderPrice = await getServerPrice(server as "api1" | "api2" | "api3" | "api4", Number(negara), layanan);
+    const orderPrice = await getServerPrice(server as "api1" | "api2" | "api3", Number(negara), layanan);
 
     // Step 1: Pre-check user balance + status (quick DB read, no transaction needed)
     const user = await db.user.findUnique({
@@ -101,7 +100,7 @@ export async function POST(req: NextRequest) {
     if (user.balance < orderPrice) throw new Error("INSUFFICIENT_BALANCE");
 
     // Step 2: Call provider API (bisa lambat, HARUS di luar transaction)
-    const data = await createOrder(server as "api1" | "api2" | "api3" | "api4", Number(negara), layanan, operator);
+    const data = await createOrder(server as "api1" | "api2" | "api3", Number(negara), layanan, operator);
 
     const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
     const number = data?.number ?? data?.data?.number ?? "";

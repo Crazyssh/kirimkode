@@ -19,14 +19,14 @@ const PROVIDER_EXPIRED_KEYWORDS = [
 
 /**
  * Cek apakah response dari provider menandakan order sudah expired/cancelled
- * Works for all providers: api1/api2 (JasaOTP), api3 (Hero-SMS), api4 (Neptune)
+ * Works for all providers: api1/api2 (JasaOTP), api3 (Hero-SMS)
  */
 function isProviderExpired(data: unknown): boolean {
   if (!data || typeof data !== "object") return false;
 
   const d = data as Record<string, unknown>;
 
-  // api3 (Hero-SMS) & api4 (Neptune): explicit status field
+  // api3 (Hero-SMS): explicit status field
   if (d.status === "cancelled" || d.status === "timeout" || d.status === "expired") {
     return true;
   }

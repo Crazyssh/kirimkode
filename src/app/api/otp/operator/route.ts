@@ -4,10 +4,10 @@ import { db } from "@/lib/db";
 import { getUnifiedOperator } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "unified";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
       // Fallback: kalau belum ada di DB
     }
 
-    // api3/api4 atau fallback: fetch langsung
+    // fallback: fetch langsung
     const data = await getOperator(server, negaraId);
     return NextResponse.json(data);
   } catch {
