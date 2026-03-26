@@ -23,7 +23,7 @@ interface CountryMapping {
  */
 export const COUNTRY_MAPPINGS: CountryMapping[] = [
   // === A ===
-  { name: "Afghanistan", keywords: ["afghanistan"] },
+  { name: "Afghanistan", keywords: ["afghanistan", "afganistan"] },
   { name: "Albania", keywords: ["albania"] },
   { name: "Algeria", keywords: ["algeria", "aljazair"] },
   { name: "Angola", keywords: ["angola"] },
@@ -283,9 +283,11 @@ export function normalizeCountryName(providerName: string): string {
   const original = providerName.trim();
   const lower = original.toLowerCase();
 
-  // Extract suffix (VIP, Virtual, Premium, etc.)
+  // Extract suffix (VIP/Virtual → "Virtual", Premium, etc.)
   const suffixMatch = lower.match(/\b(vip|virtual|premium|special|real)\b/i);
-  const suffix = suffixMatch ? suffixMatch[1].toUpperCase() : null;
+  // VIP dan Virtual dianggap sama → "Virtual"
+  const rawSuffix = suffixMatch ? suffixMatch[1].toUpperCase() : null;
+  const suffix = rawSuffix === "VIP" ? "VIRTUAL" : rawSuffix;
 
   // Clean name for matching: remove suffix, trim, remove extra whitespace
   const cleanName = lower
