@@ -231,8 +231,6 @@ export async function getServiceProviders(
   }> = [];
 
   for (const svc of services) {
-    // Skip provider with 0 stock
-    if (svc.stock <= 0) continue;
 
     const mapping = mappings.find((m) => m.dbCountryId === svc.countryId && m.serverId === svc.serverId);
     if (!mapping) continue;
