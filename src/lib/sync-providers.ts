@@ -6,6 +6,7 @@
 import { db } from "@/lib/db";
 import { getNegara, getLayanan, getOperator } from "@/lib/otp";
 import type { ServerId } from "@/lib/otp";
+import { normalizeCountryName } from "@/data/country-mapping";
 
 type SyncableServerId = "api1" | "api2" | "api3";
 
@@ -72,6 +73,7 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
     const countryIds = new Map<number, string>(); // externalId → db id
 
     for (const negara of negaraList) {
+      const normalized = normalizeCountryName(negara.nama_negara);
       const country = await db.providerCountry.upsert({
         where: {
           serverId_externalId: {
@@ -81,11 +83,13 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
         },
         update: {
           name: negara.nama_negara,
+          normalizedName: normalized,
         },
         create: {
           serverId,
           externalId: negara.id_negara,
           name: negara.nama_negara,
+          normalizedName: normalized,
         },
       });
       countryIds.set(negara.id_negara, country.id);

@@ -60,19 +60,19 @@ export async function getUnifiedNegara(): Promise<{
 
   const allCountries = await db.providerCountry.findMany({
     where: { serverId: { in: ACTIVE_PROVIDERS } },
-    select: { id: true, externalId: true, name: true, serverId: true },
-    orderBy: { name: "asc" },
+    select: { id: true, externalId: true, name: true, normalizedName: true, serverId: true },
+    orderBy: { normalizedName: "asc" },
   });
 
-  // Deduplicate by normalized name
-  const seen = new Map<string, string>(); // normalized → original name
+  // Deduplicate by normalizedName (our standardized English name)
+  const seen = new Map<string, string>(); // normalizedName → display name
   const result: Array<{ id_negara: number; nama_negara: string }> = [];
 
   for (const c of allCountries) {
-    const key = c.name.trim().toLowerCase();
+    const key = (c.normalizedName || c.name).trim();
     if (!seen.has(key)) {
-      seen.set(key, c.name);
-      result.push({ id_negara: result.length, nama_negara: c.name });
+      seen.set(key, key);
+      result.push({ id_negara: result.length, nama_negara: key });
     }
   }
 
@@ -94,21 +94,22 @@ export async function getCountryMappings(unifiedNegaraId: number): Promise<Count
   const country = negaraRes.data.find((c) => c.id_negara === unifiedNegaraId);
   if (!country) return [];
 
-  const normalizedName = country.nama_negara.trim().toLowerCase();
+  const targetName = country.nama_negara.trim();
 
-  // Find all provider countries with matching name
+  // Find all provider countries with matching normalizedName
   const dbCountries = await db.providerCountry.findMany({
-    where: { serverId: { in: ACTIVE_PROVIDERS } },
-    select: { id: true, serverId: true, externalId: true, name: true },
+    where: {
+      serverId: { in: ACTIVE_PROVIDERS },
+      normalizedName: targetName,
+    },
+    select: { id: true, serverId: true, externalId: true },
   });
 
-  const mappings = dbCountries
-    .filter((c) => c.name.trim().toLowerCase() === normalizedName)
-    .map((c) => ({
-      serverId: c.serverId,
-      externalId: c.externalId,
-      dbCountryId: c.id,
-    }));
+  const mappings = dbCountries.map((c) => ({
+    serverId: c.serverId,
+    externalId: c.externalId,
+    dbCountryId: c.id,
+  }));
 
   setCache(cacheKey, mappings, 600000); // 10 min
   return mappings;
