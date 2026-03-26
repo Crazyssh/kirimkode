@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncAllProviders, syncProvider } from "@/lib/sync-providers";
+import { clearUnifiedCache } from "@/lib/unified-provider";
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
 
@@ -51,6 +52,10 @@ export async function GET(req: NextRequest) {
       } catch (error) {
         send(`[Sync] ERROR: ${(error as Error).message}`);
       }
+
+      // Clear unified cache so normalizedName changes take effect immediately
+      clearUnifiedCache();
+      send("[Sync] Unified cache cleared.");
 
       controller.close();
     },

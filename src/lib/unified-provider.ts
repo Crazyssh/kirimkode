@@ -43,6 +43,11 @@ function setCache(key: string, data: unknown, ttlMs: number) {
   }
 }
 
+/** Clear all unified cache — called after sync to ensure fresh data */
+export function clearUnifiedCache() {
+  cache.clear();
+}
+
 // ---------- Negara (merged) ----------
 
 /**
