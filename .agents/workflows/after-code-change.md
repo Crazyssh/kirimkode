@@ -8,7 +8,7 @@ description: Aturan wajib setelah mengubah kode
 
 ## Setelah Mengubah Kode
 
-Setelah selesai mengubah kode, **wajib langsung commit dan push**:
+Setelah selesai mengubah kode, **wajib langsung commit, push, dan deploy**:
 
 // turbo-all
 
@@ -26,3 +26,10 @@ git commit -m "deskripsi perubahan"
 ```bash
 git push
 ```
+
+4. Kasih command deploy ke user untuk dijalankan di VPS:
+```
+cd /var/www/kirimkode && git pull && npm run build && pm2 restart kirimkode
+```
+
+> **PENTING:** Selalu tampilkan command deploy di atas setelah push berhasil, supaya user bisa langsung copy-paste dan jalankan di terminal VPS.
