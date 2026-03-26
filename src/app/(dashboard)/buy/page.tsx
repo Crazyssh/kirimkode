@@ -906,7 +906,6 @@ export default function BuyPage() {
                                   <span className="text-lg">{provider.icon}</span>
                                   <div className="flex-1 text-left">
                                     <span className="font-medium">{capitalizeFirst(selectedService.name)}</span>
-                                    <span className="text-[10px] text-muted ml-1.5">{provider.name}</span>
                                   </div>
                                   <div className="text-right">
                                     <div className="font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary">
