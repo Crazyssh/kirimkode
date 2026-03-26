@@ -29,7 +29,7 @@ export const servers: OTPServer[] = [
     name: "Bimasakti",
     icon: "\u26A1",
     color: "from-violet-500 to-blue-500",
-    description: "Semua layanan dari semua provider",
+    description: "Server utama, stok terbanyak",
     status: "online",
   },
   {
@@ -37,7 +37,7 @@ export const servers: OTPServer[] = [
     name: "Mars",
     icon: "\uD83D\uDD34",
     color: "from-red-500 to-orange-500",
-    description: "Server utama, stok terbanyak",
+    description: "Server cadangan, lebih stabil",
     status: "online",
   },
   {
@@ -45,7 +45,7 @@ export const servers: OTPServer[] = [
     name: "Jupiter",
     icon: "\uD83D\uDFE0",
     color: "from-amber-500 to-yellow-500",
-    description: "Server cadangan, lebih stabil",
+    description: "Server cadangan alternatif",
     status: "online",
   },
   {
