@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
   try {
     const negaraId = Number(negara);
 
-    // api1/api2: baca dari database
-    if (server === "api1" || server === "api2") {
+    // api1/api2/api3: baca dari database
+    if (server === "api1" || server === "api2" || server === "api3") {
       const country = await db.providerCountry.findUnique({
         where: {
           serverId_externalId: {

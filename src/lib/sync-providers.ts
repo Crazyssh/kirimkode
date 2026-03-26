@@ -1,5 +1,5 @@
 /**
- * Sync JasaOTP (api1/api2) data ke database lokal.
+ * Sync semua provider (api1/api2/api3) data ke database lokal.
  * Dipanggil oleh cron endpoint setiap 1 jam.
  */
 
@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { getNegara, getLayanan, getOperator } from "@/lib/otp";
 import type { ServerId } from "@/lib/otp";
 
-type JasaOtpServerId = "api1" | "api2";
+type SyncableServerId = "api1" | "api2" | "api3";
 
 interface SyncResult {
   server: string;
@@ -49,9 +49,9 @@ async function batchProcess<T>(
 }
 
 /**
- * Sync satu server JasaOTP ke database
+ * Sync satu server ke database (api1, api2, atau api3)
  */
-export async function syncJasaOTP(serverId: JasaOtpServerId): Promise<SyncResult> {
+export async function syncProvider(serverId: SyncableServerId): Promise<SyncResult> {
   const start = Date.now();
   const errors: string[] = [];
   let countryCount = 0;
@@ -147,7 +147,7 @@ export async function syncJasaOTP(serverId: JasaOtpServerId): Promise<SyncResult
           errors.push(`[${serverId}] Layanan ${negara.nama_negara}: ${(err as Error).message}`);
         }
 
-        // Fetch operator (hanya api1 yang support operator selection)
+        // Fetch operator (hanya api1 yang support operator selection, api2/api3 skip)
         if (serverId === "api1") {
           try {
             const opData = await getOperator(serverId as ServerId, negara.id_negara);
@@ -206,15 +206,14 @@ export async function syncJasaOTP(serverId: JasaOtpServerId): Promise<SyncResult
 }
 
 /**
- * Sync semua server JasaOTP (api1 + api2)
+ * Sync semua provider (api1 + api2 + api3) — sequential supaya gak overload
  */
-export async function syncAllJasaOTP(): Promise<SyncResult[]> {
+export async function syncAllProviders(): Promise<SyncResult[]> {
   const results: SyncResult[] = [];
 
-  // Sync api1 dulu, lalu api2 (sequential supaya gak overload)
-  for (const server of ["api1", "api2"] as JasaOtpServerId[]) {
+  for (const server of ["api1", "api2", "api3"] as SyncableServerId[]) {
     console.log(`[Sync] Starting sync for ${server}...`);
-    const result = await syncJasaOTP(server);
+    const result = await syncProvider(server);
     console.log(
       `[Sync] ${server} done: ${result.countries} countries, ${result.services} services, ${result.operators} operators in ${result.durationMs}ms`
     );
@@ -226,3 +225,6 @@ export async function syncAllJasaOTP(): Promise<SyncResult[]> {
 
   return results;
 }
+
+/** @deprecated Use syncAllProviders instead */
+export const syncAllJasaOTP = syncAllProviders;

@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
   try {
     const negaraId = Number(negara);
 
-    // api1/api2: baca dari database (cached by cron sync)
-    if (server === "api1" || server === "api2") {
+    // api1/api2/api3: baca dari database (cached by cron sync)
+    if (server === "api1" || server === "api2" || server === "api3") {
       // Cari country di DB
       const country = await db.providerCountry.findUnique({
         where: {
@@ -46,8 +46,11 @@ export async function GET(req: NextRequest) {
         const serviceData: Record<string, { harga: number; stok: number; layanan: string }> = {};
 
         for (const svc of services) {
-          // Apply pricing rules ke harga asli dari DB
-          const customPrice = await applyPricing(svc.price, svc.code, negaraId);
+          // api3: harga sudah termasuk konversi USD→IDR + markup dari adapter, skip applyPricing
+          // api1/api2: apply pricing rules ke harga asli dari DB
+          const customPrice = (server === "api3")
+            ? svc.price
+            : await applyPricing(svc.price, svc.code, negaraId);
           serviceData[svc.code] = {
             harga: customPrice,
             stok: svc.stock,
@@ -65,7 +68,7 @@ export async function GET(req: NextRequest) {
       // Fallback: kalau belum ada di DB, fetch dari API langsung
     }
 
-    // api3/api4 atau fallback: fetch langsung dari provider API
+    // api4 atau fallback (DB kosong): fetch langsung dari provider API
     const data = await getLayanan(server, negaraId);
 
     // Apply custom pricing (skip for api3, already handled by adapter)

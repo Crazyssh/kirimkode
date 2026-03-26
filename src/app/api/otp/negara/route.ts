@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // api1/api2: baca dari database (cached by cron sync)
-    if (server === "api1" || server === "api2") {
+    // api1/api2/api3: baca dari database (cached by cron sync)
+    if (server === "api1" || server === "api2" || server === "api3") {
       const countries = await db.providerCountry.findMany({
         where: { serverId: server },
         select: { externalId: true, name: true },
