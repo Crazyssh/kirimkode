@@ -40,22 +40,6 @@ export const servers: OTPServer[] = [
     description: "Server cadangan, lebih stabil",
     status: "online",
   },
-  {
-    id: "api2",
-    name: "Jupiter",
-    icon: "\uD83D\uDFE0",
-    color: "from-amber-500 to-yellow-500",
-    description: "Server cadangan alternatif",
-    status: "online",
-  },
-  {
-    id: "api3",
-    name: "Saturn",
-    icon: "\uD83D\uDFE3",
-    color: "from-purple-500 to-indigo-500",
-    description: "Server internasional, lebih banyak negara",
-    status: "online",
-  },
 ];
 
 export const countries: Country[] = [
