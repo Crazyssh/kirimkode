@@ -3,60 +3,64 @@ import { syncAllProviders, syncProvider } from "@/lib/sync-providers";
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 300; // 5 menit max (untuk Vercel, ignored di self-host)
+
 export async function GET(req: NextRequest) {
-  // Validasi secret key
   const key = req.nextUrl.searchParams.get("key");
 
   if (!CRON_SECRET || key !== CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Optional: sync 1 provider aja (untuk hindari timeout)
-  // ?server=api1 | api2 | api3
   const server = req.nextUrl.searchParams.get("server");
 
-  try {
-    if (server && ["api1", "api2", "api3"].includes(server)) {
-      console.log(`[Cron] Sync ${server} started...`);
-      const result = await syncProvider(server as "api1" | "api2" | "api3");
-      console.log(`[Cron] Sync ${server} completed.`);
+  // Gunakan streaming response supaya Cloudflare gak timeout
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (msg: string) => {
+        try {
+          controller.enqueue(encoder.encode(msg + "\n"));
+        } catch { /* closed */ }
+      };
 
-      return NextResponse.json({
-        success: true,
-        timestamp: new Date().toISOString(),
-        results: [{
-          server: result.server,
-          countries: result.countries,
-          services: result.services,
-          operators: result.operators,
-          errors: result.errors.length,
-          durationMs: result.durationMs,
-        }],
-      });
-    }
+      try {
+        if (server && ["api1", "api2", "api3"].includes(server)) {
+          send(`[Sync] Starting ${server}...`);
+          const result = await syncProvider(server as "api1" | "api2" | "api3");
+          send(`[Sync] ${server} done: ${result.countries} countries, ${result.services} services in ${result.durationMs}ms`);
+          if (result.errors.length > 0) {
+            send(`[Sync] ${server} errors: ${result.errors.slice(0, 3).join(", ")}`);
+          }
+          send(JSON.stringify({ success: true, results: [result] }));
+        } else {
+          // Sync semua provider satu per satu dengan progress
+          const results = [];
+          for (const srv of ["api1", "api2", "api3"] as const) {
+            send(`[Sync] Starting ${srv}...`);
+            const result = await syncProvider(srv);
+            send(`[Sync] ${srv} done: ${result.countries} countries, ${result.services} services in ${result.durationMs}ms`);
+            if (result.errors.length > 0) {
+              send(`[Sync] ${srv} errors (${result.errors.length}): ${result.errors.slice(0, 3).join(", ")}`);
+            }
+            results.push(result);
+          }
+          send(JSON.stringify({ success: true, results }));
+        }
+      } catch (error) {
+        send(`[Sync] ERROR: ${(error as Error).message}`);
+      }
 
-    // Sync semua provider (api1 + api2 + api3)
-    console.log("[Cron] Sync all started...");
-    const results = await syncAllProviders();
-    console.log("[Cron] Sync completed.");
+      controller.close();
+    },
+  });
 
-    return NextResponse.json({
-      success: true,
-      timestamp: new Date().toISOString(),
-      results: results.map((r) => ({
-        server: r.server,
-        countries: r.countries,
-        services: r.services,
-        operators: r.operators,
-        errors: r.errors.length,
-        durationMs: r.durationMs,
-      })),
-    });
-  } catch (error) {
-    console.error("[Cron] Sync failed:", error);
-    return NextResponse.json(
-      { error: "Sync failed", detail: (error as Error).message },
-      { status: 500 }
-    );
-  }
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
