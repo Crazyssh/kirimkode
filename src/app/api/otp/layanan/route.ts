@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getLayanan } from "@/lib/otp";
 import { applyPricing } from "@/lib/pricing";
 import { db } from "@/lib/db";
+import { getUnifiedLayanan } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "unified";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -17,6 +18,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const negaraId = Number(negara);
+
+    // unified: merged layanan dari semua provider
+    if (server === "unified") {
+      const data = await getUnifiedLayanan(negaraId);
+      return NextResponse.json(data, {
+        headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=180" },
+      });
+    }
 
     // api1/api2/api3: baca dari database (cached by cron sync)
     if (server === "api1" || server === "api2" || server === "api3") {

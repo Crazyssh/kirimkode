@@ -8,7 +8,7 @@ const API_URLS = {
 
 const API_KEY = process.env.JASAOTP_API_KEY || "";
 
-export type ServerId = "api1" | "api2" | "api3" | "api4";
+export type ServerId = "api1" | "api2" | "api3" | "api4" | "unified";
 
 type JasaOtpServerId = "api1" | "api2";
 
@@ -131,24 +131,28 @@ async function fetchApi(
 }
 
 export async function getBalance(server: ServerId) {
+  if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.getBalance();
   if (server === "api4") return provider4.getBalance();
   return fetchApi(server, "balance.php", { api_key: API_KEY });
 }
 
 export async function getNegara(server: ServerId) {
+  if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.getNegara();
   if (server === "api4") return provider4.getNegara();
   return fetchApi(server, "negara.php");
 }
 
 export async function getOperator(server: ServerId, negara: number) {
+  if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.getOperator(negara);
   if (server === "api4") return provider4.getOperator(negara);
   return fetchApi(server, "operator.php", { negara: String(negara) });
 }
 
 export async function getLayanan(server: ServerId, negara: number) {
+  if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.getLayanan(negara);
   if (server === "api4") return provider4.getLayanan(negara);
   return fetchApi(server, "layanan.php", { negara: String(negara) });
@@ -160,6 +164,7 @@ export async function createOrder(
   layanan: string,
   operator: string
 ) {
+  if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.createOrder(negara, layanan, operator);
   if (server === "api4") return provider4.createOrder(negara, layanan, operator);
   return fetchApi(server, "order.php", {
@@ -171,6 +176,7 @@ export async function createOrder(
 }
 
 export async function checkSms(server: ServerId, orderId: number) {
+  if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.checkSms(orderId);
   if (server === "api4") return provider4.checkSms(orderId);
   return fetchApi(server, "sms.php", {
@@ -180,6 +186,7 @@ export async function checkSms(server: ServerId, orderId: number) {
 }
 
 export async function cancelOrder(server: ServerId, orderId: number) {
+  if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.cancelOrder(orderId);
   if (server === "api4") return provider4.cancelOrder(orderId);
   return fetchApi(server, "cancel.php", {

@@ -1,5 +1,5 @@
 export interface OTPServer {
-  id: "api1" | "api2" | "api3" | "api4";
+  id: "api1" | "api2" | "api3" | "api4" | "unified";
   name: string;
   icon: string;
   color: string;
@@ -24,6 +24,14 @@ export interface Country {
 }
 
 export const servers: OTPServer[] = [
+  {
+    id: "unified",
+    name: "Bimasakti",
+    icon: "\u26A1",
+    color: "from-violet-500 to-blue-500",
+    description: "Semua layanan dari semua provider",
+    status: "online",
+  },
   {
     id: "api1",
     name: "Mars",
