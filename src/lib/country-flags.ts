@@ -92,21 +92,34 @@ const COUNTRY_MAP: Record<string, string> = {
   zambia: "ZM", zimbabwe: "ZW",
 };
 
-function isoToFlag(iso: string): string {
-  if (iso.length !== 2) return "🏳️";
+/**
+ * Get ISO code for a country name.
+ */
+export function getCountryIso(name: string): string | null {
+  const key = name.toLowerCase().trim();
+  return COUNTRY_MAP[key] || null;
+}
+
+/**
+ * Get flag image URL for a country name.
+ * Uses flagcdn.com CDN.
+ * @example getCountryFlagUrl("Indonesia") => "https://flagcdn.com/24x18/id.png"
+ */
+export function getCountryFlagUrl(name: string, size: "16x12" | "24x18" | "32x24" | "48x36" = "24x18"): string | null {
+  const iso = getCountryIso(name);
+  if (!iso) return null;
+  return `https://flagcdn.com/${size}/${iso.toLowerCase()}.png`;
+}
+
+/**
+ * Get flag emoji for a country name (works on macOS/Linux, broken on Windows).
+ */
+export function getCountryFlag(name: string): string {
+  const iso = getCountryIso(name);
+  if (!iso) return "🏳️";
   const [a, b] = iso.toUpperCase().split("");
   return String.fromCodePoint(
     0x1F1E6 + a.charCodeAt(0) - 65,
     0x1F1E6 + b.charCodeAt(0) - 65
   );
-}
-
-/**
- * Get flag emoji for a country name.
- * @example getCountryFlag("Indonesia") => "🇮🇩"
- */
-export function getCountryFlag(name: string): string {
-  const key = name.toLowerCase().trim();
-  const iso = COUNTRY_MAP[key];
-  return iso ? isoToFlag(iso) : "🏳️";
 }
