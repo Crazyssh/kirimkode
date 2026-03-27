@@ -17,11 +17,12 @@ import {
   Clock,
   Loader2,
   CheckCircle,
-  Moon,
-  Sun,
   Gift,
   Copy,
   Users,
+  ShieldCheck,
+  Send,
+  RotateCcw,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -39,12 +40,34 @@ export default function SettingsPage() {
   const [referralCount, setReferralCount] = useState(0);
   const [copiedRef, setCopiedRef] = useState(false);
 
+  // Phone OTP states
+  const [otpStep, setOtpStep] = useState<"idle" | "sent" | "verifying">("idle");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(0);
+
   useEffect(() => {
     if (user) {
       setName(user.name || "");
       setPhone(user.phone || "");
     }
   }, [user]);
+
+  // OTP countdown timer
+  useEffect(() => {
+    if (otpCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpCountdown]);
 
   // Fetch webhook URL separately
   useEffect(() => {
@@ -91,7 +114,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/user/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, webhookUrl }),
+        body: JSON.stringify({ name, webhookUrl }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -139,6 +162,69 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSendOtp = async () => {
+    if (!phone) {
+      toast.error("Masukkan nomor WhatsApp dulu");
+      return;
+    }
+    setOtpSending(true);
+    try {
+      const res = await fetch("/api/user/phone/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(t("settings.otpSent"));
+        setOtpStep("sent");
+        setOtpCode("");
+        setOtpCountdown(60);
+        fetchUser();
+      } else {
+        toast.error(data.error || "Gagal mengirim OTP");
+      }
+    } catch {
+      toast.error("Gagal mengirim OTP");
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) {
+      toast.error("Kode OTP harus 6 digit");
+      return;
+    }
+    setOtpVerifying(true);
+    try {
+      const res = await fetch("/api/user/phone/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otp: otpCode }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message || "Nomor berhasil diverifikasi!");
+        setOtpStep("idle");
+        setOtpCode("");
+        fetchUser();
+      } else {
+        toast.error(data.error || "Gagal memverifikasi OTP");
+      }
+    } catch {
+      toast.error("Gagal memverifikasi OTP");
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  const handleChangeNumber = () => {
+    setOtpStep("idle");
+    setOtpCode("");
+    setPhone("");
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -168,12 +254,6 @@ export default function SettingsPage() {
           </div>
           <div>
             <label className="text-xs text-muted block mb-1 flex items-center gap-1">
-              <Phone className="w-3 h-3" /> {t("settings.whatsapp")}
-            </label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="628xxxxxxxxxx" />
-          </div>
-          <div>
-            <label className="text-xs text-muted block mb-1 flex items-center gap-1">
               <Globe className="w-3 h-3" /> {t("settings.webhookUrl")}
             </label>
             <Input value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://your-server.com/webhook" />
@@ -183,6 +263,98 @@ export default function SettingsPage() {
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {t("settings.saveProfile")}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Phone Verification */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ShieldCheck className="w-4 h-4 text-primary" />
+            {t("settings.phoneVerification")}
+            {user?.phoneVerified ? (
+              <Badge variant="success" className="ml-auto">{t("settings.phoneVerified")}</Badge>
+            ) : (
+              <Badge variant="warning" className="ml-auto">{t("settings.phoneNotVerified")}</Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {user?.phoneVerified ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-success/10 border border-success/30">
+                <CheckCircle className="w-5 h-5 text-success shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">{user.phone}</p>
+                  <p className="text-xs text-muted">{t("settings.phoneVerified")}</p>
+                </div>
+              </div>
+              <Button variant="secondary" size="sm" onClick={handleChangeNumber}>
+                <RotateCcw className="w-3 h-3" />
+                {t("settings.changeNumber")}
+              </Button>
+            </div>
+          ) : otpStep === "sent" ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/30 text-sm">
+                <Send className="w-4 h-4 text-primary shrink-0" />
+                <span>{t("settings.otpSent")} ({phone})</span>
+              </div>
+              <div>
+                <label className="text-xs text-muted block mb-1">{t("settings.enterOtp")}</label>
+                <div className="flex gap-2">
+                  <Input
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="000000"
+                    maxLength={6}
+                    className="font-[family-name:var(--font-jetbrains-mono)] text-lg tracking-[0.5em] text-center"
+                  />
+                  <Button onClick={handleVerifyOtp} disabled={otpVerifying || otpCode.length !== 6}>
+                    {otpVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                    {t("settings.verifyOtp")}
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSendOtp}
+                  disabled={otpSending || otpCountdown > 0}
+                >
+                  {otpSending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                  {otpCountdown > 0
+                    ? `${t("settings.resendOtp")} (${otpCountdown}s)`
+                    : t("settings.resendOtp")}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={handleChangeNumber}>
+                  {t("settings.changeNumber")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-muted">{t("settings.phoneRequired")}</p>
+              <div>
+                <label className="text-xs text-muted block mb-1 flex items-center gap-1">
+                  <Phone className="w-3 h-3" /> {t("settings.whatsapp")}
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="628xxxxxxxxxx"
+                  />
+                  <Button onClick={handleSendOtp} disabled={otpSending || !phone}>
+                    {otpSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {t("settings.sendOtp")}
+                  </Button>
+                </div>
+                <span className="text-[10px] text-muted">Format: 628xxxxxxxxxx</span>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

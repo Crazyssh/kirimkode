@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
       || req.headers.get("x-real-ip")
       || "unknown";
 
-    // Combo hash: fingerprint + IP + user agent + resolusi layar
-    const comboString = [fingerprint, ip, userAgent || "", screenRes || ""].join("|");
+    // Combo hash: fingerprint + user agent + resolusi layar (tanpa IP, biar device-only)
+    const comboString = [fingerprint, userAgent || "", screenRes || ""].join("|");
     const comboHash = crypto.createHash("sha256").update(comboString).digest("hex");
 
     await db.user.update({

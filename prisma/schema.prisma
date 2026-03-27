@@ -17,6 +17,9 @@ model User {
   image         String?
   password      String?   // hashed, null for OAuth-only users
   phone         String?   // WhatsApp number
+  phoneVerified Boolean   @default(false) // apakah nomor HP sudah diverifikasi via OTP
+  phoneOtp      String?   // 6-digit OTP code sementara
+  phoneOtpExp   DateTime? // waktu expired OTP
   balance       Int       @default(0) // saldo in IDR
   role          String    @default("user") // user | admin
   status        String    @default("active") // active | banned

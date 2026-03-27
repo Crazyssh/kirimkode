@@ -35,6 +35,9 @@ const envSchema = z.object({
 
     // FingerprintJS
     NEXT_PUBLIC_FPJS_API_KEY: z.string().optional(),
+
+    // Fonnte WhatsApp API
+    FONNTE_API_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

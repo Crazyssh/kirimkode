@@ -20,6 +20,7 @@ export async function GET() {
         email: true,
         image: true,
         phone: true,
+        phoneVerified: true,
         balance: true,
         role: true,
         status: true,

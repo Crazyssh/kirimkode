@@ -16,6 +16,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Kode voucher diperlukan" }, { status: 400 });
     }
 
+    // === ANTI-ABUSE: Wajib phone verified ===
+    const currentUserData = await db.user.findUnique({
+      where: { id: userId },
+      select: { phoneVerified: true, phone: true, fingerprint: true },
+    });
+
+    if (!currentUserData?.phoneVerified) {
+      return NextResponse.json(
+        { error: "Verifikasi nomor WhatsApp dulu di halaman Pengaturan sebelum bisa pakai voucher" },
+        { status: 400 }
+      );
+    }
+
+    // === ANTI-ABUSE: Wajib fingerprint ter-track ===
+    if (!currentUserData?.fingerprint) {
+      return NextResponse.json(
+        { error: "Sesi perangkat belum terdeteksi. Coba refresh halaman dan tunggu beberapa detik." },
+        { status: 400 }
+      );
+    }
+
     // Ambil IP dari request
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
       || req.headers.get("x-real-ip")
@@ -113,6 +134,23 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // 4. Cek per phone — anti multi-akun via nomor HP yang sama
+        if (currentUserData.phone) {
+          const usersWithSamePhone = await tx.user.findMany({
+            where: { phone: currentUserData.phone, phoneVerified: true },
+            select: { id: true },
+          });
+          const phoneUserIds = usersWithSamePhone.map((u) => u.id);
+          if (phoneUserIds.length > 1) {
+            const phoneUsageCount = await tx.voucherUsage.count({
+              where: { voucherId: voucher.id, userId: { in: phoneUserIds } },
+            });
+            if (phoneUsageCount > 0) {
+              throw new Error("PHONE_USED");
+            }
+          }
+        }
+
         // 4. Re-check max usage global di dalam transaction
         const currentTotalUsage = await tx.voucherUsage.count({
           where: { voucherId: voucher.id },
@@ -148,6 +186,9 @@ export async function POST(req: NextRequest) {
       }
       if (msg === "IP_USED") {
         return NextResponse.json({ error: "Voucher sudah pernah digunakan dari jaringan ini" }, { status: 400 });
+      }
+      if (msg === "PHONE_USED") {
+        return NextResponse.json({ error: "Voucher sudah pernah digunakan dengan nomor HP ini" }, { status: 400 });
       }
       if (msg === "MAX_USAGE_REACHED") {
         return NextResponse.json({ error: "Voucher sudah mencapai batas penggunaan" }, { status: 400 });
