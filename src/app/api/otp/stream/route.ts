@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { checkSms } from "@/lib/otp";
 import { extractOtp } from "@/lib/otp-extract";
 
-const POLL_INTERVAL = 4000; // 4 detik
+const POLL_INTERVAL = 1000; // 1 detik
 const LINGER_AFTER_FIRST_OTP = 5 * 60 * 1000; // 5 menit setelah OTP pertama
 const MAX_LIFETIME_MS = 20 * 60 * 1000; // 20 menit max (batas waktu nomor)
 
