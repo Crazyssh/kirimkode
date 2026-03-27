@@ -38,6 +38,9 @@ const envSchema = z.object({
 
     // Fonnte WhatsApp API
     FONNTE_API_TOKEN: z.string().optional(),
+
+    // ShadowOTP
+    SHADOW_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

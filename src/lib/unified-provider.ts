@@ -7,13 +7,16 @@
 import { db } from "@/lib/db";
 import { applyPricing } from "@/lib/pricing";
 
-const ACTIVE_PROVIDERS = ["api1", "api2", "api3"];
+const ACTIVE_PROVIDERS = ["api1", "api2", "api3", "shadow1", "shadow2", "shadow3"];
 
 // Server display names
 const SERVER_NAMES: Record<string, { name: string; icon: string }> = {
   api1: { name: "Mars", icon: "🔴" },
   api2: { name: "Jupiter", icon: "🟠" },
   api3: { name: "Saturn", icon: "🟣" },
+  shadow1: { name: "Neptune", icon: "🔵" },
+  shadow2: { name: "Pluto", icon: "🟤" },
+  shadow3: { name: "Mercury", icon: "🟡" },
 };
 
 // ---------- Types ----------
@@ -150,8 +153,9 @@ export async function getUnifiedLayanan(
   const serviceMap = new Map<string, { name: string; minPrice: number; totalStock: number }>();
 
   for (const svc of allServices) {
-    // Apply pricing (skip for api3)
-    const displayPrice = svc.serverId === "api3"
+    // Apply pricing (skip for api3 and shadow servers — harga sudah final)
+    const skipPricing = svc.serverId === "api3" || svc.serverId.startsWith("shadow");
+    const displayPrice = skipPricing
       ? svc.price
       : await applyPricing(svc.price, svc.code, mappings.find(m => m.serverId === svc.serverId)?.externalId || 0);
 
@@ -235,7 +239,8 @@ export async function getServiceProviders(
     const mapping = mappings.find((m) => m.dbCountryId === svc.countryId && m.serverId === svc.serverId);
     if (!mapping) continue;
 
-    const displayPrice = svc.serverId === "api3"
+    const skipPricing = svc.serverId === "api3" || svc.serverId.startsWith("shadow");
+    const displayPrice = skipPricing
       ? svc.price
       : await applyPricing(svc.price, serviceCode, mapping.externalId);
 
