@@ -5,6 +5,8 @@
  * Currency: PKR → IDR conversion with markup.
  */
 
+import { db } from "@/lib/db";
+
 const BASE_URL =
   process.env.SHADOW_API_URL || "https://shadowotp.com/stubs/handler_api.php";
 const API_KEY = process.env.SHADOW_API_KEY || "";
@@ -50,6 +52,40 @@ function getNumericId(slug: string): number {
 
 function getSlugFromId(numericId: number): string | undefined {
   return idToSlug.get(numericId);
+}
+
+/**
+ * Recover slug from DB when in-memory map is empty (e.g. after restart).
+ * Country name stored during sync IS the slug.
+ */
+async function recoverSlugFromDb(numericId: number, serverId: ShadowServerId): Promise<string | undefined> {
+  // Check in-memory first
+  const cached = getSlugFromId(numericId);
+  if (cached) return cached;
+
+  // Query DB — country name is the slug
+  try {
+    const country = await db.providerCountry.findUnique({
+      where: {
+        serverId_externalId: {
+          serverId: serverId,
+          externalId: numericId,
+        },
+      },
+      select: { name: true },
+    });
+
+    if (country?.name) {
+      // Re-populate in-memory map
+      slugToId.set(country.name, numericId);
+      idToSlug.set(numericId, country.name);
+      return country.name;
+    }
+  } catch (err) {
+    console.warn("[Shadow] DB slug recovery failed:", (err as Error).message);
+  }
+
+  return undefined;
 }
 
 /**
@@ -277,7 +313,8 @@ export async function getBalance() {
 
 /**
  * Get countries for a specific ShadowOTP server
- * API response: {"status":"200","countries":{"1":[{"id":"afghanistan","name":"AFGHANISTAN"}, ...]}}
+ * Server 1: {"id":"afghanistan","name":"AFGHANISTAN"} — string slug IDs
+ * Server 2/3: {"id":"74","name":"Afghanistan"} — numeric string IDs (SMS-Activate standard)
  */
 export async function getNegara(serverId: ShadowServerId) {
   const serverNum = SERVER_MAP[serverId];
@@ -291,17 +328,23 @@ export async function getNegara(serverId: ShadowServerId) {
   if (data && typeof data === "object") {
     const d = data as Record<string, unknown>;
 
-    // Format: { status: "200", countries: { "1": [{id: "slug", name: "NAME"}, ...] } }
     const countriesWrapper = d.countries as Record<string, unknown> | undefined;
     if (countriesWrapper) {
-      // Get the array for this server number
       const countryArray = countriesWrapper[String(serverNum)];
       if (Array.isArray(countryArray)) {
         for (const c of countryArray) {
           if (c && typeof c === "object" && "id" in c && "name" in c) {
-            const slug = String(c.id);
+            const rawId = String(c.id);
             const name = String(c.name);
-            const numericId = getNumericId(slug);
+
+            // Auto-detect: numeric string → use directly, slug → hash
+            const isNumeric = /^\d+$/.test(rawId);
+            const numericId = isNumeric ? parseInt(rawId, 10) : getNumericId(rawId);
+
+            // Store slug/id mapping for reverse lookup
+            slugToId.set(rawId, numericId);
+            idToSlug.set(numericId, rawId);
+
             countries.push({
               id_negara: numericId,
               nama_negara: name.toLowerCase(),
@@ -325,8 +368,8 @@ export async function getNegara(serverId: ShadowServerId) {
 export async function getLayanan(serverId: ShadowServerId, negara: number) {
   const serverNum = SERVER_MAP[serverId];
 
-  // Convert numeric ID back to slug for API call
-  const countrySlug = getSlugFromId(negara);
+  // Convert numeric ID back to slug for API call (with DB fallback)
+  const countrySlug = await recoverSlugFromDb(negara, serverId);
   const countryParam = countrySlug || String(negara);
 
   const data = await fetchShadow({
@@ -388,8 +431,8 @@ export async function createOrder(
 ) {
   const serverNum = SERVER_MAP[serverId];
 
-  // Convert numeric ID back to slug for API call
-  const countrySlug = getSlugFromId(negara);
+  // Convert numeric ID back to slug for API call (with DB fallback)
+  const countrySlug = await recoverSlugFromDb(negara, serverId);
   const countryParam = countrySlug || String(negara);
 
   const params: Record<string, string> = {
