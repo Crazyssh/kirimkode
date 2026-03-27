@@ -30,6 +30,7 @@ model User {
 
   webhookUrl    String?   // webhook URL for OTP notifications
   favorites     String    @default("") // comma-separated favorite service codes
+  favoriteCountries String @default("") // comma-separated favorite country IDs
   theme         String    @default("dark") // dark | light
   referralCode  String?   @unique // kode referral unik user ini
   referredBy    String?   // userId yang mereferensikan

@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, phone, webhookUrl, currentPassword, newPassword, favorites, theme } = body;
+  const { name, phone, webhookUrl, currentPassword, newPassword, favorites, favoriteCountries, theme } = body;
 
   const updateData: Record<string, unknown> = {};
 
@@ -68,6 +68,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (favorites !== undefined) updateData.favorites = favorites;
+  if (favoriteCountries !== undefined) updateData.favoriteCountries = favoriteCountries;
   if (theme !== undefined && ["dark", "light"].includes(theme)) updateData.theme = theme;
 
   // Password change

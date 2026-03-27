@@ -33,16 +33,17 @@ export async function GET() {
     }
 
     // Fetch new fields separately to avoid crash if they don't exist yet
-    let extras = { webhookUrl: null as string | null, favorites: "", theme: "dark" };
+    let extras = { webhookUrl: null as string | null, favorites: "", favoriteCountries: "", theme: "dark" };
     try {
       const full = await db.user.findUnique({
         where: { id: session.user.id },
-        select: { webhookUrl: true, favorites: true, theme: true },
+        select: { webhookUrl: true, favorites: true, favoriteCountries: true, theme: true },
       });
       if (full) {
         extras = {
           webhookUrl: full.webhookUrl,
           favorites: full.favorites,
+          favoriteCountries: full.favoriteCountries || "",
           theme: full.theme,
         };
       }

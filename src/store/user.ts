@@ -12,6 +12,7 @@ interface UserData {
   apiKey: string | null;
   webhookUrl: string | null;
   favorites: string;
+  favoriteCountries: string;
   theme: string;
 }
 

@@ -584,6 +584,23 @@ export default function BuyPage() {
     } catch { /* silent */ }
   };
 
+  const userFavCountries = (user?.favoriteCountries || "").split(",").filter(Boolean);
+
+  const toggleFavCountry = async (id: number) => {
+    const idStr = String(id);
+    const current = (user?.favoriteCountries || "").split(",").filter(Boolean);
+    const updated = current.includes(idStr) ? current.filter((c) => c !== idStr) : [...current, idStr];
+    const newFavCountries = updated.join(",");
+    try {
+      await fetch("/api/user/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ favoriteCountries: newFavCountries }),
+      });
+      fetchUser();
+    } catch { /* silent */ }
+  };
+
   const filteredServices = serviceList
     .filter((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => {
@@ -724,6 +741,11 @@ export default function BuyPage() {
                                 .toLowerCase()
                                 .includes(countrySearch.toLowerCase())
                             )
+                            .sort((a, b) => {
+                              const aFav = userFavCountries.includes(String(a.id_negara)) ? -1 : 0;
+                              const bFav = userFavCountries.includes(String(b.id_negara)) ? -1 : 0;
+                              return aFav - bFav;
+                            })
                             .map((negara) => (
                               <button
                                 key={negara.id_negara}
@@ -732,12 +754,18 @@ export default function BuyPage() {
                                   setShowCountryDropdown(false);
                                   setCountrySearch("");
                                 }}
-                                className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-hover transition-colors ${selectedNegara?.id_negara ===
+                                className={`w-full text-left px-3 py-2 text-sm hover:bg-surface-hover transition-colors flex items-center gap-2 ${selectedNegara?.id_negara ===
                                   negara.id_negara
                                   ? "bg-primary/10 text-primary"
                                   : ""
                                   }`}
                               >
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); toggleFavCountry(negara.id_negara); }}
+                                  className="shrink-0"
+                                >
+                                  <Star className={`w-3 h-3 ${userFavCountries.includes(String(negara.id_negara)) ? "text-accent fill-accent" : "text-muted"}`} />
+                                </button>
                                 {capitalizeFirst(negara.nama_negara)}
                               </button>
                             ))}
