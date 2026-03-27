@@ -207,6 +207,7 @@ export async function getServiceProviders(
     price: number;
     stock: number;
     negaraId: number; // provider's country ID (for ordering)
+    actualCode: string; // actual service code for this provider (may differ from serviceCode)
   }>;
 }> {
   const mappings = await getCountryMappings(unifiedNegaraId);
@@ -216,13 +217,40 @@ export async function getServiceProviders(
 
   const dbCountryIds = mappings.map((m) => m.dbCountryId);
 
-  const services = await db.providerService.findMany({
+  // Step 1: Find service name for this code
+  const primaryService = await db.providerService.findFirst({
     where: {
       code: serviceCode,
       countryId: { in: dbCountryIds },
       serverId: { in: ACTIVE_PROVIDERS },
     },
-    select: { serverId: true, name: true, price: true, stock: true, countryId: true },
+    select: { name: true },
+  });
+
+  // Step 2: Find ALL codes that share the same service name
+  // e.g., "wa" (api1) and "whatsapp" (shadow1) both have name "Whatsapp"
+  let allCodes = [serviceCode];
+  if (primaryService?.name) {
+    const equivalentServices = await db.providerService.findMany({
+      where: {
+        name: { equals: primaryService.name, mode: "insensitive" },
+        countryId: { in: dbCountryIds },
+        serverId: { in: ACTIVE_PROVIDERS },
+      },
+      select: { code: true },
+      distinct: ["code"],
+    });
+    allCodes = [...new Set([serviceCode, ...equivalentServices.map((s) => s.code)])];
+  }
+
+  // Step 3: Query all matching services
+  const services = await db.providerService.findMany({
+    where: {
+      code: { in: allCodes },
+      countryId: { in: dbCountryIds },
+      serverId: { in: ACTIVE_PROVIDERS },
+    },
+    select: { serverId: true, name: true, price: true, stock: true, countryId: true, code: true },
   });
 
   const providers: Array<{
@@ -232,9 +260,15 @@ export async function getServiceProviders(
     price: number;
     stock: number;
     negaraId: number;
+    actualCode: string;
   }> = [];
 
+  // Deduplicate: only one entry per serverId (cheapest)
+  const seen = new Set<string>();
+
   for (const svc of services) {
+    if (seen.has(svc.serverId)) continue;
+    seen.add(svc.serverId);
 
     const mapping = mappings.find((m) => m.dbCountryId === svc.countryId && m.serverId === svc.serverId);
     if (!mapping) continue;
@@ -253,6 +287,7 @@ export async function getServiceProviders(
       price: displayPrice,
       stock: svc.stock,
       negaraId: mapping.externalId,
+      actualCode: svc.code, // actual code to use for this provider's API
     });
   }
 
