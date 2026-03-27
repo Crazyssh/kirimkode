@@ -292,50 +292,21 @@ model ProviderCountry {
 }
 
 model ProviderService {
-  id              String   @id @default(cuid())
-  serverId        String   // "api1" | "api2"
-  countryId       String   // FK ke ProviderCountry
-  code            String   // kode layanan asli dari provider (e.g. "wa", "whatsapp")
-  name            String   // nama layanan (e.g. "WhatsApp")
-  price           Int      // harga asli dari provider (IDR)
-  stock           Int      // stok tersedia
-  masterServiceId String?  // FK ke MasterService (canonical code)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id        String   @id @default(cuid())
+  serverId  String   // "api1" | "api2"
+  countryId String   // FK ke ProviderCountry
+  code      String   // kode layanan (e.g. "wa", "tg")
+  name      String   // nama layanan (e.g. "WhatsApp")
+  price     Int      // harga asli dari JasaOTP (IDR)
+  stock     Int      // stok tersedia
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  country       ProviderCountry @relation(fields: [countryId], references: [id], onDelete: Cascade)
-  masterService MasterService?  @relation(fields: [masterServiceId], references: [id])
+  country ProviderCountry @relation(fields: [countryId], references: [id], onDelete: Cascade)
 
   @@unique([serverId, countryId, code])
   @@index([serverId, countryId])
-  @@index([masterServiceId])
   @@map("provider_services")
-}
-
-// ==================== MASTER SERVICE CATALOG ====================
-
-model MasterService {
-  id       String @id           // canonical short code: "wa", "tg", "ig"
-  name     String               // display name: "WhatsApp", "Telegram"
-  category String @default("")  // "Messenger", "Social", "Shopping"
-  icon     String @default("")  // "/icons/whatsapp.svg"
-
-  aliases  ServiceAlias[]
-  services ProviderService[]
-
-  @@map("master_services")
-}
-
-model ServiceAlias {
-  id              String @id @default(cuid())
-  masterServiceId String // FK → MasterService.id
-  providerCode    String // kode dari provider ("whatsapp", "wa", etc.)
-
-  masterService MasterService @relation(fields: [masterServiceId], references: [id], onDelete: Cascade)
-
-  @@unique([masterServiceId, providerCode])
-  @@index([providerCode])
-  @@map("service_aliases")
 }
 
 model ProviderOperator {
