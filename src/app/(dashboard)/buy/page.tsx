@@ -11,6 +11,7 @@ import type { OTPServer } from "@/data/services";
 import { useUserStore } from "@/store/user";
 import { useLanguageStore } from "@/store/language";
 import { playOtpSound } from "@/lib/sound";
+import { getCountryFlag } from "@/lib/country-flags";
 import { toast } from "sonner";
 import {
   Search,
@@ -713,7 +714,7 @@ export default function BuyPage() {
                     >
                       <span>
                         {selectedNegara
-                          ? capitalizeFirst(selectedNegara.nama_negara)
+                          ? `${getCountryFlag(selectedNegara.nama_negara)} ${capitalizeFirst(selectedNegara.nama_negara)}`
                           : t("buy.selectCountry")}
                       </span>
                       <ChevronDown className="w-4 h-4 text-muted" />
@@ -766,6 +767,7 @@ export default function BuyPage() {
                                 >
                                   <Star className={`w-3 h-3 ${userFavCountries.includes(String(negara.id_negara)) ? "text-accent fill-accent" : "text-muted"}`} />
                                 </button>
+                                <span>{getCountryFlag(negara.nama_negara)}</span>
                                 {capitalizeFirst(negara.nama_negara)}
                               </button>
                             ))}
