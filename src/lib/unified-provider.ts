@@ -146,25 +146,26 @@ export async function getUnifiedLayanan(
       countryId: { in: dbCountryIds },
       serverId: { in: ACTIVE_PROVIDERS },
     },
-    select: { code: true, name: true, price: true, stock: true, serverId: true },
+    select: { code: true, name: true, price: true, stock: true, serverId: true, masterServiceId: true },
   });
 
-  // Group by service code
+  // Group by masterServiceId (canonical code) — falls back to provider code if unmapped
   const serviceMap = new Map<string, { name: string; minPrice: number; totalStock: number }>();
 
   for (const svc of allServices) {
-    // Apply pricing (skip for api3 and shadow servers — harga sudah final)
+    const groupKey = svc.masterServiceId || svc.code;
+
     const skipPricing = svc.serverId === "api3" || svc.serverId.startsWith("shadow");
     const displayPrice = skipPricing
       ? svc.price
       : await applyPricing(svc.price, svc.code, mappings.find(m => m.serverId === svc.serverId)?.externalId || 0);
 
-    const existing = serviceMap.get(svc.code);
+    const existing = serviceMap.get(groupKey);
     if (existing) {
       if (displayPrice < existing.minPrice) existing.minPrice = displayPrice;
       existing.totalStock += svc.stock;
     } else {
-      serviceMap.set(svc.code, {
+      serviceMap.set(groupKey, {
         name: svc.name,
         minPrice: displayPrice,
         totalStock: svc.stock,
@@ -191,12 +192,12 @@ export async function getUnifiedLayanan(
 // ---------- Layanan detail per provider ----------
 
 /**
- * Get all provider options for a specific service code.
- * User clicks "WhatsApp" → sees api1/api2/api3 with prices.
+ * Get all provider options for a specific service (by masterServiceId or code).
+ * User clicks "WhatsApp" (masterServiceId="wa") → sees all providers that have WhatsApp.
  */
 export async function getServiceProviders(
   unifiedNegaraId: number,
-  serviceCode: string
+  serviceCode: string // This is now masterServiceId (canonical) or fallback provider code
 ): Promise<{
   service: string;
   code: string;
@@ -206,8 +207,8 @@ export async function getServiceProviders(
     icon: string;
     price: number;
     stock: number;
-    negaraId: number; // provider's country ID (for ordering)
-    actualCode: string; // actual service code for this provider (may differ from serviceCode)
+    negaraId: number;
+    actualCode: string;
   }>;
 }> {
   const mappings = await getCountryMappings(unifiedNegaraId);
@@ -217,38 +218,15 @@ export async function getServiceProviders(
 
   const dbCountryIds = mappings.map((m) => m.dbCountryId);
 
-  // Step 1: Find service name for this code
-  const primaryService = await db.providerService.findFirst({
-    where: {
-      code: serviceCode,
-      countryId: { in: dbCountryIds },
-      serverId: { in: ACTIVE_PROVIDERS },
-    },
-    select: { name: true },
-  });
-
-  // Step 2: Find ALL codes that share the same service name
-  // e.g., "wa" (api1) and "whatsapp" (shadow1) both have name "Whatsapp"
-  let allCodes = [serviceCode];
-  if (primaryService?.name) {
-    const equivalentServices = await db.providerService.findMany({
-      where: {
-        name: { equals: primaryService.name, mode: "insensitive" },
-        countryId: { in: dbCountryIds },
-        serverId: { in: ACTIVE_PROVIDERS },
-      },
-      select: { code: true },
-      distinct: ["code"],
-    });
-    allCodes = [...new Set([serviceCode, ...equivalentServices.map((s) => s.code)])];
-  }
-
-  // Step 3: Query all matching services
+  // Query by masterServiceId (canonical code) OR exact provider code (fallback)
   const services = await db.providerService.findMany({
     where: {
-      code: { in: allCodes },
       countryId: { in: dbCountryIds },
       serverId: { in: ACTIVE_PROVIDERS },
+      OR: [
+        { masterServiceId: serviceCode },
+        { code: serviceCode },
+      ],
     },
     select: { serverId: true, name: true, price: true, stock: true, countryId: true, code: true },
   });
@@ -263,7 +241,7 @@ export async function getServiceProviders(
     actualCode: string;
   }> = [];
 
-  // Deduplicate: only one entry per serverId (cheapest)
+  // Deduplicate: only one entry per serverId (first found)
   const seen = new Set<string>();
 
   for (const svc of services) {
@@ -287,11 +265,10 @@ export async function getServiceProviders(
       price: displayPrice,
       stock: svc.stock,
       negaraId: mapping.externalId,
-      actualCode: svc.code, // actual code to use for this provider's API
+      actualCode: svc.code,
     });
   }
 
-  // Sort by price ascending
   providers.sort((a, b) => a.price - b.price);
 
   const serviceName = services[0]?.name || serviceCode;

@@ -59,6 +59,13 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
   let serviceCount = 0;
   let operatorCount = 0;
 
+  // Preload alias map: providerCode → masterServiceId
+  const aliases = await db.serviceAlias.findMany();
+  const codeToMaster = new Map<string, string>();
+  for (const a of aliases) {
+    codeToMaster.set(a.providerCode, a.masterServiceId);
+  }
+
   try {
     // Step 1: Fetch semua negara
     const negaraRes = await getNegara(serverId as ServerId);
@@ -121,6 +128,7 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
           if (serviceData) {
             for (const [code, info] of Object.entries(serviceData)) {
               if (info && typeof info === "object" && "harga" in info) {
+                const masterId = codeToMaster.get(code) || null;
                 await db.providerService.upsert({
                   where: {
                     serverId_countryId_code: {
@@ -133,6 +141,7 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
                     name: info.layanan || code,
                     price: info.harga,
                     stock: info.stok || 0,
+                    masterServiceId: masterId,
                   },
                   create: {
                     serverId,
@@ -141,6 +150,7 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
                     name: info.layanan || code,
                     price: info.harga,
                     stock: info.stok || 0,
+                    masterServiceId: masterId,
                   },
                 });
                 serviceCount++;
