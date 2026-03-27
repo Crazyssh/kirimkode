@@ -153,15 +153,15 @@ export async function getUnifiedLayanan(
   const serviceMap = new Map<string, { name: string; minPrice: number; totalStock: number }>();
 
   for (const svc of allServices) {
-    // Apply pricing (skip hanya untuk api3 — harga sudah USD→IDR final)
     const skipPricing = svc.serverId === "api3";
     const rawPrice = svc.price;
-    let displayPrice = skipPricing
-      ? rawPrice
+    const pricingResult = skipPricing
+      ? { price: rawPrice, hasRule: false }
       : await applyPricing(rawPrice, svc.code, mappings.find(m => m.serverId === svc.serverId)?.externalId || 0);
+    let displayPrice = pricingResult.price;
 
-    // Shadow servers: tambah 2 digit terakhir harga asli supaya terlihat natural
-    if (svc.serverId.startsWith("shadow") && !skipPricing) {
+    // Shadow servers: tambah 2 digit terakhir harga asli (hanya kalau BUKAN custom rule)
+    if (svc.serverId.startsWith("shadow") && !skipPricing && !pricingResult.hasRule) {
       displayPrice += rawPrice % 100;
     }
 
@@ -281,12 +281,13 @@ export async function getServiceProviders(
 
     const skipPricing = svc.serverId === "api3";
     const rawPrice = svc.price;
-    let displayPrice = skipPricing
-      ? rawPrice
+    const pricingResult = skipPricing
+      ? { price: rawPrice, hasRule: false }
       : await applyPricing(rawPrice, serviceCode, mapping.externalId);
+    let displayPrice = pricingResult.price;
 
-    // Shadow servers: tambah 2 digit terakhir harga asli
-    if (svc.serverId.startsWith("shadow") && !skipPricing) {
+    // Shadow servers: tambah 2 digit terakhir harga asli (hanya kalau BUKAN custom rule)
+    if (svc.serverId.startsWith("shadow") && !skipPricing && !pricingResult.hasRule) {
       displayPrice += rawPrice % 100;
     }
 

@@ -49,7 +49,7 @@ export async function applyPricing(
   basePrice: number,
   serviceCode: string,
   countryId: number
-): Promise<number> {
+): Promise<{ price: number; hasRule: boolean }> {
   const rules = await getRules();
 
   // Priority: exact match > service-only > global
@@ -67,31 +67,36 @@ export async function applyPricing(
 
   if (!rule) {
     // Default tiered pricing berdasarkan harga provider
-    if (basePrice > 10_000) return Math.ceil(basePrice * 0.6);
-    if (basePrice >= 5_000) return 5_000;
-    if (basePrice >= 2_500) return 2_500;
-    if (basePrice >= 2_000) return 2_000;
-    if (basePrice >= 1_000) return 1_000;
-    if (basePrice >= 500) return 500;
-    return basePrice;
+    if (basePrice > 10_000) return { price: Math.ceil(basePrice * 0.6), hasRule: false };
+    if (basePrice >= 5_000) return { price: 5_000, hasRule: false };
+    if (basePrice >= 2_500) return { price: 2_500, hasRule: false };
+    if (basePrice >= 2_000) return { price: 2_000, hasRule: false };
+    if (basePrice >= 1_000) return { price: 1_000, hasRule: false };
+    if (basePrice >= 500) return { price: 500, hasRule: false };
+    return { price: basePrice, hasRule: false };
   }
 
+  let price: number;
   switch (rule.priceType) {
     case "fixed":
-      return rule.value;
+      price = rule.value;
+      break;
     case "multiply":
       // value is percentage, e.g. 150 = 1.5x
-      return Math.ceil((basePrice * rule.value) / 100);
+      price = Math.ceil((basePrice * rule.value) / 100);
+      break;
     case "markup":
-      return basePrice + rule.value;
+      price = basePrice + rule.value;
+      break;
     case "floor":
-      // Bulatkan ke bawah ke kelipatan value. Misal value=500:
-      // 499 → 499 (di bawah step, biarin), 500 → 500, 750 → 500, 1200 → 1000
-      if (basePrice < rule.value) return basePrice;
-      return Math.floor(basePrice / rule.value) * rule.value;
+      // Bulatkan ke bawah ke kelipatan value
+      if (basePrice < rule.value) { price = basePrice; break; }
+      price = Math.floor(basePrice / rule.value) * rule.value;
+      break;
     default:
-      return basePrice;
+      price = basePrice;
   }
+  return { price, hasRule: true };
 }
 
 /** Invalidate cache (call after admin updates rules) */

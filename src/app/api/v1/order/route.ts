@@ -19,7 +19,8 @@ async function getServerPrice(server: "api1" | "api2", country: number, service:
     throw new Error("Service not found or price unavailable");
   }
 
-  return applyPricing(serviceInfo.harga, service, country);
+  const result = await applyPricing(serviceInfo.harga, service, country);
+  return result.price;
 }
 
 export const POST = withApiAuth(async (req, user) => {

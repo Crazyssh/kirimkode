@@ -54,15 +54,17 @@ export async function GET(req: NextRequest) {
       const serviceData: Record<string, { harga: number; stok: number; layanan: string }> = {};
 
       for (const svc of services) {
-        // api3: harga sudah termasuk konversi USD→IDR + markup, skip applyPricing
         const skipPricing = server === "api3";
-        let customPrice = skipPricing
-          ? svc.price
-          : await applyPricing(svc.price, svc.code, negaraId);
-
-        // Shadow: tambah 2 digit terakhir harga asli
-        if (server.startsWith("shadow") && !skipPricing) {
-          customPrice += svc.price % 100;
+        let customPrice: number;
+        if (skipPricing) {
+          customPrice = svc.price;
+        } else {
+          const result = await applyPricing(svc.price, svc.code, negaraId);
+          customPrice = result.price;
+          // Shadow: tambah 2 digit terakhir harga asli (hanya kalau BUKAN custom rule)
+          if (server.startsWith("shadow") && !result.hasRule) {
+            customPrice += svc.price % 100;
+          }
         }
 
         serviceData[svc.code] = {
@@ -96,9 +98,10 @@ export async function GET(req: NextRequest) {
       for (const [code, info] of Object.entries(serviceData)) {
         if (info && typeof info === "object" && "harga" in info) {
           const rawPrice = info.harga;
-          info.harga = await applyPricing(rawPrice, code, negaraId);
-          // Shadow: tambah 2 digit terakhir harga asli
-          if (server.startsWith("shadow")) {
+          const result = await applyPricing(rawPrice, code, negaraId);
+          info.harga = result.price;
+          // Shadow: tambah 2 digit terakhir harga asli (hanya kalau BUKAN custom rule)
+          if (server.startsWith("shadow") && !result.hasRule) {
             info.harga += rawPrice % 100;
           }
         }
