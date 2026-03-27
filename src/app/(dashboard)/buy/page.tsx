@@ -494,7 +494,7 @@ export default function BuyPage() {
     setBulkOrdering(true);
     setError(null);
     let successCount = 0;
-    let lastError = "";
+    let failCount = 0;
 
     const orderIds: string[] = [];
 
@@ -517,14 +517,25 @@ export default function BuyPage() {
         if (data.success && data.data) {
           successCount++;
           if (data.data.id) orderIds.push(data.data.id);
+          toast.success(`Order ${i + 1}/${count} berhasil`, {
+            description: `Nomor: ${data.data.number || "..."}`,
+          });
         } else {
-          lastError = data.message || data.error || "Gagal membuat pesanan";
-          break;
+          failCount++;
+          const errMsg = data.message || data.error || "Gagal";
+          toast.error(`Order ${i + 1}/${count} gagal`, {
+            description: errMsg,
+          });
         }
       } catch {
-        lastError = "Gagal membuat pesanan. Coba lagi.";
-        break;
+        failCount++;
+        toast.error(`Order ${i + 1}/${count} gagal`, {
+          description: "Koneksi error, coba lagi.",
+        });
       }
+
+      // Refresh history setiap order selesai
+      fetchHistory(1, true);
     }
 
     // Trigger checker untuk semua order yang berhasil (non-blocking)
@@ -549,8 +560,11 @@ export default function BuyPage() {
       });
     }
 
-    if (successCount < count && lastError) {
-      setError(`${successCount}/${count} berhasil. ${lastError}`);
+    // Summary toast
+    if (failCount > 0 && successCount > 0) {
+      toast.info(`Selesai: ${successCount} berhasil, ${failCount} gagal`);
+    } else if (failCount > 0 && successCount === 0) {
+      setError(`Semua ${count} order gagal.`);
     }
   };
 
