@@ -53,6 +53,7 @@ interface ProviderOption {
   price: number;
   stock: number;
   negaraId: number;
+  actualCode?: string;
 }
 
 interface WaCheckData {
@@ -439,7 +440,7 @@ export default function BuyPage() {
         body: JSON.stringify({
           server: isUnified && selectedProvider ? selectedProvider.serverId : selectedServer.id,
           negara: isUnified && selectedProvider ? selectedProvider.negaraId : selectedNegara.id_negara,
-          layanan: service.code,
+          layanan: isUnified && selectedProvider?.actualCode ? selectedProvider.actualCode : service.code,
           operator: selectedOperator,
           serviceName: service.name,
           countryName: selectedNegara.nama_negara,
@@ -505,7 +506,7 @@ export default function BuyPage() {
           body: JSON.stringify({
             server: isUnified && selectedProvider ? selectedProvider.serverId : selectedServer.id,
             negara: isUnified && selectedProvider ? selectedProvider.negaraId : selectedNegara.id_negara,
-            layanan: service.code,
+            layanan: isUnified && selectedProvider?.actualCode ? selectedProvider.actualCode : service.code,
             operator: selectedOperator,
             serviceName: service.name,
             countryName: selectedNegara.nama_negara,
