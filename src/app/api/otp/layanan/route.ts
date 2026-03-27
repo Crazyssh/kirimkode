@@ -27,60 +27,62 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // api1/api2/api3: baca dari database (cached by cron sync)
-    if (server === "api1" || server === "api2" || server === "api3") {
-      // Cari country di DB
-      const country = await db.providerCountry.findUnique({
-        where: {
-          serverId_externalId: {
-            serverId: server,
-            externalId: negaraId,
-          },
+    // api1/api2/api3/shadow1/shadow2/shadow3: baca dari database (cached by cron sync)
+    // Cari country di DB
+    const country = await db.providerCountry.findUnique({
+      where: {
+        serverId_externalId: {
+          serverId: server,
+          externalId: negaraId,
         },
-        select: { id: true },
+      },
+      select: { id: true },
+    });
+
+    // Kalau country ada di DB, ambil layanan dari DB
+    if (country) {
+      const services = await db.providerService.findMany({
+        where: {
+          serverId: server,
+          countryId: country.id,
+        },
+        select: { code: true, name: true, price: true, stock: true },
       });
 
-      // Kalau country ada di DB, ambil layanan dari DB
-      if (country) {
-        const services = await db.providerService.findMany({
-          where: {
-            serverId: server,
-            countryId: country.id,
-          },
-          select: { code: true, name: true, price: true, stock: true },
-        });
+      // Build response format: { "negaraId": { "code": { harga, stok, layanan } } }
+      const negaraKey = String(negaraId);
+      const serviceData: Record<string, { harga: number; stok: number; layanan: string }> = {};
 
-        // Build response format yang sama dengan JasaOTP: { "negaraId": { "code": { harga, stok, layanan } } }
-        const negaraKey = String(negaraId);
-        const serviceData: Record<string, { harga: number; stok: number; layanan: string }> = {};
+      for (const svc of services) {
+        // api3: harga sudah termasuk konversi USD→IDR + markup, skip applyPricing
+        const skipPricing = server === "api3";
+        let customPrice = skipPricing
+          ? svc.price
+          : await applyPricing(svc.price, svc.code, negaraId);
 
-        for (const svc of services) {
-          // api3: harga sudah termasuk konversi USD→IDR + markup dari adapter, skip applyPricing
-          // api1/api2: apply pricing rules ke harga asli dari DB
-          const customPrice = (server === "api3")
-            ? svc.price
-            : await applyPricing(svc.price, svc.code, negaraId);
-          serviceData[svc.code] = {
-            harga: customPrice,
-            stok: svc.stock,
-            layanan: svc.name,
-          };
+        // Shadow: tambah 2 digit terakhir harga asli
+        if (server.startsWith("shadow") && !skipPricing) {
+          customPrice += svc.price % 100;
         }
 
-        return NextResponse.json({ [negaraKey]: serviceData }, {
-          headers: {
-            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=180",
-          },
-        });
+        serviceData[svc.code] = {
+          harga: customPrice,
+          stok: svc.stock,
+          layanan: svc.name,
+        };
       }
 
-      // Fallback: kalau belum ada di DB, fetch dari API langsung
+      return NextResponse.json({ [negaraKey]: serviceData }, {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=180",
+        },
+      });
     }
 
-    // fallback (DB kosong): fetch langsung dari provider API
+    // Fallback: kalau belum ada di DB, fetch dari provider API langsung
     const data = await getLayanan(server, negaraId);
 
-    // Apply custom pricing (skip for api3, already handled by adapter)
+    // Apply custom pricing
     const negaraKey = String(negaraId);
     let serviceData: Record<string, { harga: number; stok: number; layanan: string }> | null = null;
 
@@ -93,8 +95,12 @@ export async function GET(req: NextRequest) {
     if (serviceData && server !== "api3") {
       for (const [code, info] of Object.entries(serviceData)) {
         if (info && typeof info === "object" && "harga" in info) {
-          const customPrice = await applyPricing(info.harga, code, negaraId);
-          info.harga = customPrice;
+          const rawPrice = info.harga;
+          info.harga = await applyPricing(rawPrice, code, negaraId);
+          // Shadow: tambah 2 digit terakhir harga asli
+          if (server.startsWith("shadow")) {
+            info.harga += rawPrice % 100;
+          }
         }
       }
     }
