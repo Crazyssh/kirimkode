@@ -509,16 +509,19 @@ export default function PricingPage() {
           <Card>
             <CardContent>
               <label className="text-xs text-muted block mb-2">Server</label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: "api1", name: "Mars", icon: "🔴" },
                   { id: "api2", name: "Jupiter", icon: "🟠" },
                   { id: "api3", name: "Saturn", icon: "🟣" },
+                  { id: "shadow1", name: "Neptune", icon: "🔵" },
+                  { id: "shadow2", name: "Pluto", icon: "🟤" },
+                  { id: "shadow3", name: "Mercury", icon: "🟡" },
                 ].map((s) => (
                   <button
                     key={s.id}
                     onClick={() => { setSelectedServer(s.id); setSelectedCountryId(0); setGlobalServiceSearch(""); }}
-                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+                    className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-xl border text-xs font-medium transition-all ${
                       selectedServer === s.id ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/30"
                     }`}
                   >
@@ -550,7 +553,9 @@ export default function PricingPage() {
                 />
               </div>
               {globalServiceSearch && (
-                <p className="text-[10px] text-muted mt-1.5">Min. 2 karakter. Cari di semua negara server {selectedServer === "api1" ? "Mars" : selectedServer === "api2" ? "Jupiter" : "Saturn"}.</p>
+                <p className="text-[10px] text-muted mt-1.5">Min. 2 karakter. Cari di semua negara server {
+                  ({api1:"Mars",api2:"Jupiter",api3:"Saturn",shadow1:"Neptune",shadow2:"Pluto",shadow3:"Mercury"} as Record<string,string>)[selectedServer] || selectedServer
+                }.</p>
               )}
             </CardContent>
           </Card>
