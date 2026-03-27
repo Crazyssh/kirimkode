@@ -175,6 +175,21 @@ function setCache(key: string, data: unknown, ttlMs: number) {
   }
 }
 
+/**
+ * Get correct country parameter for API call.
+ * Shadow1 (server 1): uses slug strings (e.g. "russia", "indonesia")
+ * Shadow2/3 (servers 2,3): use numeric IDs (e.g. 6, 0)
+ */
+async function getCountryParam(serverId: ShadowServerId, negara: number): Promise<string> {
+  if (serverId === "shadow1") {
+    // Shadow1 uses slug — recover from DB or in-memory map
+    const slug = await recoverSlugFromDb(negara, serverId);
+    return slug || String(negara);
+  }
+  // Shadow2/3 use numeric IDs directly
+  return String(negara);
+}
+
 // --- Fetch helper ---
 
 async function fetchShadow(
@@ -374,9 +389,8 @@ export async function getNegara(serverId: ShadowServerId) {
 export async function getLayanan(serverId: ShadowServerId, negara: number) {
   const serverNum = SERVER_MAP[serverId];
 
-  // Convert numeric ID back to slug for API call (with DB fallback)
-  const countrySlug = await recoverSlugFromDb(negara, serverId);
-  const countryParam = countrySlug || String(negara);
+  // Shadow1 uses slug strings (e.g. "russia"), shadow2/3 use numeric IDs (e.g. 6)
+  const countryParam = await getCountryParam(serverId, negara);
 
   const data = await fetchShadow({
     action: "getServices",
@@ -437,9 +451,8 @@ export async function createOrder(
 ) {
   const serverNum = SERVER_MAP[serverId];
 
-  // Convert numeric ID back to slug for API call (with DB fallback)
-  const countrySlug = await recoverSlugFromDb(negara, serverId);
-  const countryParam = countrySlug || String(negara);
+  // Shadow1 uses slug strings (e.g. "russia"), shadow2/3 use numeric IDs (e.g. 6)
+  const countryParam = await getCountryParam(serverId, negara);
 
   const params: Record<string, string> = {
     action: "getNumber",
