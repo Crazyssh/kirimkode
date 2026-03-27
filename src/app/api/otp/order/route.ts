@@ -14,8 +14,8 @@ import { otpOrderSchema, validateBody } from "@/lib/validations";
  * Untuk api3: harga sudah final dari adapter (USD→IDR + markup), skip applyPricing.
  */
 async function getServerPrice(server: "api1" | "api2" | "api3" | "shadow1" | "shadow2" | "shadow3", negara: number, layanan: string): Promise<number> {
-  // api3 & shadow servers: harga sudah final (konversi + markup), skip applyPricing
-  const skipPricing = server === "api3" || server.startsWith("shadow");
+  // api3: harga sudah final (USD→IDR), skip applyPricing
+  const skipPricing = server === "api3";
 
   // Coba ambil dari database dulu (synced by cron)
   const country = await db.providerCountry.findUnique({

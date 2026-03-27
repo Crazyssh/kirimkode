@@ -153,8 +153,8 @@ export async function getUnifiedLayanan(
   const serviceMap = new Map<string, { name: string; minPrice: number; totalStock: number }>();
 
   for (const svc of allServices) {
-    // Apply pricing (skip for api3 and shadow servers — harga sudah final)
-    const skipPricing = svc.serverId === "api3" || svc.serverId.startsWith("shadow");
+    // Apply pricing (skip hanya untuk api3 — harga sudah USD→IDR final)
+    const skipPricing = svc.serverId === "api3";
     const displayPrice = skipPricing
       ? svc.price
       : await applyPricing(svc.price, svc.code, mappings.find(m => m.serverId === svc.serverId)?.externalId || 0);
@@ -273,7 +273,7 @@ export async function getServiceProviders(
     const mapping = mappings.find((m) => m.dbCountryId === svc.countryId && m.serverId === svc.serverId);
     if (!mapping) continue;
 
-    const skipPricing = svc.serverId === "api3" || svc.serverId.startsWith("shadow");
+    const skipPricing = svc.serverId === "api3";
     const displayPrice = skipPricing
       ? svc.price
       : await applyPricing(svc.price, serviceCode, mapping.externalId);
