@@ -116,6 +116,8 @@ model Order {
   @@index([createdAt])
   @@index([userId, status])
   @@index([userId, createdAt])
+  @@index([orderId])
+  @@index([server])
   @@map("orders")
 }
 
@@ -158,6 +160,8 @@ model PriceRule {
   updatedAt   DateTime @updatedAt
 
   @@unique([serviceCode, countryId])
+  @@index([serviceCode])
+  @@index([active])
   @@map("price_rules")
 }
 
@@ -307,6 +311,7 @@ model ProviderService {
 
   @@unique([serverId, countryId, code])
   @@index([serverId, countryId])
+  @@index([code])
   @@map("provider_services")
 }
 
