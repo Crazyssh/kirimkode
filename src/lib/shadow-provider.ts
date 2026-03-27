@@ -9,7 +9,11 @@ import { db } from "@/lib/db";
 
 const BASE_URL =
   process.env.SHADOW_API_URL || "https://shadowotp.com/stubs/handler_api.php";
-const API_KEY = process.env.SHADOW_API_KEY || "";
+
+// Read API key at runtime (not module-level const) to ensure .env is loaded
+function getApiKey(): string {
+  return process.env.SHADOW_API_KEY || "";
+}
 
 // Markup 35% di atas harga provider
 const PRICE_MARKUP = 1.35;
@@ -178,7 +182,7 @@ async function fetchShadow(
   options?: { skipCache?: boolean }
 ): Promise<unknown> {
   const url = new URL(BASE_URL);
-  params.api_key = API_KEY;
+  params.api_key = getApiKey();
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
   const urlStr = url.toString();
