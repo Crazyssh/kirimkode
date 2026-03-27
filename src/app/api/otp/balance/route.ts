@@ -4,7 +4,7 @@ import { getBalance } from "@/lib/otp";
 export async function GET(req: NextRequest) {
   const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3";
 
-  if (!server || !["api1", "api2", "api3"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "shadow1", "shadow2", "shadow3"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 

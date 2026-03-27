@@ -4,9 +4,9 @@ import { db } from "@/lib/db";
 import { getUnifiedNegara } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "shadow1" | "shadow2" | "shadow3" | "unified";
 
-  if (!server || !["api1", "api2", "api3", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "shadow1", "shadow2", "shadow3", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
         headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
       });
     }
-    // api1/api2/api3: baca dari database (cached by cron sync)
-    if (server === "api1" || server === "api2" || server === "api3") {
+    // api1/api2/api3/shadow: baca dari database (cached by cron sync)
+    if (["api1", "api2", "api3", "shadow1", "shadow2", "shadow3"].includes(server)) {
       const countries = await db.providerCountry.findMany({
         where: { serverId: server },
         select: { externalId: true, name: true },
