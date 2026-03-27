@@ -222,8 +222,10 @@ async function fetchShadow(
 
     if (data && typeof data === "object") {
       const d = data as Record<string, unknown>;
-      if (d.status === "error" || d.error) {
-        throw new Error(String(d.message || d.error || "Unknown API error"));
+      // ShadowOTP returns status as string: "200" = ok, "401" = bad key, "404" = not found, "error" = error
+      const status = String(d.status || "");
+      if (status === "error" || status === "401" || status === "404" || d.error) {
+        throw new Error(String(d.message || d.error || `API error (status: ${status})`));
       }
     }
 
