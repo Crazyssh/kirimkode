@@ -155,9 +155,15 @@ export async function getUnifiedLayanan(
   for (const svc of allServices) {
     // Apply pricing (skip hanya untuk api3 — harga sudah USD→IDR final)
     const skipPricing = svc.serverId === "api3";
-    const displayPrice = skipPricing
-      ? svc.price
-      : await applyPricing(svc.price, svc.code, mappings.find(m => m.serverId === svc.serverId)?.externalId || 0);
+    const rawPrice = svc.price;
+    let displayPrice = skipPricing
+      ? rawPrice
+      : await applyPricing(rawPrice, svc.code, mappings.find(m => m.serverId === svc.serverId)?.externalId || 0);
+
+    // Shadow servers: tambah 2 digit terakhir harga asli supaya terlihat natural
+    if (svc.serverId.startsWith("shadow") && !skipPricing) {
+      displayPrice += rawPrice % 100;
+    }
 
     const existing = serviceMap.get(svc.code);
     if (existing) {
@@ -274,9 +280,15 @@ export async function getServiceProviders(
     if (!mapping) continue;
 
     const skipPricing = svc.serverId === "api3";
-    const displayPrice = skipPricing
-      ? svc.price
-      : await applyPricing(svc.price, serviceCode, mapping.externalId);
+    const rawPrice = svc.price;
+    let displayPrice = skipPricing
+      ? rawPrice
+      : await applyPricing(rawPrice, serviceCode, mapping.externalId);
+
+    // Shadow servers: tambah 2 digit terakhir harga asli
+    if (svc.serverId.startsWith("shadow") && !skipPricing) {
+      displayPrice += rawPrice % 100;
+    }
 
     const serverInfo = SERVER_NAMES[svc.serverId] || { name: svc.serverId, icon: "⚪" };
 

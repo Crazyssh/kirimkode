@@ -42,7 +42,10 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "shadow1" | "sh
 
     if (service) {
       if (skipPricing) return service.price;
-      return applyPricing(service.price, layanan, negara);
+      let price = await applyPricing(service.price, layanan, negara);
+      // Shadow: tambah 2 digit terakhir harga asli
+      if (server.startsWith("shadow")) price += service.price % 100;
+      return price;
     }
   }
 
@@ -60,7 +63,10 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "shadow1" | "sh
 
   if (skipPricing) return serviceInfo.harga;
 
-  return applyPricing(serviceInfo.harga, layanan, negara);
+  let price = await applyPricing(serviceInfo.harga, layanan, negara);
+  // Shadow: tambah 2 digit terakhir harga asli
+  if (server.startsWith("shadow")) price += serviceInfo.harga % 100;
+  return price;
 }
 
 

@@ -67,19 +67,13 @@ export async function applyPricing(
 
   if (!rule) {
     // Default tiered pricing berdasarkan harga provider
-    // + suffix dari 2 digit terakhir harga asli (capped 1-50) supaya harga terlihat natural
-    let tiered: number;
-    if (basePrice > 10_000) tiered = Math.ceil(basePrice * 0.6);
-    else if (basePrice >= 5_000) tiered = 5_000;
-    else if (basePrice >= 2_500) tiered = 2_500;
-    else if (basePrice >= 2_000) tiered = 2_000;
-    else if (basePrice >= 1_000) tiered = 1_000;
-    else if (basePrice >= 500) tiered = 500;
-    else return basePrice;
-
-    // Ambil 2 digit terakhir harga asli
-    const suffix = basePrice % 100;
-    return tiered + suffix;
+    if (basePrice > 10_000) return Math.ceil(basePrice * 0.6);
+    if (basePrice >= 5_000) return 5_000;
+    if (basePrice >= 2_500) return 2_500;
+    if (basePrice >= 2_000) return 2_000;
+    if (basePrice >= 1_000) return 1_000;
+    if (basePrice >= 500) return 500;
+    return basePrice;
   }
 
   switch (rule.priceType) {
