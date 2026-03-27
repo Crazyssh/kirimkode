@@ -21,6 +21,46 @@ const SERVER_MAP: Record<string, number> = {
 
 export type ShadowServerId = "shadow1" | "shadow2" | "shadow3";
 
+/**
+ * Convert string country slug to stable numeric ID for DB (externalId is Int).
+ * Uses simple hash to produce consistent integer per string.
+ */
+function stringToNumericId(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash);
+}
+
+// Bidirectional mapping: slug ↔ numericId (cached per session)
+const slugToId = new Map<string, number>();
+const idToSlug = new Map<number, string>();
+
+function getNumericId(slug: string): number {
+  const existing = slugToId.get(slug);
+  if (existing !== undefined) return existing;
+  const id = stringToNumericId(slug);
+  slugToId.set(slug, id);
+  idToSlug.set(id, slug);
+  return id;
+}
+
+function getSlugFromId(numericId: number): string | undefined {
+  return idToSlug.get(numericId);
+}
+
+/**
+ * Parse price from ShadowOTP service string like "discord - 5.68 PKR"
+ */
+function parsePriceFromString(value: string): number | null {
+  const match = value.match(/([\d.]+)\s*PKR/);
+  if (match) return parseFloat(match[1]);
+  return null;
+}
+
 // --- PKR → IDR auto-conversion ---
 
 let cachedPkrRate: number | null = null;
@@ -237,6 +277,7 @@ export async function getBalance() {
 
 /**
  * Get countries for a specific ShadowOTP server
+ * API response: {"status":"200","countries":{"1":[{"id":"afghanistan","name":"AFGHANISTAN"}, ...]}}
  */
 export async function getNegara(serverId: ShadowServerId) {
   const serverNum = SERVER_MAP[serverId];
@@ -250,19 +291,22 @@ export async function getNegara(serverId: ShadowServerId) {
   if (data && typeof data === "object") {
     const d = data as Record<string, unknown>;
 
-    // Format: { status: "200", countries: { "1": { count: 5, name: "Russia" }, ... } }
-    const countriesObj = (d.countries || d) as Record<string, unknown>;
-
-    for (const [, info] of Object.entries(countriesObj)) {
-      if (info && typeof info === "object") {
-        const c = info as { code?: number; id?: number; name?: string; eng?: string };
-        const id = c.code ?? c.id;
-        const name = c.name || c.eng;
-        if (typeof id === "number" && name) {
-          countries.push({
-            id_negara: id,
-            nama_negara: name.toLowerCase(),
-          });
+    // Format: { status: "200", countries: { "1": [{id: "slug", name: "NAME"}, ...] } }
+    const countriesWrapper = d.countries as Record<string, unknown> | undefined;
+    if (countriesWrapper) {
+      // Get the array for this server number
+      const countryArray = countriesWrapper[String(serverNum)];
+      if (Array.isArray(countryArray)) {
+        for (const c of countryArray) {
+          if (c && typeof c === "object" && "id" in c && "name" in c) {
+            const slug = String(c.id);
+            const name = String(c.name);
+            const numericId = getNumericId(slug);
+            countries.push({
+              id_negara: numericId,
+              nama_negara: name.toLowerCase(),
+            });
+          }
         }
       }
     }
@@ -275,18 +319,21 @@ export async function getNegara(serverId: ShadowServerId) {
 
 /**
  * Get services for a country on a specific server
+ * API response: {"status":"200","services":{"discord":"discord - 5.68 PKR", ...}}
+ * Country param uses slug string, not numeric ID.
  */
 export async function getLayanan(serverId: ShadowServerId, negara: number) {
   const serverNum = SERVER_MAP[serverId];
 
-  const [data, serviceNames] = await Promise.all([
-    fetchShadow({
-      action: "getServices",
-      country: String(negara),
-      server: String(serverNum),
-    }),
-    getServiceNames(),
-  ]);
+  // Convert numeric ID back to slug for API call
+  const countrySlug = getSlugFromId(negara);
+  const countryParam = countrySlug || String(negara);
+
+  const data = await fetchShadow({
+    action: "getServices",
+    country: countryParam,
+    server: String(serverNum),
+  });
 
   const negaraKey = String(negara);
   const result: Record<
@@ -298,21 +345,21 @@ export async function getLayanan(serverId: ShadowServerId, negara: number) {
   if (data && typeof data === "object") {
     const d = data as Record<string, unknown>;
 
-    // Format: { status: "200", "wa": { price: 50, stock: 100 }, ... }
-    // Or nested: { "negara": { "code": { cost/price, count/stock } } }
-    const serviceObj = (d[negaraKey] || d) as Record<string, unknown>;
+    // Format: { status: "200", services: { "code": "name - price PKR", ... } }
+    const services = d.services as Record<string, string> | undefined;
+    if (services && typeof services === "object") {
+      for (const [code, value] of Object.entries(services)) {
+        if (typeof value !== "string") continue;
 
-    for (const [code, info] of Object.entries(serviceObj)) {
-      if (code === "status" || code === "error" || code === "countries") continue;
-      if (info && typeof info === "object") {
-        const svc = info as { price?: number; cost?: number; stock?: number; count?: number; name?: string };
-        const price = svc.price ?? svc.cost;
-        if (typeof price === "number") {
+        const price = parsePriceFromString(value);
+        if (price !== null) {
           const priceIdr = await convertToIdr(price);
+          // Extract display name from "discord - 5.68 PKR" → "discord"
+          const displayName = value.split(" - ")[0]?.trim() || code;
           result[negaraKey][code] = {
             harga: priceIdr,
-            stok: svc.stock ?? svc.count ?? 0,
-            layanan: svc.name || serviceNames[code] || code,
+            stok: 100, // ShadowOTP doesn't return stock in this format, assume available
+            layanan: displayName,
           };
         }
       }
@@ -341,10 +388,14 @@ export async function createOrder(
 ) {
   const serverNum = SERVER_MAP[serverId];
 
+  // Convert numeric ID back to slug for API call
+  const countrySlug = getSlugFromId(negara);
+  const countryParam = countrySlug || String(negara);
+
   const params: Record<string, string> = {
     action: "getNumber",
     service: layanan,
-    country: String(negara),
+    country: countryParam,
     server: String(serverNum),
   };
 
