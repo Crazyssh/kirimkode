@@ -15,8 +15,8 @@ function getApiKey(): string {
   return process.env.SHADOW_API_KEY || "";
 }
 
-// Markup 35% di atas harga provider
-const PRICE_MARKUP = 1.35;
+// No markup — jual harga asli
+const PRICE_MARKUP = 1.0;
 
 // Map internal serverId → ShadowOTP server number
 const SERVER_MAP: Record<string, number> = {
