@@ -1241,7 +1241,7 @@ export default function BuyPage() {
                                     disabled={cancellingId === o.id}
                                   >
                                     {cancellingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                                    {t("status.order.cancelled")}
+                                    Batalkan
                                   </Button>
                                 ) : (
                                   <span className="text-[10px] text-muted whitespace-nowrap">
