@@ -41,7 +41,7 @@ export async function GET(
 
     const [totalSpentAgg, totalDepositedAgg, recentOrders, recentDeposits] = await Promise.all([
       db.order.aggregate({
-        where: { userId: id },
+        where: { userId: id, status: "success" },
         _sum: { price: true },
       }),
       db.deposit.aggregate({
