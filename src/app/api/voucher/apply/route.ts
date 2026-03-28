@@ -93,6 +93,14 @@ export async function POST(req: NextRequest) {
       || req.headers.get("x-real-ip")
       || "unknown";
 
+    // === ANTI-ABUSE: Tolak IPv6 (harus IPv4) ===
+    if (ip !== "unknown" && ip.includes(":")) {
+      return NextResponse.json(
+        { error: "IP Anda terdeteksi mencurigakan. Gunakan jaringan seluler atau WiFi rumah untuk menggunakan voucher." },
+        { status: 403 }
+      );
+    }
+
     // === ANTI-ABUSE: Cek ISP via ip-api.com ===
     let ispName = "unknown";
     if (ip !== "unknown") {
