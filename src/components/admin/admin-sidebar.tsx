@@ -20,6 +20,7 @@ import {
   X,
   SearchCheck,
   BarChart3,
+  Server,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -35,6 +36,7 @@ const menuItems = [
   { href: "/admin/broadcast", label: "Broadcast", icon: Megaphone },
   { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText },
   { href: "/admin/checker", label: "Checker", icon: SearchCheck },
+  { href: "/admin/server", label: "Server", icon: Server },
 ];
 
 interface AdminSidebarProps {
