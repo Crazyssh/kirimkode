@@ -13,7 +13,18 @@ import {
   Save,
   AlertCircle,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  Globe,
 } from "lucide-react";
+
+interface VoucherUsage {
+  id: string;
+  ip: string | null;
+  bonus: number;
+  createdAt: string;
+  user: { name: string | null; email: string | null };
+}
 
 interface Voucher {
   id: string;
@@ -30,6 +41,7 @@ interface Voucher {
   expiresAt: string | null;
   createdAt: string;
   _count: { usages: number };
+  usages: VoucherUsage[];
 }
 
 export default function VouchersPage() {
@@ -38,6 +50,7 @@ export default function VouchersPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Form
   const [code, setCode] = useState("");
@@ -95,6 +108,22 @@ export default function VouchersPage() {
       });
       fetchVouchers();
     } catch { /* silent */ }
+  };
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString("id-ID", {
+      day: "numeric", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+
+  // Group IPs to detect duplicates
+  const getIpCounts = (usages: VoucherUsage[]) => {
+    const counts: Record<string, number> = {};
+    for (const u of usages) {
+      const ip = u.ip || "unknown";
+      counts[ip] = (counts[ip] || 0) + 1;
+    }
+    return counts;
   };
 
   return (
@@ -207,51 +236,108 @@ export default function VouchersPage() {
               <p className="text-sm">Belum ada voucher</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-xs text-muted border-b border-border">
-                    <th className="pb-2 font-medium">Kode</th>
-                    <th className="pb-2 font-medium">Deskripsi</th>
-                    <th className="pb-2 font-medium">Bonus</th>
-                    <th className="pb-2 font-medium">Dipakai</th>
-                    <th className="pb-2 font-medium hidden sm:table-cell">Kadaluarsa</th>
-                    <th className="pb-2 font-medium">Status</th>
-                    <th className="pb-2 font-medium"></th>
-                  </tr>
-                </thead>
-                <tbody className="text-xs sm:text-sm">
-                  {vouchers.map((v) => {
-                    const expired = v.expiresAt && new Date() > new Date(v.expiresAt);
-                    return (
-                      <tr key={v.id} className="border-b border-border/50">
-                        <td className="py-2 font-[family-name:var(--font-jetbrains-mono)] text-primary font-bold">{v.code}</td>
-                        <td className="py-2 text-muted max-w-[150px] truncate">{v.description}</td>
-                        <td className="py-2 font-bold">
+            <div className="space-y-2">
+              {vouchers.map((v) => {
+                const expired = v.expiresAt && new Date() > new Date(v.expiresAt);
+                const isExpanded = expandedId === v.id;
+                const ipCounts = getIpCounts(v.usages);
+                const uniqueIps = Object.keys(ipCounts).length;
+
+                return (
+                  <div key={v.id} className="rounded-xl border border-border/50 overflow-hidden">
+                    {/* Voucher Row */}
+                    <div
+                      className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-3 hover:bg-surface/30 transition-colors cursor-pointer"
+                      onClick={() => setExpandedId(isExpanded ? null : v.id)}
+                    >
+                      <button className="text-muted shrink-0">
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                      <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-6 gap-1 sm:gap-4 items-center text-xs sm:text-sm">
+                        <span className="font-[family-name:var(--font-jetbrains-mono)] text-primary font-bold truncate">
+                          {v.code}
+                        </span>
+                        <span className="text-muted truncate hidden sm:block">{v.description}</span>
+                        <span className="font-bold">
                           {v.bonusType === "fixed"
                             ? `Rp ${v.bonusValue.toLocaleString("id-ID")}`
                             : `${v.bonusValue}%`}
                           {v.firstDeposit && <Badge variant="warning" className="ml-1 text-[8px]">1st</Badge>}
-                        </td>
-                        <td className="py-2">{v._count.usages}/{v.maxUsage || "∞"}</td>
-                        <td className="py-2 text-muted text-xs hidden sm:table-cell">
+                        </span>
+                        <span>{v._count.usages}/{v.maxUsage || "∞"}</span>
+                        <span className="text-muted text-xs hidden sm:block">
                           {v.expiresAt ? new Date(v.expiresAt).toLocaleDateString("id-ID") : "—"}
-                        </td>
-                        <td className="py-2">
-                          <Badge variant={expired ? "error" : v.active ? "success" : "error"}>
-                            {expired ? "Expired" : v.active ? "Aktif" : "Nonaktif"}
-                          </Badge>
-                        </td>
-                        <td className="py-2">
-                          <Button variant="danger" size="sm" onClick={() => handleDelete(v.id)}>
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </span>
+                        <Badge variant={expired ? "error" : v.active ? "success" : "error"}>
+                          {expired ? "Expired" : v.active ? "Aktif" : "Nonaktif"}
+                        </Badge>
+                      </div>
+                      <Button variant="danger" size="sm" onClick={(e) => { e.stopPropagation(); handleDelete(v.id); }}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+
+                    {/* Expanded Usage Detail */}
+                    {isExpanded && (
+                      <div className="border-t border-border/30 bg-background/30 px-4 py-3">
+                        {v.usages.length === 0 ? (
+                          <p className="text-sm text-muted text-center py-4">Belum ada yang pakai voucher ini</p>
+                        ) : (
+                          <>
+                            {/* IP Summary */}
+                            <div className="flex items-center gap-2 mb-3 text-xs text-muted">
+                              <Globe className="w-3.5 h-3.5" />
+                              <span>{v.usages.length} usage dari {uniqueIps} IP unik</span>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                              <table className="w-full">
+                                <thead>
+                                  <tr className="text-left text-xs text-muted border-b border-border/50">
+                                    <th className="pb-2 font-medium">User</th>
+                                    <th className="pb-2 font-medium">Email</th>
+                                    <th className="pb-2 font-medium">IP Address</th>
+                                    <th className="pb-2 font-medium">Bonus</th>
+                                    <th className="pb-2 font-medium">Waktu</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="text-xs">
+                                  {v.usages.map((u) => {
+                                    const ip = u.ip || "unknown";
+                                    const isDuplicateIp = ipCounts[ip] > 1;
+                                    return (
+                                      <tr key={u.id} className="border-b border-border/30 hover:bg-surface/20 transition-colors">
+                                        <td className="py-2 font-medium">{u.user.name || "-"}</td>
+                                        <td className="py-2 text-muted max-w-[150px] truncate">{u.user.email || "-"}</td>
+                                        <td className="py-2">
+                                          <span className={`font-[family-name:var(--font-jetbrains-mono)] px-1.5 py-0.5 rounded ${
+                                            isDuplicateIp
+                                              ? "bg-error/10 text-error"
+                                              : "bg-surface text-foreground"
+                                          }`}>
+                                            {ip}
+                                          </span>
+                                          {isDuplicateIp && (
+                                            <Badge variant="error" className="ml-1 text-[8px]">DUP</Badge>
+                                          )}
+                                        </td>
+                                        <td className="py-2 font-[family-name:var(--font-jetbrains-mono)] text-primary">
+                                          Rp {u.bonus.toLocaleString("id-ID")}
+                                        </td>
+                                        <td className="py-2 text-muted">{formatDate(u.createdAt)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>

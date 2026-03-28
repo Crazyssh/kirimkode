@@ -10,7 +10,19 @@ export async function GET() {
   try {
     const vouchers = await db.voucher.findMany({
       orderBy: { createdAt: "desc" },
-      include: { _count: { select: { usages: true } } },
+      include: {
+        _count: { select: { usages: true } },
+        usages: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            ip: true,
+            bonus: true,
+            createdAt: true,
+            user: { select: { name: true, email: true } },
+          },
+        },
+      },
     });
     return NextResponse.json({ data: vouchers });
   } catch {
