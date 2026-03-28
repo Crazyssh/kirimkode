@@ -224,8 +224,8 @@ model VoucherUsage {
   depositId String?  // deposit yang dapat bonus
   bonus     Int      // bonus yang didapat
   ip        String?  // IP address saat redeem (anti multi-akun)
+  isp       String?  // ISP name dari ip-api.com (anti VPN)
   createdAt DateTime @default(now())
-
   voucher Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 

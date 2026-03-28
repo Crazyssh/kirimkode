@@ -2,6 +2,57 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 
+// Whitelist ISP Indonesia (keyword match, case-insensitive)
+const ISP_WHITELIST_KEYWORDS = [
+  "telkom",      // Telkom, Telkomsel, Telkomnet
+  "xl",          // XL Axiata
+  "indosat",     // Indosat Ooredoo Hutchison
+  "smartfren",   // PT Smartfren Telecom
+  "tri",         // Hutchison 3 Indonesia
+  "hutchison",   // Hutchison (parent of Tri)
+  "biznet",      // Biznet Networks
+  "myrepublic",  // MyRepublic Indonesia
+  "first media", // PT Link Net (First Media)
+  "link net",    // PT Link Net
+  "cbn",         // PT CBN
+  "icon+",       // ICON+ (PLN Group)
+  "moratelindo", // Moratel
+  "mncplay",     // MNC Play
+  "oxygen",      // Oxygen.id
+];
+
+function isWhitelistedIsp(isp: string): boolean {
+  const lower = isp.toLowerCase();
+  return ISP_WHITELIST_KEYWORDS.some((keyword) => lower.includes(keyword));
+}
+
+interface IpApiResponse {
+  status: string;
+  isp?: string;
+  proxy?: boolean;
+}
+
+async function checkIsp(ip: string): Promise<{ isp: string; isProxy: boolean; allowed: boolean }> {
+  try {
+    const res = await fetch(`http://ip-api.com/json/${ip}?fields=status,isp,proxy`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return { isp: "unknown", isProxy: false, allowed: true }; // fail-open
+
+    const data: IpApiResponse = await res.json();
+    if (data.status !== "success") return { isp: "unknown", isProxy: false, allowed: true };
+
+    const isp = data.isp || "unknown";
+    const isProxy = data.proxy === true;
+    const allowed = !isProxy && isWhitelistedIsp(isp);
+
+    return { isp, isProxy, allowed };
+  } catch {
+    // Kalau ip-api.com down / timeout, fail-open (izinkan)
+    return { isp: "unknown", isProxy: false, allowed: true };
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -41,6 +92,20 @@ export async function POST(req: NextRequest) {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
       || req.headers.get("x-real-ip")
       || "unknown";
+
+    // === ANTI-ABUSE: Cek ISP via ip-api.com ===
+    let ispName = "unknown";
+    if (ip !== "unknown") {
+      const ispCheck = await checkIsp(ip);
+      ispName = ispCheck.isp;
+
+      if (!ispCheck.allowed) {
+        return NextResponse.json(
+          { error: "IP Anda terdeteksi mencurigakan. Gunakan jaringan seluler atau WiFi rumah untuk menggunakan voucher." },
+          { status: 403 }
+        );
+      }
+    }
 
     // Cari voucher
     const voucher = await db.voucher.findFirst({
@@ -151,7 +216,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 4. Re-check max usage global di dalam transaction
+        // 5. Re-check max usage global di dalam transaction
         const currentTotalUsage = await tx.voucherUsage.count({
           where: { voucherId: voucher.id },
         });
@@ -159,17 +224,18 @@ export async function POST(req: NextRequest) {
           throw new Error("MAX_USAGE_REACHED");
         }
 
-        // 5. Buat usage record (dengan IP)
+        // 6. Buat usage record (dengan IP + ISP)
         await tx.voucherUsage.create({
           data: {
             voucherId: voucher.id,
             userId,
             bonus,
             ip,
+            isp: ispName,
           },
         });
 
-        // 6. Tambah saldo
+        // 7. Tambah saldo
         await tx.user.update({
           where: { id: userId },
           data: { balance: { increment: bonus } },

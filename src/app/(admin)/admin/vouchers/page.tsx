@@ -21,6 +21,7 @@ import {
 interface VoucherUsage {
   id: string;
   ip: string | null;
+  isp: string | null;
   bonus: number;
   createdAt: string;
   user: { name: string | null; email: string | null };
@@ -297,6 +298,7 @@ export default function VouchersPage() {
                                     <th className="pb-2 font-medium">User</th>
                                     <th className="pb-2 font-medium">Email</th>
                                     <th className="pb-2 font-medium">IP Address</th>
+                                    <th className="pb-2 font-medium">ISP</th>
                                     <th className="pb-2 font-medium">Bonus</th>
                                     <th className="pb-2 font-medium">Waktu</th>
                                   </tr>
@@ -319,6 +321,19 @@ export default function VouchersPage() {
                                           </span>
                                           {isDuplicateIp && (
                                             <Badge variant="error" className="ml-1 text-[8px]">DUP</Badge>
+                                          )}
+                                        </td>
+                                        <td className="py-2">
+                                          {u.isp ? (
+                                            <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                              u.isp === "unknown"
+                                                ? "bg-warning/10 text-warning"
+                                                : "bg-success/10 text-success"
+                                            }`}>
+                                              {u.isp}
+                                            </span>
+                                          ) : (
+                                            <span className="text-muted">—</span>
                                           )}
                                         </td>
                                         <td className="py-2 font-[family-name:var(--font-jetbrains-mono)] text-primary">
