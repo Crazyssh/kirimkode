@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
       }),
       db.order.groupBy({
         by: ["serviceName"],
-        where: { createdAt: { gte: startDate } },
+        where: { status: "success", createdAt: { gte: startDate } },
         _count: { serviceName: true },
         _sum: { price: true },
         orderBy: { _count: { serviceName: "desc" } },
@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
       }),
       db.order.groupBy({
         by: ["userId"],
-        where: { createdAt: { gte: startDate } },
+        where: { status: "success", createdAt: { gte: startDate } },
         _count: { userId: true },
         _sum: { price: true },
         orderBy: { _count: { userId: "desc" } },

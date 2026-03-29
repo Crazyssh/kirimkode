@@ -55,6 +55,7 @@ export async function GET() {
     // Top 5 services by order count
     const topServicesGroup = await db.order.groupBy({
       by: ["serviceName"],
+      where: { status: "success" },
       _count: { serviceName: true },
       orderBy: { _count: { serviceName: "desc" } },
       take: 5,
