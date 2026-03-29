@@ -283,7 +283,7 @@ export async function getServiceProviders(
     const rawPrice = svc.price;
     const pricingResult = skipPricing
       ? { price: rawPrice, hasRule: false }
-      : await applyPricing(rawPrice, serviceCode, mapping.externalId);
+      : await applyPricing(rawPrice, svc.code, mapping.externalId);
     let displayPrice = pricingResult.price;
 
     // Shadow servers: tambah 2 digit terakhir harga asli (hanya kalau BUKAN custom rule)
