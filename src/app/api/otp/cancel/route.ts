@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = session.user.id;
 
     const body = await req.json();
     const validated = validateBody(otpCancelSchema, body);
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
       where: {
         orderId: Number(id),
         server,
-        userId: session.user.id,
+        userId,
         status: "waiting",
       },
     });
@@ -48,14 +49,14 @@ export async function POST(req: NextRequest) {
     if (order) {
       const refunded = await db.$transaction(async (tx) => {
         const updated = await tx.order.updateMany({
-          where: { id: order.id, userId: session.user.id, status: "waiting" },
+          where: { id: order.id, userId, status: "waiting" },
           data: { status: "cancelled" },
         });
 
         if (updated.count === 0) return false;
 
         await tx.user.update({
-          where: { id: session.user.id },
+          where: { id: userId },
           data: { balance: { increment: order.price } },
         });
 
@@ -63,15 +64,15 @@ export async function POST(req: NextRequest) {
       });
 
       if (refunded) {
-        console.log(`[Cancel] Refunded Rp ${order.price} for order ${id} to user ${session.user.id}`);
+        console.log(`[Cancel] Refunded Rp ${order.price} for order ${id} to user ${userId}`);
       } else {
         console.warn(`[Cancel] Skip refund for order ${id}: already processed`);
       }
     } else {
-      console.warn(`[Cancel] Order ${id} not found or already cancelled for user ${session.user.id}`);
+      console.warn(`[Cancel] Order ${id} not found or already cancelled for user ${userId}`);
     }
 
-    logAction(session.user.id, "cancel", JSON.stringify({ orderId: id, server, jasaotpError }));
+    logAction(userId, "cancel", JSON.stringify({ orderId: id, server, jasaotpError }));
 
     return NextResponse.json({
       success: true,
