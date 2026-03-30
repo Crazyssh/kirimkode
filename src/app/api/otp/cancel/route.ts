@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       // Lanjut proses refund — JasaOTP mungkin sudah cancel sebelumnya
     }
 
-    // Refund balance and update order status
+    // Refund balance and update order status atomically
     const order = await db.order.findFirst({
       where: {
         orderId: Number(id),
@@ -46,17 +46,27 @@ export async function POST(req: NextRequest) {
     });
 
     if (order) {
-      await db.$transaction([
-        db.order.update({
-          where: { id: order.id },
+      const refunded = await db.$transaction(async (tx) => {
+        const updated = await tx.order.updateMany({
+          where: { id: order.id, userId: session.user.id, status: "waiting" },
           data: { status: "cancelled" },
-        }),
-        db.user.update({
+        });
+
+        if (updated.count === 0) return false;
+
+        await tx.user.update({
           where: { id: session.user.id },
           data: { balance: { increment: order.price } },
-        }),
-      ]);
-      console.log(`[Cancel] Refunded Rp ${order.price} for order ${id} to user ${session.user.id}`);
+        });
+
+        return true;
+      });
+
+      if (refunded) {
+        console.log(`[Cancel] Refunded Rp ${order.price} for order ${id} to user ${session.user.id}`);
+      } else {
+        console.warn(`[Cancel] Skip refund for order ${id}: already processed`);
+      }
     } else {
       console.warn(`[Cancel] Order ${id} not found or already cancelled for user ${session.user.id}`);
     }

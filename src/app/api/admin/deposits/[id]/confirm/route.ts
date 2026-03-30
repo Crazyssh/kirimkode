@@ -16,24 +16,29 @@ export async function POST(
 
     // Semua dalam 1 interactive transaction untuk prevent race condition
     const result = await db.$transaction(async (tx) => {
-      // Re-check status di dalam transaction (atomic)
       const deposit = await tx.deposit.findUnique({ where: { id } });
 
       if (!deposit) {
         throw new Error("NOT_FOUND");
       }
 
-      if (deposit.status !== "pending") {
-        throw new Error(`ALREADY_PROCESSED:${deposit.status}`);
-      }
-
-      const updatedDeposit = await tx.deposit.update({
-        where: { id },
+      // Claim pending -> paid first so only one request can confirm.
+      const claimed = await tx.deposit.updateMany({
+        where: { id, status: "pending" },
         data: {
           status: "paid",
           paidAt: new Date(),
         },
       });
+
+      if (claimed.count === 0) {
+        throw new Error(`ALREADY_PROCESSED:${deposit.status}`);
+      }
+
+      const updatedDeposit = await tx.deposit.findUnique({ where: { id } });
+      if (!updatedDeposit) {
+        throw new Error("NOT_FOUND");
+      }
 
       const updatedUser = await tx.user.update({
         where: { id: deposit.userId },

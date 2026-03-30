@@ -93,11 +93,8 @@ export async function GET(req: NextRequest) {
                     const creditAmount = Math.floor(result.final_amount || result.amount) || deposit.amount;
 
                     const processed = await db.$transaction(async (tx) => {
-                        const freshDeposit = await tx.deposit.findUnique({ where: { trxId: deposit.trxId } });
-                        if (!freshDeposit || freshDeposit.status !== "pending") return false;
-
-                        await tx.deposit.update({
-                            where: { trxId: deposit.trxId },
+                        const claimed = await tx.deposit.updateMany({
+                            where: { trxId: deposit.trxId, status: "pending" },
                             data: {
                                 status: "paid",
                                 paidAt: result.paid_at ? new Date(result.paid_at) : new Date(),
@@ -106,6 +103,9 @@ export async function GET(req: NextRequest) {
                                 totalPaid: creditAmount,
                             },
                         });
+
+                        if (claimed.count === 0) return false;
+
                         await tx.user.update({
                             where: { id: deposit.userId },
                             data: { balance: { increment: creditAmount } },
@@ -143,17 +143,17 @@ export async function GET(req: NextRequest) {
                         console.error("[Mail] Email lookup error:", e);
                     }
                 } else if (result.status === "expired") {
-                    await db.deposit.update({
-                        where: { trxId: deposit.trxId },
+                    const updated = await db.deposit.updateMany({
+                        where: { trxId: deposit.trxId, status: "pending" },
                         data: { status: "expired" },
                     });
-                    expired++;
+                    if (updated.count > 0) expired++;
                 } else if (result.status === "cancelled") {
-                    await db.deposit.update({
-                        where: { trxId: deposit.trxId },
+                    const updated = await db.deposit.updateMany({
+                        where: { trxId: deposit.trxId, status: "pending" },
                         data: { status: "cancelled" },
                     });
-                    cancelled++;
+                    if (updated.count > 0) cancelled++;
                 } else {
                     stillPending++;
                 }
@@ -170,20 +170,14 @@ export async function GET(req: NextRequest) {
                 const apiStatus = result.data.status;
 
                 if (apiStatus === "paid") {
-                    await db.$transaction(async (tx) => {
-                        const freshDeposit = await tx.deposit.findUnique({
-                            where: { trxId: deposit.trxId },
-                        });
-
-                        if (!freshDeposit || freshDeposit.status !== "pending") return;
-
+                    const processed = await db.$transaction(async (tx) => {
                         const totalFee = Math.floor(parseFloat(result.data.total_fee || "0"));
                         const amountReceived = Math.floor(
                             parseFloat(result.data.amount_received || result.data.amount)
                         );
 
-                        await tx.deposit.update({
-                            where: { trxId: deposit.trxId },
+                        const claimed = await tx.deposit.updateMany({
+                            where: { trxId: deposit.trxId, status: "pending" },
                             data: {
                                 status: "paid",
                                 fee: totalFee,
@@ -191,6 +185,8 @@ export async function GET(req: NextRequest) {
                                 paidAt: result.data.paid_at ? new Date(result.data.paid_at) : new Date(),
                             },
                         });
+
+                        if (claimed.count === 0) return false;
 
                         await tx.user.update({
                             where: { id: deposit.userId },
@@ -215,7 +211,14 @@ export async function GET(req: NextRequest) {
                                 });
                             }
                         }
+
+                        return true;
                     });
+
+                    if (!processed) {
+                        stillPending++;
+                        continue;
+                    }
 
                     paid++;
 
@@ -233,17 +236,17 @@ export async function GET(req: NextRequest) {
                         `[CRON Deposits] PAYMENKU PAID: ${deposit.trxId} | +Rp ${deposit.amount} for user ${deposit.userId}`
                     );
                 } else if (apiStatus === "expired") {
-                    await db.deposit.update({
-                        where: { trxId: deposit.trxId },
+                    const updated = await db.deposit.updateMany({
+                        where: { trxId: deposit.trxId, status: "pending" },
                         data: { status: "expired" },
                     });
-                    expired++;
+                    if (updated.count > 0) expired++;
                 } else if (apiStatus === "cancelled") {
-                    await db.deposit.update({
-                        where: { trxId: deposit.trxId },
+                    const updated = await db.deposit.updateMany({
+                        where: { trxId: deposit.trxId, status: "pending" },
                         data: { status: "cancelled" },
                     });
-                    cancelled++;
+                    if (updated.count > 0) cancelled++;
                 } else {
                     stillPending++;
                 }

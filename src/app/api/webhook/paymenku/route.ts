@@ -80,14 +80,8 @@ export async function POST(req: NextRequest) {
       // Interactive transaction dengan re-check untuk prevent race condition
       // (Paymenku bisa kirim webhook 2x hampir bersamaan)
       const processed = await db.$transaction(async (tx) => {
-        const freshDeposit = await tx.deposit.findUnique({ where: { trxId } });
-        if (!freshDeposit || freshDeposit.status !== "pending") {
-          console.log(`[Paymenku Webhook] Race condition prevented: ${trxId} already ${freshDeposit?.status}`);
-          return false;
-        }
-
-        await tx.deposit.update({
-          where: { trxId },
+        const claimed = await tx.deposit.updateMany({
+          where: { trxId, status: "pending" },
           data: {
             status: "paid",
             paidAt: apiData.paid_at ? new Date(apiData.paid_at) : new Date(),
@@ -95,6 +89,12 @@ export async function POST(req: NextRequest) {
             totalPaid: amountReceived + fee,
           },
         });
+
+        if (claimed.count === 0) {
+          console.log(`[Paymenku Webhook] Race condition prevented: ${trxId} already processed`);
+          return false;
+        }
+
         await tx.user.update({
           where: { id: deposit.userId },
           data: { balance: { increment: deposit.amount } },
@@ -134,12 +134,14 @@ export async function POST(req: NextRequest) {
         console.error("[Mail] Email deposit error:", e);
       }
     } else if (apiStatus === "expired" || apiStatus === "cancelled") {
-      await db.deposit.update({
-        where: { trxId },
+      const updated = await db.deposit.updateMany({
+        where: { trxId, status: "pending" },
         data: { status: apiStatus },
       });
 
-      console.log(`[Paymenku] VERIFIED & ${apiStatus.toUpperCase()}: ${trxId}`);
+      if (updated.count > 0) {
+        console.log(`[Paymenku] VERIFIED & ${apiStatus.toUpperCase()}: ${trxId}`);
+      }
     } else {
       console.log(`[Paymenku] Status still ${apiStatus} for ${trxId} — no action`);
     }

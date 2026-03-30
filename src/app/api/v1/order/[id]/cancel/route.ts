@@ -28,16 +28,26 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
     jasaotpWarning = "JasaOTP returned an error but refund was processed";
   }
 
-  await db.$transaction([
-    db.order.update({
-      where: { id: order.id },
+  const refunded = await db.$transaction(async (tx) => {
+    // Claim refund atomically: only transition waiting -> cancelled once.
+    const updated = await tx.order.updateMany({
+      where: { id: order.id, userId: user.id, status: "waiting" },
       data: { status: "cancelled" },
-    }),
-    db.user.update({
+    });
+
+    if (updated.count === 0) return false;
+
+    await tx.user.update({
       where: { id: user.id },
       data: { balance: { increment: order.price } },
-    }),
-  ]);
+    });
+
+    return true;
+  });
+
+  if (!refunded) {
+    return apiError("Order already processed", 409, "ORDER_ALREADY_PROCESSED");
+  }
 
   return apiMessage(
     jasaotpWarning

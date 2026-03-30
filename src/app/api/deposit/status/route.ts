@@ -97,11 +97,8 @@ export async function GET(req: NextRequest) {
     // Update deposit & balance if paid
     if (apiStatus === "paid" && deposit.status !== "paid") {
       const processed = await db.$transaction(async (tx) => {
-        const freshDeposit = await tx.deposit.findUnique({ where: { trxId: orderId } });
-        if (!freshDeposit || freshDeposit.status === "paid") return false;
-
-        await tx.deposit.update({
-          where: { trxId: orderId },
+        const claimed = await tx.deposit.updateMany({
+          where: { trxId: orderId, status: "pending" },
           data: {
             status: "paid",
             fee: 0,
@@ -110,6 +107,8 @@ export async function GET(req: NextRequest) {
             paidAt: paidAt ? new Date(paidAt) : new Date(),
           },
         });
+
+        if (claimed.count === 0) return false;
 
         await tx.user.update({
           where: { id: deposit.userId },

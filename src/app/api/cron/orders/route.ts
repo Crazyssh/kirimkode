@@ -61,16 +61,22 @@ function isProviderExpired(data: unknown): boolean {
  * Refund order: update status + kembalikan saldo user
  */
 async function refundOrder(orderId: string, userId: string, price: number, status: "timeout" | "cancelled") {
-  await db.$transaction([
-    db.order.update({
-      where: { id: orderId },
+  return db.$transaction(async (tx) => {
+    // Ensure refund runs only once by claiming waiting -> final status first.
+    const updated = await tx.order.updateMany({
+      where: { id: orderId, userId, status: "waiting" },
       data: { status },
-    }),
-    db.user.update({
+    });
+
+    if (updated.count === 0) return false;
+
+    await tx.user.update({
       where: { id: userId },
       data: { balance: { increment: price } },
-    }),
-  ]);
+    });
+
+    return true;
+  });
 }
 
 // Cron: polls OTP for waiting orders & auto-cancels expired ones
@@ -109,9 +115,11 @@ export async function GET(req: NextRequest) {
         await cancelOrder(serverId, order.orderId);
       } catch { /* provider cancel may fail if already expired */ }
 
-      await refundOrder(order.id, order.userId, order.price, "timeout");
-      expired++;
-      console.log(`[CRON] Timeout + refund: order ${order.id} (${order.serviceName}, ${serverId})`);
+      const refunded = await refundOrder(order.id, order.userId, order.price, "timeout");
+      if (refunded) {
+        expired++;
+        console.log(`[CRON] Timeout + refund: order ${order.id} (${order.serviceName}, ${serverId})`);
+      }
       continue;
     }
 
@@ -122,9 +130,11 @@ export async function GET(req: NextRequest) {
 
       // === 2a. Cek apakah provider sudah cancel/expire order ini ===
       if (isProviderExpired(data)) {
-        await refundOrder(order.id, order.userId, order.price, "cancelled");
-        providerCancelled++;
-        console.log(`[CRON] Provider cancelled + refund: order ${order.id} (${order.serviceName}, ${serverId})`);
+        const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled");
+        if (refunded) {
+          providerCancelled++;
+          console.log(`[CRON] Provider cancelled + refund: order ${order.id} (${order.serviceName}, ${serverId})`);
+        }
         continue;
       }
 
@@ -178,9 +188,11 @@ export async function GET(req: NextRequest) {
       const errMsg = (err as Error)?.message || "";
       const lower = errMsg.toLowerCase();
       if (PROVIDER_EXPIRED_KEYWORDS.some((kw) => lower.includes(kw))) {
-        await refundOrder(order.id, order.userId, order.price, "cancelled");
-        providerCancelled++;
-        console.log(`[CRON] Provider error (expired) + refund: order ${order.id} — ${errMsg}`);
+        const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled");
+        if (refunded) {
+          providerCancelled++;
+          console.log(`[CRON] Provider error (expired) + refund: order ${order.id} — ${errMsg}`);
+        }
       }
       // Else: network error, skip silently
     }

@@ -67,14 +67,8 @@ export async function POST(req: NextRequest) {
 
       // Interactive transaction dengan re-check
       const processed = await db.$transaction(async (tx) => {
-        const freshDeposit = await tx.deposit.findUnique({ where: { trxId: invoiceId } });
-        if (!freshDeposit || freshDeposit.status !== "pending") {
-          console.log(`[BAYAR.GG Webhook] Race condition prevented: ${invoiceId}`);
-          return false;
-        }
-
-        await tx.deposit.update({
-          where: { trxId: invoiceId },
+        const claimed = await tx.deposit.updateMany({
+          where: { trxId: invoiceId, status: "pending" },
           data: {
             status: "paid",
             paidAt: verified.paid_at ? new Date(verified.paid_at) : new Date(),
@@ -83,6 +77,12 @@ export async function POST(req: NextRequest) {
             totalPaid: creditAmount,
           },
         });
+
+        if (claimed.count === 0) {
+          console.log(`[BAYAR.GG Webhook] Race condition prevented: ${invoiceId}`);
+          return false;
+        }
+
         await tx.user.update({
           where: { id: deposit.userId },
           data: { balance: { increment: creditAmount } },
@@ -120,12 +120,14 @@ export async function POST(req: NextRequest) {
         console.error("[Mail] Email deposit error:", e);
       }
     } else if (verified.status === "expired" || verified.status === "cancelled") {
-      await db.deposit.update({
-        where: { trxId: invoiceId },
+      const updated = await db.deposit.updateMany({
+        where: { trxId: invoiceId, status: "pending" },
         data: { status: verified.status },
       });
 
-      console.log(`[BAYAR.GG] VERIFIED & ${verified.status.toUpperCase()}: ${invoiceId}`);
+      if (updated.count > 0) {
+        console.log(`[BAYAR.GG] VERIFIED & ${verified.status.toUpperCase()}: ${invoiceId}`);
+      }
     } else {
       console.log(`[BAYAR.GG] Status still ${verified.status} for ${invoiceId} — no action`);
     }
