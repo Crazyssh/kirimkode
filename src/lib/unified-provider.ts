@@ -7,16 +7,13 @@
 import { db } from "@/lib/db";
 import { applyPricing } from "@/lib/pricing";
 
-const ACTIVE_PROVIDERS = ["api1", "api2", "api3", "shadow1", "shadow2", "shadow3"];
+const ACTIVE_PROVIDERS = ["api1", "api2", "api3"];
 
 // Server display names
 const SERVER_NAMES: Record<string, { name: string; icon: string }> = {
   api1: { name: "Mars", icon: "🔴" },
   api2: { name: "Jupiter", icon: "🟠" },
   api3: { name: "Saturn", icon: "🟣" },
-  shadow1: { name: "Neptune", icon: "🔵" },
-  shadow2: { name: "Pluto", icon: "🟤" },
-  shadow3: { name: "Mercury", icon: "🟡" },
 };
 
 // ---------- Types ----------
@@ -160,11 +157,6 @@ export async function getUnifiedLayanan(
       : await applyPricing(rawPrice, svc.code, mappings.find(m => m.serverId === svc.serverId)?.externalId || 0);
     let displayPrice = pricingResult.price;
 
-    // Shadow servers: tambah 2 digit terakhir harga asli (hanya kalau BUKAN custom rule)
-    if (svc.serverId.startsWith("shadow") && !skipPricing && !pricingResult.hasRule) {
-      displayPrice += rawPrice % 100;
-    }
-
     const existing = serviceMap.get(svc.code);
     if (existing) {
       if (displayPrice < existing.minPrice) existing.minPrice = displayPrice;
@@ -234,7 +226,7 @@ export async function getServiceProviders(
   });
 
   // Step 2: Find ALL codes that share the same service name
-  // e.g., "wa" (api1) and "whatsapp" (shadow1) both have name "Whatsapp"
+  // e.g., "wa" (api1) and "whatsapp" (api3) both have name "Whatsapp"
   let allCodes = [serviceCode];
   if (primaryService?.name) {
     const equivalentServices = await db.providerService.findMany({
@@ -285,11 +277,6 @@ export async function getServiceProviders(
       ? { price: rawPrice, hasRule: false }
       : await applyPricing(rawPrice, svc.code, mapping.externalId);
     let displayPrice = pricingResult.price;
-
-    // Shadow servers: tambah 2 digit terakhir harga asli (hanya kalau BUKAN custom rule)
-    if (svc.serverId.startsWith("shadow") && !skipPricing && !pricingResult.hasRule) {
-      displayPrice += rawPrice % 100;
-    }
 
     const serverInfo = SERVER_NAMES[svc.serverId] || { name: svc.serverId, icon: "⚪" };
 

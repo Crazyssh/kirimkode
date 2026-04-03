@@ -13,7 +13,7 @@ import { otpOrderSchema, validateBody } from "@/lib/validations";
  * Untuk api1/api2: ambil harga dari database (cached by cron sync).
  * Untuk api3: harga sudah final dari adapter (USD→IDR + markup), skip applyPricing.
  */
-async function getServerPrice(server: "api1" | "api2" | "api3" | "shadow1" | "shadow2" | "shadow3", negara: number, layanan: string): Promise<number> {
+async function getServerPrice(server: "api1" | "api2" | "api3", negara: number, layanan: string): Promise<number> {
   // api3: harga sudah final (USD→IDR), skip applyPricing
   const skipPricing = server === "api3";
 
@@ -44,8 +44,6 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "shadow1" | "sh
       if (skipPricing) return service.price;
       const result = await applyPricing(service.price, layanan, negara);
       let price = result.price;
-      // Shadow: tambah 2 digit terakhir harga asli (hanya kalau BUKAN custom rule)
-      if (server.startsWith("shadow") && !result.hasRule) price += service.price % 100;
       return price;
     }
   }
@@ -66,8 +64,6 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "shadow1" | "sh
 
   const result = await applyPricing(serviceInfo.harga, layanan, negara);
   let price = result.price;
-  // Shadow: tambah 2 digit terakhir harga asli (hanya kalau BUKAN custom rule)
-  if (server.startsWith("shadow") && !result.hasRule) price += serviceInfo.harga % 100;
   return price;
 }
 
@@ -94,7 +90,7 @@ export async function POST(req: NextRequest) {
     const { server, negara, layanan, operator, serviceName, countryName } = validated.data;
 
     // Harga WAJIB dari server, bukan dari client
-    const orderPrice = await getServerPrice(server as "api1" | "api2" | "api3" | "shadow1" | "shadow2" | "shadow3", Number(negara), layanan);
+    const orderPrice = await getServerPrice(server as "api1" | "api2" | "api3", Number(negara), layanan);
 
     // Step 1: Pre-check user balance + status (quick DB read, no transaction needed)
     const user = await db.user.findUnique({
@@ -107,7 +103,7 @@ export async function POST(req: NextRequest) {
     if (user.balance < orderPrice) throw new Error("INSUFFICIENT_BALANCE");
 
     // Step 2: Call provider API (bisa lambat, HARUS di luar transaction)
-    const data = await createOrder(server as "api1" | "api2" | "api3" | "shadow1" | "shadow2" | "shadow3", Number(negara), layanan, operator);
+    const data = await createOrder(server as "api1" | "api2" | "api3", Number(negara), layanan, operator);
 
     const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
     const number = data?.number ?? data?.data?.number ?? "";

@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "unified";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "shadow1", "shadow2", "shadow3", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // api1/api2/api3/shadow1/shadow2/shadow3: baca dari database (cached by cron sync)
+    // api1/api2/api3: baca dari database (cached by cron sync)
     // Cari country di DB
     const country = await db.providerCountry.findUnique({
       where: {
@@ -61,10 +61,6 @@ export async function GET(req: NextRequest) {
         } else {
           const result = await applyPricing(svc.price, svc.code, negaraId);
           customPrice = result.price;
-          // Shadow: tambah 2 digit terakhir harga asli (hanya kalau BUKAN custom rule)
-          if (server.startsWith("shadow") && !result.hasRule) {
-            customPrice += svc.price % 100;
-          }
         }
 
         serviceData[svc.code] = {
@@ -100,10 +96,6 @@ export async function GET(req: NextRequest) {
           const rawPrice = info.harga;
           const result = await applyPricing(rawPrice, code, negaraId);
           info.harga = result.price;
-          // Shadow: tambah 2 digit terakhir harga asli (hanya kalau BUKAN custom rule)
-          if (server.startsWith("shadow") && !result.hasRule) {
-            info.harga += rawPrice % 100;
-          }
         }
       }
     }

@@ -1,5 +1,5 @@
 export interface OTPServer {
-  id: "api1" | "api2" | "api3" | "shadow1" | "shadow2" | "shadow3" | "unified";
+  id: "api1" | "api2" | "api3" | "unified";
   name: string;
   icon: string;
   color: string;

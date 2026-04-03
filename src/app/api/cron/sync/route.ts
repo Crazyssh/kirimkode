@@ -27,9 +27,9 @@ export async function GET(req: NextRequest) {
       };
 
       try {
-        if (server && ["api1", "api2", "api3", "shadow1", "shadow2", "shadow3"].includes(server)) {
+        if (server && ["api1", "api2", "api3"].includes(server)) {
           send(`[Sync] Starting ${server}...`);
-          const result = await syncProvider(server as "api1" | "api2" | "api3" | "shadow1" | "shadow2" | "shadow3");
+          const result = await syncProvider(server as "api1" | "api2" | "api3");
           send(`[Sync] ${server} done: ${result.countries} countries, ${result.services} services in ${result.durationMs}ms`);
           if (result.errors.length > 0) {
             send(`[Sync] ${server} errors: ${result.errors.slice(0, 3).join(", ")}`);
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
         } else {
           // Sync semua provider satu per satu dengan progress
           const results = [];
-          for (const srv of ["api1", "api2", "api3", "shadow1", "shadow2", "shadow3"] as const) {
+          for (const srv of ["api1", "api2", "api3"] as const) {
             send(`[Sync] Starting ${srv}...`);
             const result = await syncProvider(srv);
             send(`[Sync] ${srv} done: ${result.countries} countries, ${result.services} services in ${result.durationMs}ms`);
