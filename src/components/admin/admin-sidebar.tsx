@@ -21,6 +21,7 @@ import {
   SearchCheck,
   BarChart3,
   Server,
+  Settings,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -37,6 +38,7 @@ const menuItems = [
   { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText },
   { href: "/admin/checker", label: "Checker", icon: SearchCheck },
   { href: "/admin/server", label: "Server", icon: Server },
+  { href: "/admin/settings", label: "Pengaturan", icon: Settings },
 ];
 
 interface AdminSidebarProps {

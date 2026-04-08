@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Send, MessageCircle, ChevronRight } from "lucide-react";
 
-const WA_NUMBER = "19053297645";
+const DEFAULT_WA_NUMBER = "6283186072571";
 
 const FAQ_OPTIONS = [
     {
@@ -34,11 +34,19 @@ export function WhatsAppButton() {
     const [customMsg, setCustomMsg] = useState("");
     const [showCustom, setShowCustom] = useState(false);
     const [pulse, setPulse] = useState(true);
+    const [waNumber, setWaNumber] = useState(DEFAULT_WA_NUMBER);
     const popupRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const timer = setTimeout(() => setShowButton(true), 2000);
         const pulseTimer = setTimeout(() => setPulse(false), 10000);
+        // Fetch WA number dari DB
+        fetch("/api/settings?key=wa_number")
+            .then((r) => r.json())
+            .then((json) => {
+                if (json.data?.value) setWaNumber(json.data.value);
+            })
+            .catch(() => { /* pakai default */ });
         return () => {
             clearTimeout(timer);
             clearTimeout(pulseTimer);
@@ -61,7 +69,7 @@ export function WhatsAppButton() {
     if (!showButton) return null;
 
     function goToWA(message: string) {
-        const url = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(message)}`;
+        const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
         window.open(url, "_blank", "noopener,noreferrer");
         setOpen(false);
         setShowCustom(false);

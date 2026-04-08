@@ -37,6 +37,13 @@ model User {
   fingerprint   String?   // browser fingerprint untuk deteksi device
   premiumChecker Boolean  @default(false) // akses detail checker TG (last seen, reg date, dll)
 
+  // Telegram Bot integration
+  telegramId       BigInt?   @unique  // Telegram user ID
+  telegramUsername  String?            // @username Telegram
+  telegramLinkedAt  DateTime?          // kapan di-link
+  telegramOtp      String?            // 6-digit OTP untuk verifikasi link
+  telegramOtpExp   DateTime?          // waktu expired OTP
+
   accounts      Account[]
   sessions      Session[]
   orders        Order[]
@@ -328,4 +335,14 @@ model ProviderOperator {
   @@unique([serverId, countryId, operator])
   @@index([serverId, countryId])
   @@map("provider_operators")
+}
+
+// ==================== SITE SETTINGS ====================
+
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
 }
