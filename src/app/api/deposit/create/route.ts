@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import {
   createPayment as bayarggCreatePayment,
   generateDescription as bayarggDescription,
+  convertQris,
 } from "@/lib/bayargg";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { depositCreateSchema, validateBody } from "@/lib/validations";
@@ -98,10 +99,15 @@ export async function POST(req: NextRequest) {
       }).catch((e) => console.error("[Mail] Email deposit pending error:", e));
     }
 
-    // QR image dari createPayment response (use_qris_converter: true)
-    const qrImageUrl = result.data.qris_converter?.qr_image_url || null;
-    if (qrImageUrl) {
-      console.log(`[BAYAR.GG] QRIS inline ready: ${qrImageUrl} (Rp ${result.data.final_amount})`);
+    // Generate QR inline pakai convertQris + BAYARGG_QRIS_STRING
+    let qrImageUrl: string | null = null;
+    try {
+      const finalAmount = result.data.final_amount || result.data.amount;
+      const qrisResult = await convertQris(finalAmount);
+      qrImageUrl = qrisResult.data.qr_image_url;
+      console.log(`[BAYAR.GG] QRIS inline ready: ${qrImageUrl} (Rp ${finalAmount})`);
+    } catch (e) {
+      console.error("[BAYAR.GG] QRIS convert gagal, fallback ke payment URL:", e);
     }
 
     return NextResponse.json({
