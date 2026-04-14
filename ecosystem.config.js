@@ -20,5 +20,23 @@ module.exports = {
       out_file: "/var/log/kirimkode/out.log",
       merge_logs: true,
     },
+    {
+      name: "kirimkode-bot",
+      script: "node_modules/.bin/tsx",
+      args: "src/bot.ts",
+      cwd: "/var/www/kirimkode/telegram-bot",
+      instances: 1,           // Bot harus single instance
+      exec_mode: "fork",
+      env: {
+        NODE_ENV: "production",
+      },
+      max_restarts: 10,
+      restart_delay: 5000,
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+      error_file: "/var/log/kirimkode/bot-error.log",
+      out_file: "/var/log/kirimkode/bot-out.log",
+      merge_logs: true,
+    },
   ],
 };
+

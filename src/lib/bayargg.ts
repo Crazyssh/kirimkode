@@ -95,7 +95,7 @@ export async function createPayment(
     method: "POST",
     body: JSON.stringify({
       ...params,
-      payment_method: "gopay_qris",
+      payment_method: "qris",
     }),
   });
 }

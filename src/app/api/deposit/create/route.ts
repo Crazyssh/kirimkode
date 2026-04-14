@@ -78,8 +78,8 @@ export async function POST(req: NextRequest) {
         referenceId,
         amount,
         fee: 0,
-        channelCode: "gopay_qris",
-        channelName: "GoPay QRIS",
+        channelCode: "qris",
+        channelName: "QRIS",
         gateway: "bayargg",
         status: "pending",
         payUrl: result.data.payment_url,
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
         name: user.name || "User",
         amount,
         trxId: result.data.invoice_id,
-        channelName: "GoPay QRIS",
+        channelName: "QRIS",
         payUrl: result.data.payment_url,
       }).catch((e) => console.error("[Mail] Email deposit pending error:", e));
     }

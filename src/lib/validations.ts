@@ -35,7 +35,7 @@ export const otpCheckNumberSchema = z.object({
 // ==================== DEPOSIT ====================
 
 export const depositCreateSchema = z.object({
-    amount: z.number().min(1000, "Minimum deposit Rp 1.000").max(10_000_000, "Maksimum deposit Rp 10.000.000"),
+    amount: z.number().min(1000, "Minimum deposit Rp 1.000").max(500_000, "Maksimum deposit Rp 500.000"),
     channel_code: z.string().min(1, "Pilih metode pembayaran"),
 });
 
