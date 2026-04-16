@@ -1,16 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { checkPayment } from "@/lib/bayargg";
+import { checkPayment, verifyWebhookSignature } from "@/lib/bayargg";
 import { giveReferralCommission } from "@/lib/referral";
 import { sendDepositSuccessEmail } from "@/lib/mail";
 
 /**
- * Webhook handler untuk BAYAR.GG
+ * Webhook handler untuk BAYAR.GG v2
  *
- * Strategy: CALLBACK VERIFICATION
- *   1. Terima webhook sebagai trigger
- *   2. Panggil check-payment API BAYAR.GG untuk verifikasi
- *   3. Cocokkan data → update balance
+ * Strategy: SIGNATURE VERIFICATION + CALLBACK VERIFICATION fallback
+ *   1. Verifikasi HMAC signature dari header X-Webhook-Signature
+ *   2. Jika signature valid, proses langsung dari payload
+ *   3. Jika signature tidak ada/invalid, fallback ke check-payment API
+ *
+ * Webhook headers (v2):
+ *   X-Webhook-Event: payment.paid
+ *   X-Webhook-Signature: HMAC SHA256 signature
+ *   X-Webhook-Timestamp: Unix timestamp
+ *   X-Invoice-ID: Invoice ID
  *
  * Set callback URL di BAYAR.GG:
  * https://yourdomain.com/api/webhook/bayargg
@@ -21,11 +27,34 @@ export async function POST(req: NextRequest) {
 
     console.log("[BAYAR.GG Webhook] Received:", JSON.stringify(body, null, 2));
 
+    // v2 headers
+    const webhookSignature = req.headers.get("x-webhook-signature") || "";
+    const webhookTimestamp = req.headers.get("x-webhook-timestamp") || "";
+    const webhookEvent = req.headers.get("x-webhook-event") || "";
+
     // Ambil invoice_id dari webhook payload
     const invoiceId: string | undefined = body?.invoice_id || body?.data?.invoice_id;
     if (!invoiceId) {
       console.warn("[BAYAR.GG Webhook] Missing invoice_id in payload");
       return NextResponse.json({ status: "ignored" });
+    }
+
+    // === SIGNATURE VERIFICATION (v2) ===
+    let signatureValid = false;
+    if (webhookSignature && webhookTimestamp) {
+      signatureValid = await verifyWebhookSignature(
+        invoiceId,
+        body.status || "",
+        body.final_amount || 0,
+        webhookTimestamp,
+        webhookSignature
+      );
+
+      if (!signatureValid) {
+        console.warn(`[BAYAR.GG Webhook] Invalid signature for ${invoiceId}`);
+      } else {
+        console.log(`[BAYAR.GG Webhook] Signature verified for ${invoiceId} (event: ${webhookEvent})`);
+      }
     }
 
     // Cek deposit di database
@@ -44,34 +73,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: "already_processed" });
     }
 
-    // === CALLBACK VERIFICATION ===
-    // checkPayment() sudah normalize response (flat/nested) dan tidak throw error
-    const verified = await checkPayment(invoiceId);
-    console.log(`[BAYAR.GG Webhook] Verification response:`, JSON.stringify(verified));
+    // Tentukan status & data dari signature atau fallback ke API check
+    let verifiedStatus: string;
+    let verifiedAmount: number;
+    let verifiedFinalAmount: number;
+    let verifiedPaidAt: string | null;
 
-    if (verified.status === "unknown") {
-      console.error(`[BAYAR.GG Webhook] Verification failed for ${invoiceId}:`, verified);
-      return NextResponse.json({ status: "verification_failed" });
+    if (signatureValid) {
+      // Signature valid — trust payload langsung
+      verifiedStatus = body.status || "unknown";
+      verifiedAmount = body.amount || 0;
+      verifiedFinalAmount = body.final_amount || body.amount || 0;
+      verifiedPaidAt = body.paid_at || null;
+    } else {
+      // Fallback: verifikasi via check-payment API
+      const verified = await checkPayment(invoiceId);
+      console.log(`[BAYAR.GG Webhook] Fallback verification response:`, JSON.stringify(verified));
+
+      if (verified.status === "unknown") {
+        console.error(`[BAYAR.GG Webhook] Verification failed for ${invoiceId}:`, verified);
+        return NextResponse.json({ status: "verification_failed" });
+      }
+
+      verifiedStatus = verified.status;
+      verifiedAmount = verified.amount;
+      verifiedFinalAmount = verified.final_amount || verified.amount;
+      verifiedPaidAt = verified.paid_at || null;
     }
 
-    // Cocokkan amount (skip jika API return 0 = data tidak lengkap)
-    if (verified.amount !== 0 && verified.amount !== deposit.amount) {
-      console.error(`[BAYAR.GG Webhook] Amount mismatch: API=${verified.amount}, DB=${deposit.amount}`);
+    // Cocokkan amount (skip jika 0 = data tidak lengkap)
+    if (verifiedAmount !== 0 && verifiedAmount !== deposit.amount) {
+      console.error(`[BAYAR.GG Webhook] Amount mismatch: verified=${verifiedAmount}, DB=${deposit.amount}`);
       return NextResponse.json({ status: "mismatch" });
     }
 
-    if (verified.status === "paid") {
-      // Saldo yang masuk = final_amount (termasuk kode unik)
-      // Supaya user tidak rugi bayar lebih dari saldo yang didapat
-      const creditAmount = Math.floor(verified.final_amount || verified.amount) || deposit.amount;
+    if (verifiedStatus === "paid") {
+      const creditAmount = Math.floor(verifiedFinalAmount) || deposit.amount;
 
-      // Interactive transaction dengan re-check
       const processed = await db.$transaction(async (tx) => {
         const claimed = await tx.deposit.updateMany({
           where: { trxId: invoiceId, status: "pending" },
           data: {
             status: "paid",
-            paidAt: verified.paid_at ? new Date(verified.paid_at) : new Date(),
+            paidAt: verifiedPaidAt ? new Date(verifiedPaidAt) : new Date(),
             fee: 0,
             amount: creditAmount,
             totalPaid: creditAmount,
@@ -119,17 +163,17 @@ export async function POST(req: NextRequest) {
       } catch (e) {
         console.error("[Mail] Email deposit error:", e);
       }
-    } else if (verified.status === "expired" || verified.status === "cancelled") {
+    } else if (verifiedStatus === "expired" || verifiedStatus === "cancelled") {
       const updated = await db.deposit.updateMany({
         where: { trxId: invoiceId, status: "pending" },
-        data: { status: verified.status },
+        data: { status: verifiedStatus },
       });
 
       if (updated.count > 0) {
-        console.log(`[BAYAR.GG] VERIFIED & ${verified.status.toUpperCase()}: ${invoiceId}`);
+        console.log(`[BAYAR.GG] VERIFIED & ${verifiedStatus.toUpperCase()}: ${invoiceId}`);
       }
     } else {
-      console.log(`[BAYAR.GG] Status still ${verified.status} for ${invoiceId} — no action`);
+      console.log(`[BAYAR.GG] Status still ${verifiedStatus} for ${invoiceId} — no action`);
     }
 
     return NextResponse.json({ status: "ok" });

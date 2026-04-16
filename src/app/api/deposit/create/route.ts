@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     await db.deposit.create({
       data: {
         userId: user.id,
-        trxId: result.data.invoice_id,
+        trxId: result.payment.invoice_id,
         referenceId,
         amount,
         fee: 0,
@@ -93,27 +93,27 @@ export async function POST(req: NextRequest) {
         channelName: "QRIS",
         gateway: "bayargg",
         status: "pending",
-        payUrl: result.data.payment_url,
-        expiresAt: result.data.expires_at ? new Date(result.data.expires_at) : null,
+        payUrl: result.payment_url,
+        expiresAt: result.payment.expires_at ? new Date(result.payment.expires_at) : null,
       },
     });
 
-    logAction(user.id, "deposit", JSON.stringify({ trxId: result.data.invoice_id, amount, gateway: "bayargg" }));
+    logAction(user.id, "deposit", JSON.stringify({ trxId: result.payment.invoice_id, amount, gateway: "bayargg" }));
 
     if (user.email) {
       sendDepositPendingEmail(user.email, {
         name: user.name || "User",
         amount,
-        trxId: result.data.invoice_id,
+        trxId: result.payment.invoice_id,
         channelName: "QRIS",
-        payUrl: result.data.payment_url,
+        payUrl: result.payment_url,
       }).catch((e) => console.error("[Mail] Email deposit pending error:", e));
     }
 
     // Generate QR inline pakai convertQris + BAYARGG_QRIS_STRING
     let qrImageUrl: string | null = null;
     try {
-      const finalAmount = result.data.final_amount || result.data.amount;
+      const finalAmount = result.payment.final_amount || result.payment.amount;
       const qrisResult = await convertQris(finalAmount);
       qrImageUrl = qrisResult.data.qr_image_url;
       console.log(`[BAYAR.GG] QRIS inline ready: ${qrImageUrl} (Rp ${finalAmount})`);
@@ -124,19 +124,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       status: "success",
       data: {
-        trx_id: result.data.invoice_id,
+        trx_id: result.payment.invoice_id,
         reference_id: referenceId,
-        amount: String(result.data.amount),
-        final_amount: String(result.data.final_amount || result.data.amount),
-        unique_code: String(result.data.unique_code || 0),
-        status: result.data.status,
-        pay_url: result.data.payment_url,
+        amount: String(result.payment.amount),
+        final_amount: String(result.payment.final_amount || result.payment.amount),
+        unique_code: String(result.payment.unique_code || 0),
+        status: result.payment.status,
+        pay_url: result.payment_url,
         payment_info: {
-          transaction_id: result.data.invoice_id,
-          transaction_status: result.data.status,
+          transaction_id: result.payment.invoice_id,
+          transaction_status: result.payment.status,
           qr_url: qrImageUrl,
-          checkout_url: result.data.payment_url,
-          expiration_date: result.data.expires_at,
+          checkout_url: result.payment_url,
+          expiration_date: result.payment.expires_at,
         },
       },
     });

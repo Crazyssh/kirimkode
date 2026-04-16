@@ -7,9 +7,10 @@
  * Auth: X-API-Key header
  */
 
-const BAYARGG_BASE_URL = process.env.BAYARGG_BASE_URL || "https://www.bayar.gg/api";
+const BAYARGG_BASE_URL = process.env.BAYARGG_BASE_URL || "https://v2.bayar.gg/api";
 const BAYARGG_API_KEY = process.env.BAYARGG_API_KEY || "";
 const BAYARGG_QRIS_STRING = process.env.BAYARGG_QRIS_STRING || "";
+const BAYARGG_WEBHOOK_SECRET = process.env.BAYARGG_WEBHOOK_SECRET || "";
 
 // ==================== TYPES ====================
 
@@ -26,22 +27,17 @@ export interface BayarGGCreatePaymentParams {
 
 export interface BayarGGCreatePaymentResponse {
   success: boolean;
-  data: {
+  payment: {
     invoice_id: string;
     amount: number;
     unique_code: number;
     final_amount: number;
-    payment_url: string;
-    expires_at: string;
-    status: "pending" | "paid" | "expired" | "cancelled";
-    redirect_url?: string;
     payment_method: string;
-    qris_converter?: {
-      enabled: boolean;
-      converted_qris: string;
-      qr_image_url: string;
-    };
+    status: "pending" | "paid" | "expired" | "cancelled";
+    expires_at: string;
   };
+  payment_url: string;
+  qris_converter?: boolean;
   message?: string;
 }
 
@@ -161,10 +157,10 @@ export function generateDescription(userId: string, amount: number): string {
 }
 
 /**
- * Hitung fee 0.5%
+ * Hitung fee 2%
  */
 export function calculateFee(amount: number): { fee: number; total: number } {
-  const fee = Math.ceil(amount * 0.005); // 0.5%
+  const fee = Math.ceil(amount * 0.02); // 2%
   return { fee, total: amount + fee };
 }
 
@@ -180,6 +176,43 @@ export interface QrisConvertResponse {
     merchant_city: string;
     qr_image_url: string;
   };
+}
+
+/**
+ * Verifikasi webhook signature dari BAYAR.GG v2
+ * Signature = HMAC-SHA256(invoice_id|status|final_amount|timestamp, webhook_secret)
+ */
+export async function verifyWebhookSignature(
+  invoiceId: string,
+  status: string,
+  finalAmount: number,
+  timestamp: string,
+  signature: string
+): Promise<boolean> {
+  if (!BAYARGG_WEBHOOK_SECRET || !signature) return false;
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(BAYARGG_WEBHOOK_SECRET),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const data = `${invoiceId}|${status}|${finalAmount}|${timestamp}`;
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
+  const expectedSignature = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  // Constant-time comparison
+  if (expectedSignature.length !== signature.length) return false;
+  let result = 0;
+  for (let i = 0; i < expectedSignature.length; i++) {
+    result |= expectedSignature.charCodeAt(i) ^ signature.charCodeAt(i);
+  }
+  return result === 0;
 }
 
 /**
