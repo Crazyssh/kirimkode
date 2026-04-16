@@ -6,6 +6,10 @@ import {
   generateDescription as bayarggDescription,
   convertQris,
 } from "@/lib/bayargg";
+import {
+  createTransaction as paymenkuCreateTransaction,
+  generateReferenceId as paymenkuRefId,
+} from "@/lib/paymenku";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { depositCreateSchema, validateBody } from "@/lib/validations";
 import { logAction } from "@/lib/audit";
@@ -39,7 +43,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: validated.error }, { status: 400 });
     }
 
-    const { amount } = validated.data;
+    const { amount, channel_code } = validated.data;
+    const gateway = channel_code === "QRIS" ? "paymenku" : "bayargg";
 
     // Anti double charge: cek apakah ada deposit pending yang masih aktif
     const pendingCount = await db.deposit.count({
@@ -67,6 +72,65 @@ export async function POST(req: NextRequest) {
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+    if (gateway === "paymenku") {
+      // === PAYMENKU QRIS ===
+      const referenceId = paymenkuRefId(user.id);
+
+      const result = await paymenkuCreateTransaction({
+        reference_id: referenceId,
+        amount,
+        customer_name: user.name || "KirimKode User",
+        customer_email: user.email,
+        customer_phone: user.phone || undefined,
+        channel_code: "QRIS",
+        return_url: `${appUrl}/deposit?status=success`,
+      });
+
+      await db.deposit.create({
+        data: {
+          userId: user.id,
+          trxId: result.data.trx_id,
+          referenceId,
+          amount,
+          fee: 0,
+          channelCode: "QRIS",
+          channelName: "QRIS (Paymenku)",
+          gateway: "paymenku",
+          status: "pending",
+          payUrl: result.data.pay_url,
+          expiresAt: result.data.payment_info.expiration_date ? new Date(result.data.payment_info.expiration_date) : null,
+        },
+      });
+
+      logAction(user.id, "deposit", JSON.stringify({ trxId: result.data.trx_id, amount, gateway: "paymenku" }));
+
+      if (user.email) {
+        sendDepositPendingEmail(user.email, {
+          name: user.name || "User",
+          amount,
+          trxId: result.data.trx_id,
+          channelName: "QRIS (Paymenku)",
+          payUrl: result.data.pay_url,
+        }).catch((e) => console.error("[Mail] Email deposit pending error:", e));
+      }
+
+      return NextResponse.json({
+        status: "success",
+        data: {
+          trx_id: result.data.trx_id,
+          reference_id: referenceId,
+          amount: result.data.amount,
+          final_amount: result.data.amount,
+          unique_code: "0",
+          status: result.data.status,
+          pay_url: result.data.pay_url,
+          payment_info: result.data.payment_info,
+        },
+      });
+    }
+
+    // === BAYAR.GG (default) ===
     const description = bayarggDescription(user.id, amount);
 
     const result = await bayarggCreatePayment({

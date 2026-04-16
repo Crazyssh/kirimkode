@@ -108,6 +108,11 @@ export default function DepositPage() {
         const data = await res.json();
         if (data.status === "success") {
           setChannels(data.data);
+          // Auto-select channel pertama
+          const allCh = [...(data.data.qris || []), ...(data.data.ewallet || []), ...(data.data.va || [])];
+          if (allCh.length > 0) {
+            setSelectedChannel(allCh[0].code);
+          }
         }
       } catch {
         console.error("Gagal fetch channels");
@@ -181,10 +186,7 @@ export default function DepositPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount,
-          channel_code: "gopay_qris",
-          gateway: "bayargg",
-          customer_name: "KirimKode User",
-          customer_email: "user@kirimkode.com",
+          channel_code: selectedChannel === "bayargg_gopay_qris" ? "gopay_qris" : selectedChannel,
         }),
       });
 
