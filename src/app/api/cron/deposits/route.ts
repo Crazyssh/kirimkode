@@ -90,7 +90,8 @@ export async function GET(req: NextRequest) {
                 }
 
                 if (result.status === "paid") {
-                    const creditAmount = Math.floor(result.final_amount || result.amount) || deposit.amount;
+                    // Kode unik + 2.2% = fee, saldo yang masuk = deposit.amount
+                    const creditAmount = deposit.amount;
 
                     const processed = await db.$transaction(async (tx) => {
                         const claimed = await tx.deposit.updateMany({

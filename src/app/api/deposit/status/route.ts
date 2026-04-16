@@ -69,7 +69,8 @@ export async function GET(req: NextRequest) {
           apiStatus = result.status;
           paidAt = result.paid_at || null;
           totalFee = 0;
-          creditAmount = Math.floor(result.final_amount || result.amount) || deposit.amount;
+          // Kode unik + 2.2% = fee, saldo yang masuk = deposit.amount
+          creditAmount = deposit.amount;
           amountReceived = creditAmount;
         } else {
           console.warn(`[BAYAR.GG Status] Got unknown status for ${orderId}, using DB status: ${deposit.status}`);
