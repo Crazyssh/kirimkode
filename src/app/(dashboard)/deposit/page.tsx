@@ -36,6 +36,8 @@ interface DepositResult {
   trx_id: string;
   reference_id: string;
   amount: string;
+  final_amount?: string;
+  unique_code?: string;
   status: string;
   pay_url: string;
   payment_info: {
@@ -510,9 +512,15 @@ export default function DepositPage() {
                   <div className="flex justify-between">
                     <span className="text-muted">{t("deposit.totalPay")}</span>
                     <span className="font-bold font-[family-name:var(--font-jetbrains-mono)] text-primary">
-                      Rp {parseFloat(depositResult.amount).toLocaleString("id-ID")}
+                      Rp {parseFloat(depositResult.final_amount || depositResult.amount).toLocaleString("id-ID")}
                     </span>
                   </div>
+                  {depositResult.unique_code && depositResult.unique_code !== "0" && (
+                    <div className="flex justify-between">
+                      <span className="text-muted">Kode Unik</span>
+                      <span className="font-[family-name:var(--font-jetbrains-mono)] text-xs text-accent font-bold">+{parseInt(depositResult.unique_code).toLocaleString("id-ID")}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-muted">{t("deposit.status")}</span>
                     <Badge variant={paymentStatus === "paid" ? "success" : "warning"}>
