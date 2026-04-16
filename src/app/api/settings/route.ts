@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 // Hanya key ini yang boleh diakses publik
-const PUBLIC_KEYS = ["wa_number"] as const;
+const PUBLIC_KEYS = ["wa_number", "deposit_enabled"] as const;
 type PublicKey = (typeof PUBLIC_KEYS)[number];
 
 // GET /api/settings?key=wa_number

@@ -4,11 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, CheckCircle, AlertCircle, MessageCircle } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, MessageCircle, Wallet } from "lucide-react";
 
 export default function AdminSettingsPage() {
   const [waNumber, setWaNumber] = useState("");
   const [savedWa, setSavedWa] = useState<string | null>(null);
+  const [depositEnabled, setDepositEnabled] = useState(true);
+  const [togglingDeposit, setTogglingDeposit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
@@ -23,6 +25,7 @@ export default function AdminSettingsPage() {
         const wa = json.data?.wa_number ?? "";
         setWaNumber(wa);
         setSavedWa(wa);
+        setDepositEnabled(json.data?.deposit_enabled !== "false");
       }
     } catch {
       setError("Gagal memuat pengaturan");
@@ -132,6 +135,82 @@ export default function AdminSettingsPage() {
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Simpan
               </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Deposit On/Off Toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Wallet className="h-4 w-4 text-blue-500" />
+            Fitur Deposit
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Memuat...
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Status Deposit</p>
+                  <p className="text-xs text-muted-foreground">
+                    {depositEnabled
+                      ? "User dapat melakukan deposit saat ini."
+                      : "Deposit dinonaktifkan. User tidak bisa melakukan deposit."}
+                  </p>
+                </div>
+                <Button
+                  variant={depositEnabled ? "default" : "outline"}
+                  size="sm"
+                  disabled={togglingDeposit}
+                  onClick={async () => {
+                    setTogglingDeposit(true);
+                    try {
+                      const newValue = !depositEnabled;
+                      const res = await fetch("/api/admin/settings", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          key: "deposit_enabled",
+                          value: String(newValue),
+                        }),
+                      });
+                      if (res.ok) {
+                        setDepositEnabled(newValue);
+                      }
+                    } catch {
+                      // silent
+                    } finally {
+                      setTogglingDeposit(false);
+                    }
+                  }}
+                  className="min-w-[80px]"
+                >
+                  {togglingDeposit ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : depositEnabled ? (
+                    "ON"
+                  ) : (
+                    "OFF"
+                  )}
+                </Button>
+              </div>
+
+              <div
+                className={`rounded-md px-3 py-2 text-sm ${
+                  depositEnabled
+                    ? "bg-green-500/10 text-green-500 border border-green-500/20"
+                    : "bg-destructive/10 text-destructive border border-destructive/20"
+                }`}
+              >
+                {depositEnabled ? "✅ Deposit AKTIF" : "⛔ Deposit NONAKTIF"}
+              </div>
             </>
           )}
         </CardContent>

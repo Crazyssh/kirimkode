@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
 
-const ALLOWED_KEYS = ["wa_number"] as const;
+const ALLOWED_KEYS = ["wa_number", "deposit_enabled"] as const;
 
 // GET: Ambil semua settings
 export async function GET() {
@@ -48,6 +48,21 @@ export async function PATCH(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: { key, value: clean } });
+  }
+
+  // Validasi khusus deposit_enabled (hanya "true" atau "false")
+  if (key === "deposit_enabled") {
+    if (value !== "true" && value !== "false") {
+      return NextResponse.json({ error: "Value harus 'true' atau 'false'" }, { status: 400 });
+    }
+
+    await db.siteSetting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    });
+
+    return NextResponse.json({ success: true, data: { key, value } });
   }
 
   await db.siteSetting.upsert({

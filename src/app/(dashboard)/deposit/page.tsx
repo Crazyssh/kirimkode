@@ -78,6 +78,25 @@ export default function DepositPage() {
   const [voucherApplied, setVoucherApplied] = useState<{ code: string; bonus: number; description: string } | null>(null);
   const [applyingVoucher, setApplyingVoucher] = useState(false);
   const [voucherError, setVoucherError] = useState("");
+  const [depositDisabled, setDepositDisabled] = useState(false);
+
+  // Cek apakah deposit aktif
+  useEffect(() => {
+    async function checkDepositStatus() {
+      try {
+        const res = await fetch("/api/settings?key=deposit_enabled");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data?.value === "false") {
+            setDepositDisabled(true);
+          }
+        }
+      } catch {
+        // silent
+      }
+    }
+    checkDepositStatus();
+  }, []);
 
   // Fetch payment channels & deposit history
   useEffect(() => {
@@ -228,6 +247,23 @@ export default function DepositPage() {
         </h1>
         <p className="text-sm text-muted">{t("deposit.desc")}</p>
       </div>
+
+      {/* Deposit Disabled Banner */}
+      {depositDisabled && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="flex items-center gap-4 py-6">
+            <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-6 h-6 text-destructive" />
+            </div>
+            <div>
+              <p className="font-semibold text-destructive">Deposit Sedang Dinonaktifkan</p>
+              <p className="text-sm text-muted-foreground">
+                Fitur deposit sedang ditutup sementara oleh admin. Silakan coba lagi nanti atau hubungi admin untuk informasi lebih lanjut.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Balance Card */}
       <Card className="border-primary/30">
@@ -438,7 +474,7 @@ export default function DepositPage() {
                   className="w-full"
                   size="lg"
                   onClick={handleCreateDeposit}
-                  disabled={amount < 1000 || loading || loadingChannels}
+                  disabled={amount < 1000 || loading || loadingChannels || depositDisabled}
                 >
                   {loading ? (
                     <>

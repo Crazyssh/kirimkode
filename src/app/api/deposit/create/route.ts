@@ -22,6 +22,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Cek apakah deposit sedang dinonaktifkan oleh admin
+    const depositSetting = await db.siteSetting.findUnique({
+      where: { key: "deposit_enabled" },
+    });
+    if (depositSetting?.value === "false") {
+      return NextResponse.json(
+        { error: "Deposit sedang dinonaktifkan oleh admin. Silakan coba lagi nanti." },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const validated = validateBody(depositCreateSchema, body);
     if (!validated.success) {
