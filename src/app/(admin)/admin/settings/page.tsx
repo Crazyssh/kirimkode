@@ -166,7 +166,7 @@ export default function AdminSettingsPage() {
                   </p>
                 </div>
                 <Button
-                  variant={depositEnabled ? "default" : "outline"}
+                  variant={depositEnabled ? "primary" : "secondary"}
                   size="sm"
                   disabled={togglingDeposit}
                   onClick={async () => {
