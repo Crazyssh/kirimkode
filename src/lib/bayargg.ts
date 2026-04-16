@@ -99,7 +99,7 @@ export async function createPayment(
 
   // Normalize: v2 pakai "payment", v1 pakai "data"
   const payment = (raw.payment || raw.data || raw) as BayarGGPaymentData;
-  const paymentUrl = (raw.payment_url || raw.pay_url || (payment as Record<string, unknown>).payment_url || "") as string;
+  const paymentUrl = (raw.payment_url || raw.pay_url || (payment as unknown as Record<string, unknown>).payment_url || "") as string;
 
   return {
     success: raw.success as boolean,
