@@ -25,17 +25,19 @@ export interface BayarGGCreatePaymentParams {
   use_qris_converter?: boolean;
 }
 
+export interface BayarGGPaymentData {
+  invoice_id: string;
+  amount: number;
+  unique_code: number;
+  final_amount: number;
+  payment_method: string;
+  status: "pending" | "paid" | "expired" | "cancelled";
+  expires_at: string;
+}
+
 export interface BayarGGCreatePaymentResponse {
   success: boolean;
-  payment: {
-    invoice_id: string;
-    amount: number;
-    unique_code: number;
-    final_amount: number;
-    payment_method: string;
-    status: "pending" | "paid" | "expired" | "cancelled";
-    expires_at: string;
-  };
+  payment: BayarGGPaymentData;
   payment_url: string;
   qris_converter?: boolean;
   message?: string;
@@ -87,13 +89,25 @@ async function bayarRequest<T>(
 export async function createPayment(
   params: BayarGGCreatePaymentParams
 ): Promise<BayarGGCreatePaymentResponse> {
-  return bayarRequest<BayarGGCreatePaymentResponse>("/create-payment.php", {
+  const raw = await bayarRequest<Record<string, unknown>>("/create-payment.php", {
     method: "POST",
     body: JSON.stringify({
       ...params,
       payment_method: "qris",
     }),
   });
+
+  // Normalize: v2 pakai "payment", v1 pakai "data"
+  const payment = (raw.payment || raw.data || raw) as BayarGGPaymentData;
+  const paymentUrl = (raw.payment_url || raw.pay_url || (payment as Record<string, unknown>).payment_url || "") as string;
+
+  return {
+    success: raw.success as boolean,
+    payment,
+    payment_url: paymentUrl,
+    qris_converter: raw.qris_converter as boolean | undefined,
+    message: raw.message as string | undefined,
+  };
 }
 
 /**
