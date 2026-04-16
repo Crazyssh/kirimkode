@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Send, MessageCircle, ChevronRight } from "lucide-react";
 
-const DEFAULT_WA_NUMBER = "6283186072571";
+const TELEGRAM_URL = "https://t.me/Kirimkode";
 
 const FAQ_OPTIONS = [
     {
@@ -34,19 +34,11 @@ export function WhatsAppButton() {
     const [customMsg, setCustomMsg] = useState("");
     const [showCustom, setShowCustom] = useState(false);
     const [pulse, setPulse] = useState(true);
-    const [waNumber, setWaNumber] = useState(DEFAULT_WA_NUMBER);
     const popupRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const timer = setTimeout(() => setShowButton(true), 2000);
         const pulseTimer = setTimeout(() => setPulse(false), 10000);
-        // Fetch WA number dari DB
-        fetch("/api/settings?key=wa_number")
-            .then((r) => r.json())
-            .then((json) => {
-                if (json.data?.value) setWaNumber(json.data.value);
-            })
-            .catch(() => { /* pakai default */ });
         return () => {
             clearTimeout(timer);
             clearTimeout(pulseTimer);
@@ -68,8 +60,10 @@ export function WhatsAppButton() {
 
     if (!showButton) return null;
 
-    function goToWA(message: string) {
-        const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
+    function goToTelegram(message: string) {
+        const url = message
+            ? `${TELEGRAM_URL}?text=${encodeURIComponent(message)}`
+            : TELEGRAM_URL;
         window.open(url, "_blank", "noopener,noreferrer");
         setOpen(false);
         setShowCustom(false);
@@ -78,7 +72,7 @@ export function WhatsAppButton() {
 
     function handleFaqClick(faq: (typeof FAQ_OPTIONS)[0]) {
         if (faq.message) {
-            goToWA(faq.message);
+            goToTelegram(faq.message);
         } else {
             setShowCustom(true);
         }
@@ -86,7 +80,7 @@ export function WhatsAppButton() {
 
     function handleCustomSend() {
         if (customMsg.trim()) {
-            goToWA(customMsg.trim());
+            goToTelegram(customMsg.trim());
         }
     }
 
@@ -96,7 +90,7 @@ export function WhatsAppButton() {
             {open && (
                 <div className="absolute bottom-16 right-0 w-80 rounded-2xl bg-surface border border-border shadow-2xl overflow-hidden animate-fade-in">
                     {/* Header */}
-                    <div className="bg-[#25D366] px-4 py-3 flex items-center justify-between">
+                    <div className="bg-[#0088cc] px-4 py-3 flex items-center justify-between">
                         <div className="flex items-center gap-2 text-white">
                             <MessageCircle className="w-5 h-5" />
                             <div>
@@ -150,7 +144,7 @@ export function WhatsAppButton() {
                                     <button
                                         onClick={handleCustomSend}
                                         disabled={!customMsg.trim()}
-                                        className="px-3 py-2 rounded-xl bg-[#25D366] text-white disabled:opacity-50 hover:bg-[#20bd5a] transition-colors"
+                                        className="px-3 py-2 rounded-xl bg-[#0088cc] text-white disabled:opacity-50 hover:bg-[#006daa] transition-colors"
                                     >
                                         <Send className="w-4 h-4" />
                                     </button>
@@ -168,7 +162,7 @@ export function WhatsAppButton() {
                     {/* Footer */}
                     <div className="px-4 py-2 border-t border-border">
                         <p className="text-[10px] text-muted text-center">
-                            Powered by WhatsApp · Tersedia 24/7
+                            Powered by Telegram · Tersedia 24/7
                         </p>
                     </div>
                 </div>
@@ -177,15 +171,15 @@ export function WhatsAppButton() {
             {/* Float Button */}
             <button
                 onClick={() => { setOpen(!open); setPulse(false); }}
-                className="wa-float-btn"
-                aria-label="Chat via WhatsApp"
+                className="tg-float-btn"
+                aria-label="Chat via Telegram"
             >
-                {pulse && !open && <span className="wa-float-pulse" />}
+                {pulse && !open && <span className="tg-float-pulse" />}
                 {open ? (
                     <X className="w-6 h-6 text-white" />
                 ) : (
-                    <svg viewBox="0 0 32 32" width="28" height="28" fill="white">
-                        <path d="M16.004 3.2C9.064 3.2 3.404 8.856 3.4 15.8c0 2.22.58 4.392 1.684 6.304L3.2 28.8l6.892-1.808A12.56 12.56 0 0016.008 28.6c6.94 0 12.596-5.656 12.6-12.6.004-3.368-1.308-6.532-3.692-8.916A12.52 12.52 0 0016.004 3.2zm0 23.08a10.24 10.24 0 01-5.224-1.428l-.376-.224-3.892 1.02 1.04-3.796-.244-.388A10.2 10.2 0 015.72 15.8c0-5.676 4.62-10.292 10.3-10.292a10.24 10.24 0 017.284 3.016 10.24 10.24 0 013.012 7.284c-.004 5.676-4.624 10.292-10.312 10.292v-.02zm5.648-7.708c-.308-.156-1.832-.904-2.116-1.008-.284-.104-.492-.156-.7.156s-.804 1.008-.988 1.216c-.18.208-.364.232-.672.076-.308-.156-1.304-.48-2.484-1.532-.92-.82-1.54-1.832-1.72-2.14-.18-.308-.02-.476.136-.628.14-.14.308-.364.464-.544.156-.18.208-.308.312-.516.104-.208.052-.388-.028-.544-.076-.156-.7-1.688-.96-2.312-.252-.608-.508-.524-.7-.536h-.596c-.208 0-.544.08-.828.388-.284.308-1.084 1.06-1.084 2.584s1.108 3 1.264 3.208c.156.208 2.184 3.332 5.292 4.672.74.32 1.316.512 1.768.656.744.236 1.42.204 1.952.124.596-.088 1.832-.748 2.092-1.472.256-.724.256-1.344.18-1.472-.08-.132-.284-.208-.596-.364z" />
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="white">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
                     </svg>
                 )}
             </button>

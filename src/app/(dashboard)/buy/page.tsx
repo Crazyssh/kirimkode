@@ -512,6 +512,7 @@ export default function BuyPage() {
             serviceName: service.name,
             countryName: selectedNegara.nama_negara,
             price: isUnified && selectedProvider ? selectedProvider.price : service.price,
+            bulk: true,
           }),
         });
         const data = await res.json();

@@ -46,7 +46,7 @@ async function fetchApi(
   server: JasaOtpServerId,
   endpoint: string,
   params?: Record<string, string>,
-  options?: { skipRetry?: boolean; skipCache?: boolean }
+  options?: { skipRetry?: boolean; skipCache?: boolean; noTimeout?: boolean }
 ) {
   const base = getBaseUrl(server);
   const url = new URL(`${base}/${endpoint}`);
@@ -67,8 +67,13 @@ async function fetchApi(
 
   const doFetch = async () => {
     const controller = new AbortController();
-    const timeoutMs = options?.skipCache ? 20000 : 15000; // order/sms: 20s, read: 15s
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    // noTimeout: nunggu sampai server respon (untuk bulk order)
+    // skipCache (order/sms): 20s, read endpoints: 15s
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    if (!options?.noTimeout) {
+      const timeoutMs = options?.skipCache ? 20000 : 15000;
+      timeout = setTimeout(() => controller.abort(), timeoutMs);
+    }
 
     try {
       const res = await fetch(urlStr, {
@@ -93,7 +98,7 @@ async function fetchApi(
 
       return data;
     } finally {
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
     }
   };
 
@@ -157,7 +162,8 @@ export async function createOrder(
   server: ServerId,
   negara: number,
   layanan: string,
-  operator: string
+  operator: string,
+  opts?: { noTimeout?: boolean }
 ) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.createOrder(negara, layanan, operator);
@@ -166,7 +172,7 @@ export async function createOrder(
     negara: String(negara),
     layanan,
     operator,
-  }, { skipRetry: true, skipCache: true });
+  }, { skipRetry: true, skipCache: true, noTimeout: opts?.noTimeout });
 }
 
 export async function checkSms(server: ServerId, orderId: number) {

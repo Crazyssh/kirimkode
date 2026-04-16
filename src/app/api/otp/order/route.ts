@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { server, negara, layanan, operator, serviceName, countryName } = validated.data;
+    const isBulk = body.bulk === true;
 
     // Harga WAJIB dari server, bukan dari client
     const orderPrice = await getServerPrice(server as "api1" | "api2" | "api3", Number(negara), layanan);
@@ -103,7 +104,8 @@ export async function POST(req: NextRequest) {
     if (user.balance < orderPrice) throw new Error("INSUFFICIENT_BALANCE");
 
     // Step 2: Call provider API (bisa lambat, HARUS di luar transaction)
-    const data = await createOrder(server as "api1" | "api2" | "api3", Number(negara), layanan, operator);
+    // Bulk order: tanpa timeout, nunggu sampai server respon
+    const data = await createOrder(server as "api1" | "api2" | "api3", Number(negara), layanan, operator, { noTimeout: isBulk });
 
     const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
     const number = data?.number ?? data?.data?.number ?? "";
