@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 
 /**
- * Channels: Paymenku QRIS + BAYAR.GG GoPay Merchant QRIS
+ * Channels: Paymenku QRIS + BAYAR.GG GoPay QRIS + Manual QRIS (admin toggle)
  */
 export async function GET() {
   const channels = [];
@@ -39,6 +40,33 @@ export async function GET() {
       display: "Kode unik + 2.2%",
     },
   });
+
+  // Manual QRIS (admin toggle via SiteSetting)
+  if (process.env.MANUAL_QRIS_STRING) {
+    try {
+      const setting = await db.siteSetting.findUnique({
+        where: { key: "manual_qris_enabled" },
+      });
+      if (setting?.value === "true") {
+        channels.push({
+          code: "manual_qris",
+          name: "QRIS Manual",
+          type: "qris",
+          type_label: "QRIS",
+          icon: null,
+          description: "Bayar via QRIS - Konfirmasi manual oleh admin",
+          gateway: "manual_qris",
+          fee: {
+            flat: 100,
+            percent: 0,
+            display: "Rp 100",
+          },
+        });
+      }
+    } catch {
+      // silent
+    }
+  }
 
   return NextResponse.json({
     status: "success",

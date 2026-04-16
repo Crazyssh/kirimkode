@@ -4,13 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, CheckCircle, AlertCircle, MessageCircle, Wallet } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, MessageCircle, Wallet, QrCode, Send } from "lucide-react";
 
 export default function AdminSettingsPage() {
   const [waNumber, setWaNumber] = useState("");
   const [savedWa, setSavedWa] = useState<string | null>(null);
   const [depositEnabled, setDepositEnabled] = useState(true);
   const [togglingDeposit, setTogglingDeposit] = useState(false);
+  const [manualQrisEnabled, setManualQrisEnabled] = useState(false);
+  const [togglingManualQris, setTogglingManualQris] = useState(false);
+  const [telegramUsername, setTelegramUsername] = useState("");
+  const [savedTelegram, setSavedTelegram] = useState<string | null>(null);
+  const [savingTelegram, setSavingTelegram] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
@@ -26,6 +31,10 @@ export default function AdminSettingsPage() {
         setWaNumber(wa);
         setSavedWa(wa);
         setDepositEnabled(json.data?.deposit_enabled !== "false");
+        setManualQrisEnabled(json.data?.manual_qris_enabled === "true");
+        const tg = json.data?.admin_telegram_username ?? "";
+        setTelegramUsername(tg);
+        setSavedTelegram(tg);
       }
     } catch {
       setError("Gagal memuat pengaturan");
@@ -211,6 +220,161 @@ export default function AdminSettingsPage() {
               >
                 {depositEnabled ? "✅ Deposit AKTIF" : "⛔ Deposit NONAKTIF"}
               </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Manual QRIS On/Off Toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <QrCode className="h-4 w-4 text-orange-500" />
+            QRIS Manual (Konfirmasi Admin)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Memuat...
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">QRIS Manual</p>
+                  <p className="text-xs text-muted-foreground">
+                    {manualQrisEnabled
+                      ? "QRIS Manual aktif. User dapat deposit via QRIS manual (konfirmasi admin)."
+                      : "QRIS Manual nonaktif. Channel ini tidak tampil di halaman deposit."}
+                  </p>
+                </div>
+                <Button
+                  variant={manualQrisEnabled ? "primary" : "secondary"}
+                  size="sm"
+                  disabled={togglingManualQris}
+                  onClick={async () => {
+                    setTogglingManualQris(true);
+                    try {
+                      const newValue = !manualQrisEnabled;
+                      const res = await fetch("/api/admin/settings", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          key: "manual_qris_enabled",
+                          value: String(newValue),
+                        }),
+                      });
+                      if (res.ok) {
+                        setManualQrisEnabled(newValue);
+                      }
+                    } catch {
+                      // silent
+                    } finally {
+                      setTogglingManualQris(false);
+                    }
+                  }}
+                  className="min-w-[80px]"
+                >
+                  {togglingManualQris ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : manualQrisEnabled ? (
+                    "ON"
+                  ) : (
+                    "OFF"
+                  )}
+                </Button>
+              </div>
+              <div
+                className={`rounded-md px-3 py-2 text-sm ${
+                  manualQrisEnabled
+                    ? "bg-orange-500/10 text-orange-500 border border-orange-500/20"
+                    : "bg-muted/50 text-muted-foreground border border-border"
+                }`}
+              >
+                {manualQrisEnabled ? "✅ QRIS Manual AKTIF — Fee Rp 100" : "⛔ QRIS Manual NONAKTIF"}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Telegram Username */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Send className="h-4 w-4 text-blue-400" />
+            Username Telegram Admin
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Memuat...
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">
+                  Username Telegram (tanpa @)
+                </label>
+                <Input
+                  placeholder="Contoh: admin_kirimkode"
+                  value={telegramUsername}
+                  onChange={(e) => setTelegramUsername(e.target.value.replace(/^@/, ""))}
+                  disabled={savingTelegram}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Digunakan untuk redirect user setelah bayar QRIS Manual.
+                </p>
+              </div>
+
+              {savedTelegram && (
+                <p className="text-xs text-muted-foreground">
+                  Tersimpan:{" "}
+                  <a
+                    href={`https://t.me/${savedTelegram}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 underline"
+                  >
+                    @{savedTelegram}
+                  </a>
+                </p>
+              )}
+
+              <Button
+                onClick={async () => {
+                  setSavingTelegram(true);
+                  setSuccess(""); setError("");
+                  try {
+                    const res = await fetch("/api/admin/settings", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ key: "admin_telegram_username", value: telegramUsername }),
+                    });
+                    const json = await res.json();
+                    if (!res.ok) {
+                      setError(json.error || "Gagal menyimpan");
+                    } else {
+                      setSavedTelegram(json.data.value);
+                      setTelegramUsername(json.data.value);
+                      setSuccess("Username Telegram berhasil disimpan!");
+                      setTimeout(() => setSuccess(""), 3000);
+                    }
+                  } catch {
+                    setError("Gagal menghubungi server");
+                  } finally {
+                    setSavingTelegram(false);
+                  }
+                }}
+                disabled={savingTelegram || telegramUsername === savedTelegram}
+              >
+                {savingTelegram && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Simpan
+              </Button>
             </>
           )}
         </CardContent>

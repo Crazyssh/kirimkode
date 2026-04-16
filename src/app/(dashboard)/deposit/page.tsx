@@ -21,6 +21,7 @@ import {
   RefreshCw,
   AlertCircle,
   Ticket,
+  Send,
 } from "lucide-react";
 
 interface PaymentChannel {
@@ -38,8 +39,11 @@ interface DepositResult {
   amount: string;
   final_amount?: string;
   unique_code?: string;
+  fee?: string;
   status: string;
   pay_url: string;
+  gateway?: string;
+  admin_telegram?: string;
   payment_info: {
     transaction_id?: string;
     transaction_status?: string;
@@ -581,6 +585,32 @@ export default function DepositPage() {
                     </a>
                   </div>
                 ) : null}
+
+                {/* Manual QRIS: Tombol Sudah Bayar → Telegram */}
+                {depositResult.gateway === "manual_qris" && depositResult.admin_telegram && (
+                  <div className="space-y-3">
+                    <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-4 text-center space-y-2">
+                      <p className="text-sm font-medium text-orange-400">
+                        ⚠️ Deposit ini dikonfirmasi manual oleh admin
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Setelah scan & bayar, klik tombol di bawah untuk konfirmasi ke admin via Telegram.
+                      </p>
+                    </div>
+                    <a
+                      href={`https://t.me/${depositResult.admin_telegram}?text=${encodeURIComponent(
+                        `Halo admin, saya sudah bayar deposit QRIS Manual.\n\nTRX ID: ${depositResult.trx_id}\nJumlah: Rp ${Number(depositResult.final_amount || depositResult.amount).toLocaleString("id-ID")}\n\nMohon dikonfirmasi. Terima kasih! 🙏`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white">
+                        <Send className="w-4 h-4 mr-2" />
+                        Sudah Bayar — Konfirmasi via Telegram
+                      </Button>
+                    </a>
+                  </div>
+                )}
 
                 {paymentStatus === "pending" && (
                   <div className="flex items-center justify-center gap-2 text-xs text-muted">

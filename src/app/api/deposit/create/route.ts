@@ -5,6 +5,7 @@ import {
   createPayment as bayarggCreatePayment,
   generateDescription as bayarggDescription,
   convertQris,
+  convertCustomQris,
 } from "@/lib/bayargg";
 import {
   createTransaction as paymenkuCreateTransaction,
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { amount, channel_code } = validated.data;
-    const gateway = channel_code === "QRIS" ? "paymenku" : "bayargg";
+    const gateway = channel_code === "QRIS" ? "paymenku" : channel_code === "manual_qris" ? "manual_qris" : "bayargg";
 
     // Anti double charge: cek apakah ada deposit pending yang masih aktif
     const pendingCount = await db.deposit.count({
@@ -126,6 +127,93 @@ export async function POST(req: NextRequest) {
           status: result.data.status,
           pay_url: result.data.pay_url,
           payment_info: result.data.payment_info,
+        },
+      });
+    }
+
+    if (gateway === "manual_qris") {
+      // === MANUAL QRIS (admin confirm) ===
+      const manualQrisSetting = await db.siteSetting.findUnique({
+        where: { key: "manual_qris_enabled" },
+      });
+      if (manualQrisSetting?.value !== "true") {
+        return NextResponse.json(
+          { error: "QRIS Manual sedang dinonaktifkan." },
+          { status: 403 }
+        );
+      }
+
+      const qrisString = process.env.MANUAL_QRIS_STRING;
+      if (!qrisString) {
+        return NextResponse.json(
+          { error: "QRIS Manual belum dikonfigurasi." },
+          { status: 500 }
+        );
+      }
+
+      const fee = 100;
+      const finalAmount = amount + fee;
+      const referenceId = `MQ-${user.id}-${Date.now()}`;
+      const trxId = `MQ${Date.now()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
+      // Convert QRIS string to QR image with embedded amount
+      let qrImageUrl: string | null = null;
+      try {
+        const qrisResult = await convertCustomQris(qrisString, finalAmount);
+        qrImageUrl = qrisResult.data.qr_image_url;
+        console.log(`[MANUAL_QRIS] QRIS ready: ${qrImageUrl} (Rp ${finalAmount})`);
+      } catch (e) {
+        console.error("[MANUAL_QRIS] QRIS convert gagal:", e);
+        return NextResponse.json(
+          { error: "Gagal generate QRIS. Silakan coba lagi." },
+          { status: 500 }
+        );
+      }
+
+      // Get admin telegram username
+      const telegramSetting = await db.siteSetting.findUnique({
+        where: { key: "admin_telegram_username" },
+      });
+      const adminTelegram = telegramSetting?.value || "";
+
+      await db.deposit.create({
+        data: {
+          userId: user.id,
+          trxId,
+          referenceId,
+          amount,
+          fee,
+          channelCode: "manual_qris",
+          channelName: "QRIS Manual",
+          gateway: "manual_qris",
+          status: "pending",
+          payUrl: null,
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000), // 30 menit
+        },
+      });
+
+      logAction(user.id, "deposit", JSON.stringify({ trxId, amount, fee, gateway: "manual_qris" }));
+
+      return NextResponse.json({
+        status: "success",
+        data: {
+          trx_id: trxId,
+          reference_id: referenceId,
+          amount: String(amount),
+          final_amount: String(finalAmount),
+          unique_code: "0",
+          fee: String(fee),
+          status: "pending",
+          pay_url: null,
+          gateway: "manual_qris",
+          admin_telegram: adminTelegram,
+          payment_info: {
+            transaction_id: trxId,
+            transaction_status: "pending",
+            qr_url: qrImageUrl,
+            checkout_url: null,
+            expiration_date: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          },
         },
       });
     }

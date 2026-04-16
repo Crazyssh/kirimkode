@@ -244,3 +244,19 @@ export async function convertQris(nominal: number): Promise<QrisConvertResponse>
     }),
   });
 }
+
+/**
+ * Convert custom QRIS string + nominal → QR image URL
+ */
+export async function convertCustomQris(qrisString: string, nominal: number): Promise<QrisConvertResponse> {
+  if (!qrisString) {
+    throw new Error("QRIS string not provided");
+  }
+  return bayarRequest<QrisConvertResponse>("/qris-convert.php", {
+    method: "POST",
+    body: JSON.stringify({
+      qris: qrisString,
+      nominal,
+    }),
+  });
+}
