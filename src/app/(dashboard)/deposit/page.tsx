@@ -340,14 +340,6 @@ export default function DepositPage() {
                   <p className="text-xs text-muted mt-1">{t("deposit.minDeposit")}</p>
                 </div>
 
-                {/* Info kode unik */}
-                <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-2 text-xs text-muted">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-primary mt-0.5" />
-                  <span>
-                    Total pembayaran = nominal deposit + <strong>kode unik</strong> (3 digit acak). Seluruh jumlah yang Anda bayar akan masuk ke saldo.
-                  </span>
-                </div>
-
                 {/* Payment Channels */}
                 <div className="space-y-3">
                   <label className="text-sm text-muted block">{t("deposit.paymentMethod")}</label>
