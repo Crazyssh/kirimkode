@@ -198,6 +198,15 @@ export async function checkSms(server: ServerId, orderId: number) {
   }, { skipRetry: true, skipCache: true });
 }
 
+/**
+ * Request SMS resend — saat ini cuma support api4 (Neptune/HeroSMS V2).
+ * Throws "RESEND_NOT_SUPPORTED" untuk server lain.
+ */
+export async function requestRetry(server: ServerId, orderId: number) {
+  if (server === "api4") return provider4.requestRetry(orderId);
+  throw new Error("RESEND_NOT_SUPPORTED");
+}
+
 export async function cancelOrder(server: ServerId, orderId: number) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.cancelOrder(orderId);

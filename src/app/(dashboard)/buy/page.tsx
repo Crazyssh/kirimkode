@@ -27,6 +27,7 @@ import {
   AlertCircle,
   Download,
   Star,
+  RefreshCw,
 } from "lucide-react";
 
 interface ApiNegara {
@@ -96,6 +97,7 @@ export default function BuyPage() {
   const [historyLimit, setHistoryLimit] = useState(10);
   const [historySearch, setHistorySearch] = useState("");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleCopyText = (text: string, id: string) => {
@@ -451,6 +453,28 @@ export default function BuyPage() {
       toast.error("Gagal membatalkan pesanan. Coba lagi.");
     }
     finally { setCancellingId(null); }
+  };
+
+  const handleResendSms = async (order: HistoryOrder) => {
+    setResendingId(order.id);
+    try {
+      const res = await fetch("/api/otp/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: order.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success("Permintaan SMS baru terkirim. Tunggu sebentar.");
+      } else {
+        toast.error(data.error || "Gagal request SMS baru");
+      }
+      fetchHistory(historyPage);
+    } catch {
+      toast.error("Gagal request SMS baru. Coba lagi.");
+    } finally {
+      setResendingId(null);
+    }
   };
 
   // Helper: cek apakah error terkait stok habis
@@ -1256,27 +1280,60 @@ export default function BuyPage() {
                               </Badge>
                             </td>
                             <td className="py-3">
-                              {o.status === "waiting" && (() => {
+                              {(o.status === "waiting" || o.status === "success") && (() => {
                                 const orderAge = Date.now() - new Date(o.date).getTime();
                                 const threeMin = 3 * 60 * 1000;
-                                const canCancel = orderAge >= threeMin;
+                                const twentyMin = 20 * 60 * 1000;
+
+                                // Resend: api4 + udah dapet OTP + belum 20 menit
+                                const canResend =
+                                  o.server === "api4" && !!o.code && orderAge < twentyMin;
+
+                                // Cancel: cuma muncul saat waiting + udah lewat 3 menit
+                                const isWaiting = o.status === "waiting";
+                                const canCancel = isWaiting && orderAge >= threeMin;
                                 const secsLeft = Math.ceil((threeMin - orderAge) / 1000);
                                 const minsLeft = Math.floor(secsLeft / 60);
                                 const secsRem = secsLeft % 60;
-                                return canCancel ? (
-                                  <Button
-                                    variant="danger"
-                                    size="sm"
-                                    onClick={() => handleCancelOrder(o)}
-                                    disabled={cancellingId === o.id}
-                                  >
-                                    {cancellingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                                    Batalkan
-                                  </Button>
-                                ) : (
-                                  <span className="text-[10px] text-muted whitespace-nowrap">
-                                    {minsLeft}:{String(secsRem).padStart(2, "0")}
-                                  </span>
+
+                                if (!canResend && o.status === "success") return null;
+
+                                return (
+                                  <div className="flex items-center gap-1.5">
+                                    {canResend && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleResendSms(o)}
+                                        disabled={resendingId === o.id}
+                                        title="Minta SMS baru ke HeroSMS (gratis)"
+                                      >
+                                        {resendingId === o.id ? (
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                          <RefreshCw className="w-3.5 h-3.5" />
+                                        )}
+                                        SMS Lagi
+                                      </Button>
+                                    )}
+                                    {isWaiting && (
+                                      canCancel ? (
+                                        <Button
+                                          variant="danger"
+                                          size="sm"
+                                          onClick={() => handleCancelOrder(o)}
+                                          disabled={cancellingId === o.id}
+                                        >
+                                          {cancellingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                                          Batalkan
+                                        </Button>
+                                      ) : (
+                                        <span className="text-[10px] text-muted whitespace-nowrap">
+                                          {minsLeft}:{String(secsRem).padStart(2, "0")}
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
                                 );
                               })()}
                             </td>

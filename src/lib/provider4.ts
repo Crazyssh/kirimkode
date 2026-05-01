@@ -483,3 +483,23 @@ export async function cancelOrder(orderId: number) {
 
   throw new Error(text || "Gagal membatalkan pesanan");
 }
+
+/**
+ * Request SMS resend (HeroSMS setStatus=3).
+ * Dipanggil setelah user dapat OTP pertama dan mau minta SMS baru lagi
+ * (sampai 20 menit dari order pertama). Gratis, gak charge ulang.
+ *
+ * Response sukses: ACCESS_RETRY_GET
+ */
+export async function requestRetry(orderId: number) {
+  const text = await fetchProvider(
+    { action: "setStatus", id: String(orderId), status: "3" },
+    { skipCache: true }
+  );
+
+  if (text === "ACCESS_RETRY_GET" || text === "ACCESS_READY") {
+    return { success: true };
+  }
+
+  throw new Error(text || "Gagal request SMS baru");
+}

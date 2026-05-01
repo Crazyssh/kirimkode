@@ -142,6 +142,18 @@ export async function GET(req: NextRequest) {
         await cancelOrder(serverId, order.orderId);
       } catch { /* provider cancel may fail if already expired */ }
 
+      // Kalau order udah dapet OTP (resend mode), JANGAN refund — user udah dapet value.
+      // Cuma mark status sebagai timeout.
+      if (order.code) {
+        await db.order.updateMany({
+          where: { id: order.id, status: "waiting" },
+          data: { status: "timeout" },
+        });
+        expired++;
+        console.log(`[CRON] Resend timeout (no refund — already had OTP): order ${order.id}`);
+        continue;
+      }
+
       const refunded = await refundOrder(order.id, order.userId, order.price, "timeout", {
         server: order.server,
         service: order.service,
@@ -161,6 +173,17 @@ export async function GET(req: NextRequest) {
 
       // === 2a. Cek apakah provider sudah cancel/expire order ini ===
       if (isProviderExpired(data)) {
+        // Kalau udah ada OTP, JANGAN refund (resend mode)
+        if (order.code) {
+          await db.order.updateMany({
+            where: { id: order.id, status: "waiting" },
+            data: { status: "cancelled" },
+          });
+          providerCancelled++;
+          console.log(`[CRON] Resend provider cancelled (no refund): order ${order.id}`);
+          continue;
+        }
+
         const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled", {
           server: order.server,
           service: order.service,
@@ -175,6 +198,11 @@ export async function GET(req: NextRequest) {
 
       // === 2b. Cek apakah OTP sudah masuk ===
       const otp = extractOtp(data as Record<string, unknown>);
+      // Resend mode: kalau provider balikin code yang SAMA dengan order.code,
+      // skip — anggap belum ada SMS baru, lanjut polling.
+      if (otp && otp === order.code) {
+        continue;
+      }
       if (otp) {
         let waCheck = null;
         const rawSvc = order.service.toLowerCase();
@@ -223,14 +251,24 @@ export async function GET(req: NextRequest) {
       const errMsg = (err as Error)?.message || "";
       const lower = errMsg.toLowerCase();
       if (PROVIDER_EXPIRED_KEYWORDS.some((kw) => lower.includes(kw))) {
-        const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled", {
-          server: order.server,
-          service: order.service,
-          countryId: order.countryId,
-        });
-        if (refunded) {
+        // Resend mode: udah ada OTP, gak refund
+        if (order.code) {
+          await db.order.updateMany({
+            where: { id: order.id, status: "waiting" },
+            data: { status: "cancelled" },
+          });
           providerCancelled++;
-          console.log(`[CRON] Provider error (expired) + refund: order ${order.id} — ${errMsg}`);
+          console.log(`[CRON] Resend provider error (no refund): order ${order.id} — ${errMsg}`);
+        } else {
+          const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled", {
+            server: order.server,
+            service: order.service,
+            countryId: order.countryId,
+          });
+          if (refunded) {
+            providerCancelled++;
+            console.log(`[CRON] Provider error (expired) + refund: order ${order.id} — ${errMsg}`);
+          }
         }
       }
       // Else: network error, skip silently

@@ -106,7 +106,9 @@ export async function GET(req: NextRequest) {
                             const data = await checkSms(order.server as "api1" | "api2" | "api3" | "api4", order.orderId);
                             const otp = extractOtp(data as Record<string, unknown>);
 
-                            if (otp && otp !== knownCodes[order.id]) {
+                            // Resend mode: kalau OTP sama persis dengan code di DB, skip
+                            // (anggap belum ada SMS baru). Cuma push kalau OTP genuinely baru.
+                            if (otp && otp !== order.code && otp !== knownCodes[order.id]) {
                                 knownCodes[order.id] = otp;
 
                                 // Set timer OTP pertama
