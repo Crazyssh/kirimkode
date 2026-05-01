@@ -54,6 +54,7 @@ export async function GET() {
       price: e.price,
       stock: e.stock,
       maxPriceUsd: e.maxPriceUsd,
+      fixedPrice: e.fixedPrice,
     }));
 
     return NextResponse.json({ data });
@@ -83,7 +84,11 @@ export async function POST(req: NextRequest) {
       price,
       stock,
       maxPriceUsd,
+      fixedPrice,
     } = body;
+
+    // fixedPrice opsional, default true
+    const fixedPriceFinal = typeof fixedPrice === "boolean" ? fixedPrice : true;
 
     if (
       typeof countryId !== "number" ||
@@ -130,6 +135,7 @@ export async function POST(req: NextRequest) {
           price,
           stock,
           maxPriceUsd: maxPriceUsd ?? null,
+          fixedPrice: fixedPriceFinal,
         },
       });
 
@@ -204,6 +210,7 @@ export async function POST(req: NextRequest) {
         price,
         stock,
         maxPriceUsd: maxPriceUsd ?? null,
+        fixedPrice: fixedPriceFinal,
       },
     });
 

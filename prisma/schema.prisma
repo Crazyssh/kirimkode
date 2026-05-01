@@ -312,6 +312,7 @@ model ProviderService {
   price       Int      // harga jual ke user (IDR) — untuk api4 di-set manual oleh admin
   stock       Int      // stok tersedia — untuk api4 di-set manual & decrement tiap order sukses
   maxPriceUsd Float?   // maxPrice USD dikirim ke HeroSMS getNumberV2 (api4 only)
+  fixedPrice  Boolean  @default(true) // true = strict (harga persis), false = longgar (terima ≤ maxPrice). api4 only
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

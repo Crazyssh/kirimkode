@@ -168,14 +168,17 @@ export async function createOrder(
   negara: number,
   layanan: string,
   operator: string,
-  opts?: { noTimeout?: boolean; maxPriceUsd?: number | null }
+  opts?: { noTimeout?: boolean; maxPriceUsd?: number | null; fixedPrice?: boolean }
 ) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.createOrder(negara, layanan, operator);
   if (server === "api4") {
     // api4 layanan code bisa composite "wa#abc" — strip suffix sebelum panggil HeroSMS
     const realCode = layanan.split("#")[0];
-    return provider4.createOrder(negara, realCode, operator, { maxPriceUsd: opts?.maxPriceUsd ?? null });
+    return provider4.createOrder(negara, realCode, operator, {
+      maxPriceUsd: opts?.maxPriceUsd ?? null,
+      fixedPrice: opts?.fixedPrice ?? true,
+    });
   }
   return fetchApi(server, "order.php", {
     api_key: API_KEY,

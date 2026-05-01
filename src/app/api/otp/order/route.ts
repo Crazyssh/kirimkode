@@ -16,6 +16,7 @@ async function getApi4Entry(negara: number, layanan: string): Promise<{
   price: number;
   stock: number;
   maxPriceUsd: number | null;
+  fixedPrice: boolean;
 }> {
   const country = await db.providerCountry.findUnique({
     where: {
@@ -34,7 +35,7 @@ async function getApi4Entry(negara: number, layanan: string): Promise<{
         code: layanan,
       },
     },
-    select: { id: true, price: true, stock: true, maxPriceUsd: true },
+    select: { id: true, price: true, stock: true, maxPriceUsd: true, fixedPrice: true },
   });
 
   if (!service) throw new Error("LAYANAN_NOT_FOUND");
@@ -45,6 +46,7 @@ async function getApi4Entry(negara: number, layanan: string): Promise<{
     price: service.price,
     stock: service.stock,
     maxPriceUsd: service.maxPriceUsd,
+    fixedPrice: service.fixedPrice,
   };
 }
 
@@ -137,12 +139,14 @@ export async function POST(req: NextRequest) {
     let orderPrice: number;
     let api4ServiceId: string | null = null;
     let api4MaxPriceUsd: number | null = null;
+    let api4FixedPrice: boolean = true;
 
     if (server === "api4") {
       const entry = await getApi4Entry(Number(negara), layanan);
       orderPrice = entry.price;
       api4ServiceId = entry.serviceId;
       api4MaxPriceUsd = entry.maxPriceUsd;
+      api4FixedPrice = entry.fixedPrice;
     } else {
       // Harga WAJIB dari server, bukan dari client
       orderPrice = await getServerPrice(server as "api1" | "api2" | "api3", Number(negara), layanan);
@@ -163,6 +167,7 @@ export async function POST(req: NextRequest) {
     const data = await createOrder(server as "api1" | "api2" | "api3" | "api4", Number(negara), layanan, operator, {
       noTimeout: isBulk,
       maxPriceUsd: api4MaxPriceUsd,
+      fixedPrice: api4FixedPrice,
     });
 
     const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;

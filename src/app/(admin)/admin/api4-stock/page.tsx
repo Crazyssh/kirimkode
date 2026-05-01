@@ -42,6 +42,7 @@ interface StockEntry {
   price: number;
   stock: number;
   maxPriceUsd: number | null;
+  fixedPrice: boolean;
 }
 
 export default function Api4StockPage() {
@@ -62,6 +63,7 @@ export default function Api4StockPage() {
   const [priceIdr, setPriceIdr] = useState<string>("");
   const [maxPriceUsd, setMaxPriceUsd] = useState<string>("");
   const [stock, setStock] = useState<string>("");
+  const [fixedPrice, setFixedPrice] = useState<boolean>(true); // default strict
   const [editingId, setEditingId] = useState<string | null>(null); // null = create mode
 
   // Auto-sync: harga IDR otomatis ngikut perubahan maxPriceUsd
@@ -208,6 +210,7 @@ export default function Api4StockPage() {
           price: priceNum,
           stock: stockNum,
           maxPriceUsd: maxPriceNum,
+          fixedPrice,
         }),
       });
       const data = await res.json();
@@ -243,6 +246,7 @@ export default function Api4StockPage() {
     setPriceIdr(String(entry.price));
     setMaxPriceUsd(entry.maxPriceUsd !== null ? String(entry.maxPriceUsd) : "");
     setStock(String(entry.stock));
+    setFixedPrice(entry.fixedPrice);
     setEditingId(entry.id);
     // Scroll ke atas biar form keliatan
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -254,6 +258,7 @@ export default function Api4StockPage() {
     setPriceIdr("");
     setMaxPriceUsd("");
     setStock("");
+    setFixedPrice(true);
   }
 
   async function handleDelete(id: string, name: string) {
@@ -506,6 +511,27 @@ export default function Api4StockPage() {
                     )}
                   </div>
 
+                  <div className="p-3 rounded-lg border border-border bg-background/50">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={fixedPrice}
+                        onChange={(e) => setFixedPrice(e.target.checked)}
+                        className="mt-0.5 cursor-pointer"
+                      />
+                      <div className="flex-1 text-xs">
+                        <div className="font-medium">
+                          {fixedPrice ? "🔒 Strict Price (fixedPrice=true)" : "🔓 Longgar (terima ≤ maxPrice)"}
+                        </div>
+                        <div className="text-muted mt-1">
+                          {fixedPrice
+                            ? "HeroSMS HARUS kasih nomor di harga PERSIS sesuai maxPrice. Margin 100% predictable, tapi sering NO_NUMBERS kalau pasar geser."
+                            : "HeroSMS kasih nomor termurah ≤ maxPrice. Order jarang gagal, tapi modal aktual bisa lebih murah dari maxPrice (untung lebih)."}
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
                   <div>
                     <label className="text-xs text-muted block mb-1">
                       5. Stock Manual — wajib (decrement otomatis tiap order sukses)
@@ -594,7 +620,7 @@ export default function Api4StockPage() {
                               </div>
                             </div>
                             <div>
-                              <div className="text-muted">maxPrice</div>
+                              <div className="text-muted">maxPrice {e.fixedPrice ? "🔒" : "🔓"}</div>
                               <div className="font-medium">
                                 {e.maxPriceUsd !== null
                                   ? `$${e.maxPriceUsd.toFixed(4)}`
