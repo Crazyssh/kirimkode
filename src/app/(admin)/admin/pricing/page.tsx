@@ -509,11 +509,12 @@ export default function PricingPage() {
           <Card>
             <CardContent>
               <label className="text-xs text-muted block mb-2">Server</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: "api1", name: "Mars", icon: "🔴" },
                   { id: "api2", name: "Jupiter", icon: "🟠" },
                   { id: "api3", name: "Saturn", icon: "🟣" },
+                  { id: "api4", name: "Neptune", icon: "🔵" },
                 ].map((s) => (
                   <button
                     key={s.id}
@@ -551,7 +552,7 @@ export default function PricingPage() {
               </div>
               {globalServiceSearch && (
                 <p className="text-[10px] text-muted mt-1.5">Min. 2 karakter. Cari di semua negara server {
-                  ({api1:"Mars",api2:"Jupiter",api3:"Saturn"} as Record<string,string>)[selectedServer] || selectedServer
+                  ({api1:"Mars",api2:"Jupiter",api3:"Saturn",api4:"Neptune"} as Record<string,string>)[selectedServer] || selectedServer
                 }.</p>
               )}
             </CardContent>

@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
           send(JSON.stringify({ success: true, results: [result] }));
         } else {
           // Sync semua provider satu per satu dengan progress
+          // api4 sengaja di-skip — diambil realtime dari API
           const results = [];
           for (const srv of ["api1", "api2", "api3"] as const) {
             send(`[Sync] Starting ${srv}...`);

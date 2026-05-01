@@ -42,6 +42,26 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
       data: { balance: { increment: order.price } },
     });
 
+    // api4: restore stock manual entry (+1)
+    if (order.server === "api4") {
+      const country = await tx.providerCountry.findUnique({
+        where: {
+          serverId_externalId: { serverId: "api4", externalId: order.countryId },
+        },
+        select: { id: true },
+      });
+      if (country) {
+        await tx.providerService.updateMany({
+          where: {
+            serverId: "api4",
+            countryId: country.id,
+            code: order.service,
+          },
+          data: { stock: { increment: 1 } },
+        });
+      }
+    }
+
     return true;
   });
 

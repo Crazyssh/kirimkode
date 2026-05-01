@@ -1,6 +1,9 @@
 /**
  * Sync semua provider (api1/api2/api3) data ke database lokal.
  * Dipanggil oleh cron endpoint setiap 1 jam.
+ *
+ * NOTE: api4 (HeroSMS V2) sengaja TIDAK di-sync — semua data negara/layanan
+ * diambil langsung realtime dari API key (pake cache adapter internal).
  */
 
 import { db } from "@/lib/db";
@@ -210,7 +213,8 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
 }
 
 /**
- * Sync semua provider (api1 + api2 + api3) — sequential supaya gak overload
+ * Sync semua provider (api1 + api2 + api3) — sequential supaya gak overload.
+ * api4 di-skip — diambil realtime dari API.
  */
 export async function syncAllProviders(): Promise<SyncResult[]> {
   const results: SyncResult[] = [];

@@ -2,12 +2,18 @@
  * Unified Provider — "Bimasakti" ⚡
  * Query DB untuk merged negara/layanan dari semua provider (api1, api2, api3).
  * User pilih layanan → lihat opsi per-provider → pilih provider → order langsung.
+ *
+ * NOTE: api4 sengaja TIDAK ikut unified — datanya realtime dari API, bukan dari DB.
+ * User pilih api4 (Neptune) sebagai server terpisah di buy page.
  */
 
 import { db } from "@/lib/db";
 import { applyPricing } from "@/lib/pricing";
 
 const ACTIVE_PROVIDERS = ["api1", "api2", "api3"];
+
+// Provider yang harganya sudah final (USD→IDR + markup) — skip applyPricing
+const FINAL_PRICE_PROVIDERS = new Set(["api3"]);
 
 // Server display names
 const SERVER_NAMES: Record<string, { name: string; icon: string }> = {
@@ -150,7 +156,7 @@ export async function getUnifiedLayanan(
   const serviceMap = new Map<string, { name: string; minPrice: number; totalStock: number }>();
 
   for (const svc of allServices) {
-    const skipPricing = svc.serverId === "api3";
+    const skipPricing = FINAL_PRICE_PROVIDERS.has(svc.serverId);
     const rawPrice = svc.price;
     const pricingResult = skipPricing
       ? { price: rawPrice, hasRule: false }
@@ -271,7 +277,7 @@ export async function getServiceProviders(
     const mapping = mappings.find((m) => m.dbCountryId === svc.countryId && m.serverId === svc.serverId);
     if (!mapping) continue;
 
-    const skipPricing = svc.serverId === "api3";
+    const skipPricing = FINAL_PRICE_PROVIDERS.has(svc.serverId);
     const rawPrice = svc.price;
     const pricingResult = skipPricing
       ? { price: rawPrice, hasRule: false }

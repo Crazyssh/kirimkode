@@ -19,14 +19,14 @@ const PROVIDER_EXPIRED_KEYWORDS = [
 
 /**
  * Cek apakah response dari provider menandakan order sudah expired/cancelled
- * Works for all providers: api1/api2 (JasaOTP), api3 (Hero-SMS)
+ * Works for all providers: api1/api2 (JasaOTP), api3/api4 (Hero-SMS)
  */
 function isProviderExpired(data: unknown): boolean {
   if (!data || typeof data !== "object") return false;
 
   const d = data as Record<string, unknown>;
 
-  // api3 (Hero-SMS): explicit status field
+  // api3/api4 (Hero-SMS): explicit status field
   if (d.status === "cancelled" || d.status === "timeout" || d.status === "expired") {
     return true;
   }
@@ -58,9 +58,16 @@ function isProviderExpired(data: unknown): boolean {
 }
 
 /**
- * Refund order: update status + kembalikan saldo user
+ * Refund order: update status + kembalikan saldo user.
+ * Untuk api4: juga restore stock manual di DB (+1 ke entry yang sesuai).
  */
-async function refundOrder(orderId: string, userId: string, price: number, status: "timeout" | "cancelled") {
+async function refundOrder(
+  orderId: string,
+  userId: string,
+  price: number,
+  status: "timeout" | "cancelled",
+  meta?: { server?: string; service?: string; countryId?: number }
+) {
   return db.$transaction(async (tx) => {
     // Ensure refund runs only once by claiming waiting -> final status first.
     const updated = await tx.order.updateMany({
@@ -74,6 +81,26 @@ async function refundOrder(orderId: string, userId: string, price: number, statu
       where: { id: userId },
       data: { balance: { increment: price } },
     });
+
+    // api4: restore stock entry yang sesuai (+1)
+    if (meta?.server === "api4" && meta.service && typeof meta.countryId === "number") {
+      const country = await tx.providerCountry.findUnique({
+        where: {
+          serverId_externalId: { serverId: "api4", externalId: meta.countryId },
+        },
+        select: { id: true },
+      });
+      if (country) {
+        await tx.providerService.updateMany({
+          where: {
+            serverId: "api4",
+            countryId: country.id,
+            code: meta.service, // composite code (e.g. "wa" atau "wa#abc")
+          },
+          data: { stock: { increment: 1 } },
+        });
+      }
+    }
 
     return true;
   });
@@ -115,7 +142,11 @@ export async function GET(req: NextRequest) {
         await cancelOrder(serverId, order.orderId);
       } catch { /* provider cancel may fail if already expired */ }
 
-      const refunded = await refundOrder(order.id, order.userId, order.price, "timeout");
+      const refunded = await refundOrder(order.id, order.userId, order.price, "timeout", {
+        server: order.server,
+        service: order.service,
+        countryId: order.countryId,
+      });
       if (refunded) {
         expired++;
         console.log(`[CRON] Timeout + refund: order ${order.id} (${order.serviceName}, ${serverId})`);
@@ -130,7 +161,11 @@ export async function GET(req: NextRequest) {
 
       // === 2a. Cek apakah provider sudah cancel/expire order ini ===
       if (isProviderExpired(data)) {
-        const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled");
+        const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled", {
+          server: order.server,
+          service: order.service,
+          countryId: order.countryId,
+        });
         if (refunded) {
           providerCancelled++;
           console.log(`[CRON] Provider cancelled + refund: order ${order.id} (${order.serviceName}, ${serverId})`);
@@ -188,7 +223,11 @@ export async function GET(req: NextRequest) {
       const errMsg = (err as Error)?.message || "";
       const lower = errMsg.toLowerCase();
       if (PROVIDER_EXPIRED_KEYWORDS.some((kw) => lower.includes(kw))) {
-        const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled");
+        const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled", {
+          server: order.server,
+          service: order.service,
+          countryId: order.countryId,
+        });
         if (refunded) {
           providerCancelled++;
           console.log(`[CRON] Provider error (expired) + refund: order ${order.id} — ${errMsg}`);

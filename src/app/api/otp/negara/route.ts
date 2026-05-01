@@ -4,9 +4,9 @@ import { db } from "@/lib/db";
 import { getUnifiedNegara } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "unified";
 
-  if (!server || !["api1", "api2", "api3", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -18,7 +18,33 @@ export async function GET(req: NextRequest) {
         headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
       });
     }
-    // api1/api2/api3/shadow: baca dari database (cached by cron sync)
+
+    // api4: baca dari database (manual entries by admin)
+    // Gak fallback ke API — kalau admin belum tambah, list kosong
+    if (server === "api4") {
+      const countries = await db.providerCountry.findMany({
+        where: {
+          serverId: "api4",
+          services: { some: { serverId: "api4" } }, // hanya negara yang punya minimal 1 layanan
+        },
+        select: { externalId: true, name: true },
+        orderBy: { name: "asc" },
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: countries.map((c) => ({
+          id_negara: c.externalId,
+          nama_negara: c.name,
+        })),
+      }, {
+        headers: {
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        },
+      });
+    }
+
+    // api1/api2/api3: baca dari database (cached by cron sync)
     if (["api1", "api2", "api3"].includes(server)) {
       const countries = await db.providerCountry.findMany({
         where: { serverId: server },

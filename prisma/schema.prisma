@@ -304,15 +304,16 @@ model ProviderCountry {
 }
 
 model ProviderService {
-  id        String   @id @default(cuid())
-  serverId  String   // "api1" | "api2"
-  countryId String   // FK ke ProviderCountry
-  code      String   // kode layanan (e.g. "wa", "tg")
-  name      String   // nama layanan (e.g. "WhatsApp")
-  price     Int      // harga asli dari JasaOTP (IDR)
-  stock     Int      // stok tersedia
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  serverId    String   // "api1" | "api2" | "api3" | "api4"
+  countryId   String   // FK ke ProviderCountry
+  code        String   // kode layanan (e.g. "wa", "tg")
+  name        String   // nama layanan (e.g. "WhatsApp")
+  price       Int      // harga jual ke user (IDR) — untuk api4 di-set manual oleh admin
+  stock       Int      // stok tersedia — untuk api4 di-set manual & decrement tiap order sukses
+  maxPriceUsd Float?   // maxPrice USD dikirim ke HeroSMS getNumberV2 (api4 only)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   country ProviderCountry @relation(fields: [countryId], references: [id], onDelete: Cascade)
 

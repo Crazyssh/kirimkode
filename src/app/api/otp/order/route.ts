@@ -8,10 +8,52 @@ import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { otpOrderSchema, validateBody } from "@/lib/validations";
 
 /**
+ * Ambil entry api4 dari DB — manual stock by admin.
+ * Throws "STOK_HABIS" kalau stock = 0, "LAYANAN_NOT_FOUND" kalau gak ada.
+ */
+async function getApi4Entry(negara: number, layanan: string): Promise<{
+  serviceId: string;
+  price: number;
+  stock: number;
+  maxPriceUsd: number | null;
+}> {
+  const country = await db.providerCountry.findUnique({
+    where: {
+      serverId_externalId: { serverId: "api4", externalId: negara },
+    },
+    select: { id: true },
+  });
+
+  if (!country) throw new Error("LAYANAN_NOT_FOUND");
+
+  const service = await db.providerService.findUnique({
+    where: {
+      serverId_countryId_code: {
+        serverId: "api4",
+        countryId: country.id,
+        code: layanan,
+      },
+    },
+    select: { id: true, price: true, stock: true, maxPriceUsd: true },
+  });
+
+  if (!service) throw new Error("LAYANAN_NOT_FOUND");
+  if (service.stock <= 0) throw new Error("STOK_HABIS");
+
+  return {
+    serviceId: service.id,
+    price: service.price,
+    stock: service.stock,
+    maxPriceUsd: service.maxPriceUsd,
+  };
+}
+
+/**
  * Ambil harga dari server + apply pricing rules.
  * TIDAK BOLEH percaya harga dari client.
  * Untuk api1/api2: ambil harga dari database (cached by cron sync).
  * Untuk api3: harga sudah final dari adapter (USD→IDR + markup), skip applyPricing.
+ * (api4 di-handle terpisah di POST handler — pake getApi4Entry)
  */
 async function getServerPrice(server: "api1" | "api2" | "api3", negara: number, layanan: string): Promise<number> {
   // api3: harga sudah final (USD→IDR), skip applyPricing
@@ -90,8 +132,21 @@ export async function POST(req: NextRequest) {
     const { server, negara, layanan, operator, serviceName, countryName } = validated.data;
     const isBulk = body.bulk === true;
 
-    // Harga WAJIB dari server, bukan dari client
-    const orderPrice = await getServerPrice(server as "api1" | "api2" | "api3", Number(negara), layanan);
+    // Untuk api4: ambil entry dari DB (price + maxPriceUsd + stock + serviceId)
+    // Untuk api1/api2/api3: ambil harga dari server (DB atau API)
+    let orderPrice: number;
+    let api4ServiceId: string | null = null;
+    let api4MaxPriceUsd: number | null = null;
+
+    if (server === "api4") {
+      const entry = await getApi4Entry(Number(negara), layanan);
+      orderPrice = entry.price;
+      api4ServiceId = entry.serviceId;
+      api4MaxPriceUsd = entry.maxPriceUsd;
+    } else {
+      // Harga WAJIB dari server, bukan dari client
+      orderPrice = await getServerPrice(server as "api1" | "api2" | "api3", Number(negara), layanan);
+    }
 
     // Step 1: Pre-check user balance + status (quick DB read, no transaction needed)
     const user = await db.user.findUnique({
@@ -105,7 +160,10 @@ export async function POST(req: NextRequest) {
 
     // Step 2: Call provider API (bisa lambat, HARUS di luar transaction)
     // Bulk order: tanpa timeout, nunggu sampai server respon
-    const data = await createOrder(server as "api1" | "api2" | "api3", Number(negara), layanan, operator, { noTimeout: isBulk });
+    const data = await createOrder(server as "api1" | "api2" | "api3" | "api4", Number(negara), layanan, operator, {
+      noTimeout: isBulk,
+      maxPriceUsd: api4MaxPriceUsd,
+    });
 
     const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
     const number = data?.number ?? data?.data?.number ?? "";
@@ -130,6 +188,18 @@ export async function POST(req: NextRequest) {
         where: { id: userId },
         data: { balance: { decrement: orderPrice } },
       });
+
+      // api4: decrement stock manual entry (race-safe pakai update conditional)
+      if (api4ServiceId) {
+        const stockUpdate = await tx.providerService.updateMany({
+          where: { id: api4ServiceId, stock: { gt: 0 } },
+          data: { stock: { decrement: 1 } },
+        });
+        // Kalau gagal decrement (stock keburu habis di tab lain) → throw
+        if (stockUpdate.count === 0) {
+          throw new Error("STOK_HABIS");
+        }
+      }
 
       const order = await tx.order.create({
         data: {
@@ -178,11 +248,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Deteksi error stok habis dari JasaOTP
+    if (rawMsg === "STOK_HABIS") {
+      return NextResponse.json(
+        { error: "Stok habis untuk layanan ini.", message: "Stok habis" },
+        { status: 409 }
+      );
+    }
+
+    if (rawMsg === "LAYANAN_NOT_FOUND") {
+      return NextResponse.json(
+        { error: "Layanan tidak tersedia. Coba server atau negara lain." },
+        { status: 404 }
+      );
+    }
+
+    // Deteksi error stok habis dari provider (JasaOTP / HeroSMS NO_NUMBERS)
     const isStock = /stok|stock|habis|unavailable|empty|sold.?out|not.?available|no.?number/i.test(rawMsg);
     if (isStock) {
       return NextResponse.json(
-        { error: "Stok habis untuk layanan ini. Coba negara atau operator lain.", message: "Stok habis" },
+        { error: "Stok habis untuk layanan ini.", message: "Stok habis" },
         { status: 409 }
       );
     }

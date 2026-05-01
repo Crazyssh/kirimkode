@@ -22,6 +22,7 @@ import {
   BarChart3,
   Server,
   Settings,
+  Package,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -32,6 +33,7 @@ const menuItems = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/deposits", label: "Deposits", icon: Wallet },
   { href: "/admin/pricing", label: "Harga OTP", icon: DollarSign },
+  { href: "/admin/api4-stock", label: "Neptune Stock", icon: Package },
   { href: "/admin/vouchers", label: "Voucher", icon: Ticket },
   { href: "/admin/blog", label: "Blog", icon: FileText },
   { href: "/admin/broadcast", label: "Broadcast", icon: Megaphone },
