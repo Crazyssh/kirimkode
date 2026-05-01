@@ -358,9 +358,13 @@ async function getCurrentUsdPrice(negara: number, layanan: string): Promise<numb
  * Provider response: {"activationId": "...", "phoneNumber": "...", "activationCost": "...", ...}
  * On error: {"status": "ERROR", "message": "NO_NUMBERS"} or text "NO_NUMBERS"
  *
- * Strategi maxPrice (urutan prioritas):
- *   1. opts.maxPriceUsd dari admin (manual stock entry) — wajib dihormati biar margin terjaga
- *   2. Auto fetch USD listing terbaru dari getPrices (kalau opts gak diisi)
+ * Strategi maxPrice + fixedPrice:
+ *   1. opts.maxPriceUsd dari admin (manual stock entry):
+ *      → maxPrice = admin price, fixedPrice = "true"
+ *      → HeroSMS cuma kasih nomor di harga PERSIS itu (margin terjaga 100%)
+ *   2. Auto fetch USD listing terbaru dari getPrices (kalau admin gak set):
+ *      → maxPrice = listing, TANPA fixedPrice
+ *      → HeroSMS kasih nomor termurah ≤ listing
  *   3. Skip maxPrice (kalau lookup gagal)
  */
 export async function createOrder(
@@ -379,16 +383,17 @@ export async function createOrder(
     params.operator = operator;
   }
 
-  // Prioritas 1: pakai maxPrice yang admin set di DB
-  let maxUsdPrice: number | null = opts?.maxPriceUsd ?? null;
-
-  // Prioritas 2: fallback ke harga listing live
-  if (maxUsdPrice === null) {
-    maxUsdPrice = await getCurrentUsdPrice(negara, layanan);
-  }
-
-  if (maxUsdPrice !== null) {
-    params.maxPrice = maxUsdPrice.toFixed(4);
+  // Prioritas 1: pakai maxPrice yang admin set di DB → strict (fixedPrice=true)
+  const adminMaxPrice = opts?.maxPriceUsd ?? null;
+  if (adminMaxPrice !== null) {
+    params.maxPrice = adminMaxPrice.toFixed(4);
+    params.fixedPrice = "true"; // exact match — margin 100% predictable
+  } else {
+    // Prioritas 2: fallback ke harga listing live (tanpa fixedPrice — terima yang lebih murah)
+    const listingPrice = await getCurrentUsdPrice(negara, layanan);
+    if (listingPrice !== null) {
+      params.maxPrice = listingPrice.toFixed(4);
+    }
   }
 
   const text = await fetchProvider(params, { skipCache: true });
