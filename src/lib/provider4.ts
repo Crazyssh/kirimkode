@@ -15,7 +15,7 @@ const BASE_URL =
 const API_KEY = process.env.PROVIDER4_API_KEY || "";
 
 // Markup 15% di atas harga provider → ~12% untung bersih setelah fee topup HeroSMS (2.5% + $0.2).
-const PRICE_MARKUP = 1.15;
+export const PRICE_MARKUP = 1.15;
 
 const FALLBACK_USD_RATE = Number(process.env.PROVIDER4_USD_RATE) || Number(process.env.PROVIDER3_USD_RATE) || 16500;
 
@@ -25,6 +25,10 @@ let cachedUsdRate: number | null = null;
 let usdRateCacheTime = 0;
 const USD_RATE_CACHE_TTL = 6 * 60 * 60 * 1000;
 let pendingRateFetch: Promise<number> | null = null;
+
+export async function getKurs(): Promise<number> {
+  return getUsdToIdr();
+}
 
 async function getUsdToIdr(): Promise<number> {
   const now = Date.now();

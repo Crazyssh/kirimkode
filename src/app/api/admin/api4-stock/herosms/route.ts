@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import * as provider4 from "@/lib/provider4";
+import { PRICE_MARKUP } from "@/lib/provider4";
 
 /**
  * Helper buat dropdown di admin UI:
  *   - ?type=countries → list negara HeroSMS
  *   - ?type=services&country=<id> → list service untuk country tertentu (dengan harga USD live)
+ *   - ?type=meta → kurs USD/IDR + PRICE_MARKUP buat auto-calc di frontend
  *
  * Pake provider4 (PROVIDER4_API_KEY).
  */
@@ -31,7 +33,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data });
     }
 
-    return NextResponse.json({ error: "type harus 'countries' atau 'services'" }, { status: 400 });
+    if (type === "meta") {
+      const kurs = await provider4.getKurs();
+      return NextResponse.json({ data: { kurs, markup: PRICE_MARKUP } });
+    }
+
+    return NextResponse.json({ error: "type harus 'countries', 'services', atau 'meta'" }, { status: 400 });
   } catch (err) {
     console.error("herosms helper error:", err);
     return NextResponse.json(

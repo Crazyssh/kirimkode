@@ -64,6 +64,10 @@ export default function Api4StockPage() {
   const [stock, setStock] = useState<string>("");
   const [editingId, setEditingId] = useState<string | null>(null); // null = create mode
 
+  // Auto-sync: harga IDR otomatis ngikut perubahan maxPriceUsd
+  const [autoSync, setAutoSync] = useState(true);
+  const [meta, setMeta] = useState<{ kurs: number; markup: number } | null>(null);
+
   // Search states
   const [countrySearch, setCountrySearch] = useState("");
   const [serviceSearch, setServiceSearch] = useState("");
@@ -83,13 +87,18 @@ export default function Api4StockPage() {
     return () => clearTimeout(t);
   }, [error, success]);
 
-  // Fetch countries
+  // Fetch countries + meta (kurs & markup) sekali di awal load
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/admin/api4-stock/herosms?type=countries");
-        const data = await res.json();
-        if (data?.data) setCountries(data.data);
+        const [countriesRes, metaRes] = await Promise.all([
+          fetch("/api/admin/api4-stock/herosms?type=countries"),
+          fetch("/api/admin/api4-stock/herosms?type=meta"),
+        ]);
+        const countriesData = await countriesRes.json();
+        if (countriesData?.data) setCountries(countriesData.data);
+        const metaData = await metaRes.json();
+        if (metaData?.data) setMeta(metaData.data);
       } catch {
         setError("Gagal memuat daftar negara dari HeroSMS");
       } finally {
@@ -456,16 +465,45 @@ export default function Api4StockPage() {
                   </div>
 
                   <div>
-                    <label className="text-xs text-muted block mb-1">
-                      4. maxPrice USD — dikirim ke HeroSMS getNumberV2 (kosong = auto pakai listing)
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs text-muted">
+                        4. maxPrice USD — dikirim ke HeroSMS getNumberV2 (kosong = auto pakai listing)
+                      </label>
+                      {meta && (
+                        <label className="text-xs text-muted flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={autoSync}
+                            onChange={(e) => setAutoSync(e.target.checked)}
+                            className="w-3 h-3 cursor-pointer"
+                          />
+                          Auto-sync harga
+                        </label>
+                      )}
+                    </div>
                     <Input
                       type="number"
                       step="0.0001"
                       placeholder="Contoh: 0.16"
                       value={maxPriceUsd}
-                      onChange={(e) => setMaxPriceUsd(e.target.value)}
+                      onChange={(e) => {
+                        const newMax = e.target.value;
+                        setMaxPriceUsd(newMax);
+                        // Auto-recalc harga IDR sesuai markup kalau auto-sync aktif
+                        if (autoSync && meta) {
+                          const num = Number(newMax);
+                          if (!isNaN(num) && num > 0) {
+                            const newIdr = Math.ceil(num * meta.kurs * meta.markup);
+                            setPriceIdr(String(newIdr));
+                          }
+                        }
+                      }}
                     />
+                    {autoSync && meta && (
+                      <p className="text-[10px] text-muted mt-1">
+                        Auto: harga IDR = maxPrice × kurs ({meta.kurs.toLocaleString("id-ID", { maximumFractionDigits: 0 })}) × markup ({meta.markup})
+                      </p>
+                    )}
                   </div>
 
                   <div>
