@@ -23,6 +23,7 @@ import {
   Server,
   Settings,
   Package,
+  Eye,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -34,6 +35,7 @@ const menuItems = [
   { href: "/admin/deposits", label: "Deposits", icon: Wallet },
   { href: "/admin/pricing", label: "Harga OTP", icon: DollarSign },
   { href: "/admin/api4-stock", label: "Neptune Stock", icon: Package },
+  { href: "/admin/server-visibility", label: "Server Visibility", icon: Eye },
   { href: "/admin/vouchers", label: "Voucher", icon: Ticket },
   { href: "/admin/blog", label: "Blog", icon: FileText },
   { href: "/admin/broadcast", label: "Broadcast", icon: Megaphone },

@@ -80,6 +80,10 @@ interface HistoryOrder {
 export default function BuyPage() {
   const { user, fetchUser } = useUserStore();
   const { t } = useLanguageStore();
+  const [visibleServerIds, setVisibleServerIds] = useState<string[] | null>(null);
+  const visibleServers = visibleServerIds === null
+    ? servers
+    : servers.filter((s) => visibleServerIds.includes(s.id));
   const [selectedServer, setSelectedServer] = useState<OTPServer>(servers[0]);
 
   // Riwayat order state
@@ -136,6 +140,30 @@ export default function BuyPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // Fetch visible servers config dari admin
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/settings?key=visible_servers");
+        const data = await res.json();
+        if (Array.isArray(data?.data?.value)) {
+          setVisibleServerIds(data.data.value);
+        }
+      } catch {
+        // Silent fail → fallback ke semua server visible (default)
+      }
+    })();
+  }, []);
+
+  // Kalau selectedServer tiba-tiba di-hide admin, switch ke server pertama yang masih visible
+  useEffect(() => {
+    if (visibleServerIds === null) return;
+    if (!visibleServerIds.includes(selectedServer.id)) {
+      const fallback = visibleServers[0];
+      if (fallback) setSelectedServer(fallback);
+    }
+  }, [visibleServerIds, selectedServer.id, visibleServers]);
 
   // Poll server health status every 30 seconds
   useEffect(() => {
@@ -648,7 +676,7 @@ export default function BuyPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {servers.map((server) => (
+                {visibleServers.map((server) => (
                   <button
                     key={server.id}
                     onClick={() => setSelectedServer(server)}

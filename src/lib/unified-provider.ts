@@ -9,8 +9,7 @@
 
 import { db } from "@/lib/db";
 import { applyPricing } from "@/lib/pricing";
-
-const ACTIVE_PROVIDERS = ["api1", "api2", "api3"];
+import { getUnifiedProviders } from "@/lib/site-settings";
 
 // Provider yang harganya sudah final (USD→IDR + markup) — skip applyPricing
 const FINAL_PRICE_PROVIDERS = new Set(["api3"]);
@@ -70,7 +69,7 @@ export async function getUnifiedNegara(): Promise<{
   if (cached) return cached;
 
   const allCountries = await db.providerCountry.findMany({
-    where: { serverId: { in: ACTIVE_PROVIDERS } },
+    where: { serverId: { in: await getUnifiedProviders() } },
     select: { id: true, externalId: true, name: true, normalizedName: true, serverId: true },
     orderBy: { normalizedName: "asc" },
   });
@@ -110,7 +109,7 @@ export async function getCountryMappings(unifiedNegaraId: number): Promise<Count
   // Find all provider countries with matching normalizedName
   const dbCountries = await db.providerCountry.findMany({
     where: {
-      serverId: { in: ACTIVE_PROVIDERS },
+      serverId: { in: await getUnifiedProviders() },
       normalizedName: targetName,
     },
     select: { id: true, serverId: true, externalId: true },
@@ -147,7 +146,7 @@ export async function getUnifiedLayanan(
   const allServices = await db.providerService.findMany({
     where: {
       countryId: { in: dbCountryIds },
-      serverId: { in: ACTIVE_PROVIDERS },
+      serverId: { in: await getUnifiedProviders() },
     },
     select: { code: true, name: true, price: true, stock: true, serverId: true },
   });
@@ -226,7 +225,7 @@ export async function getServiceProviders(
     where: {
       code: serviceCode,
       countryId: { in: dbCountryIds },
-      serverId: { in: ACTIVE_PROVIDERS },
+      serverId: { in: await getUnifiedProviders() },
     },
     select: { name: true },
   });
@@ -239,7 +238,7 @@ export async function getServiceProviders(
       where: {
         name: { equals: primaryService.name, mode: "insensitive" },
         countryId: { in: dbCountryIds },
-        serverId: { in: ACTIVE_PROVIDERS },
+        serverId: { in: await getUnifiedProviders() },
       },
       select: { code: true },
       distinct: ["code"],
@@ -252,7 +251,7 @@ export async function getServiceProviders(
     where: {
       code: { in: allCodes },
       countryId: { in: dbCountryIds },
-      serverId: { in: ACTIVE_PROVIDERS },
+      serverId: { in: await getUnifiedProviders() },
     },
     select: { serverId: true, name: true, price: true, stock: true, countryId: true, code: true },
   });
