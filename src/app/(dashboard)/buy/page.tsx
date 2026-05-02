@@ -76,6 +76,7 @@ interface HistoryOrder {
   orderId?: number;
   waCheck?: WaCheckData | null;
   checkedAt?: string | null;
+  resendAt?: string | null;
 }
 
 export default function BuyPage() {
@@ -1285,21 +1286,30 @@ export default function BuyPage() {
                                 const threeMin = 3 * 60 * 1000;
                                 const twentyMin = 20 * 60 * 1000;
 
-                                // Resend: api4 + udah dapet OTP + belum 20 menit
+                                const isResending = !!o.resendAt;
+                                // Resend: api4 + udah dapet OTP + belum 20 menit + lagi gak resend
                                 const canResend =
-                                  o.server === "api4" && !!o.code && orderAge < twentyMin;
+                                  o.server === "api4" && !!o.code && orderAge < twentyMin && !isResending;
 
-                                // Cancel: cuma muncul saat waiting + udah lewat 3 menit
+                                // Cancel: cuma muncul saat status waiting (OTP pertama belum masuk)
+                                // + udah lewat 3 menit. Order success tidak punya tombol cancel.
                                 const isWaiting = o.status === "waiting";
                                 const canCancel = isWaiting && orderAge >= threeMin;
                                 const secsLeft = Math.ceil((threeMin - orderAge) / 1000);
                                 const minsLeft = Math.floor(secsLeft / 60);
                                 const secsRem = secsLeft % 60;
 
-                                if (!canResend && o.status === "success") return null;
+                                // Order success tanpa kemampuan resend dan tidak lagi resend → no action
+                                if (o.status === "success" && !canResend && !isResending) return null;
 
                                 return (
                                   <div className="flex items-center gap-1.5">
+                                    {isResending && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] text-muted whitespace-nowrap">
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                        Nunggu SMS baru...
+                                      </span>
+                                    )}
                                     {canResend && (
                                       <Button
                                         variant="ghost"

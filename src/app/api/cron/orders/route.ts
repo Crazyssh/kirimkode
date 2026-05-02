@@ -123,8 +123,16 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const expireCutoff = new Date(now.getTime() - EXPIRE_MINUTES * 60 * 1000);
 
-  const waitingOrders = await db.order.findMany({
-    where: { status: "waiting" },
+  // Dua kategori order yang perlu dipolling:
+  //   1. status="waiting"     — order normal nunggu OTP pertama
+  //   2. resendAt is not null — order udah success, user minta SMS baru (status tetap success)
+  const targetOrders = await db.order.findMany({
+    where: {
+      OR: [
+        { status: "waiting" },
+        { resendAt: { not: null } },
+      ],
+    },
     include: { user: { select: { id: true, webhookUrl: true, premiumChecker: true } } },
   });
 
@@ -132,27 +140,100 @@ export async function GET(req: NextRequest) {
   let otpReceived = 0;
   let expired = 0;
   let providerCancelled = 0;
+  let resendCompleted = 0;
+  let resendStopped = 0;
 
-  for (const order of waitingOrders) {
+  for (const order of targetOrders) {
     const serverId = order.server as ServerId;
+    const isResendMode = !!order.resendAt;
+
+    // ============================================================
+    // RESEND MODE: status="success", lagi nunggu SMS baru
+    // ============================================================
+    if (isResendMode) {
+      // Timeout: 20 menit dari order pertama → stop polling, status tetap success
+      if (order.createdAt < expireCutoff) {
+        try { await cancelOrder(serverId, order.orderId); } catch { /* may already be expired */ }
+        await db.order.update({
+          where: { id: order.id },
+          data: { resendAt: null },
+        });
+        resendStopped++;
+        console.log(`[CRON] Resend timeout (status tetap success): order ${order.id}`);
+        continue;
+      }
+
+      // Polling provider untuk SMS baru
+      try {
+        const data = await checkSms(serverId, order.orderId);
+        polled++;
+
+        if (isProviderExpired(data)) {
+          // Provider udah cancel — stop polling, status tetap success
+          await db.order.update({
+            where: { id: order.id },
+            data: { resendAt: null },
+          });
+          resendStopped++;
+          console.log(`[CRON] Resend provider expired (status tetap success): order ${order.id}`);
+          continue;
+        }
+
+        const otp = extractOtp(data as Record<string, unknown>);
+        // SMS baru? Cuma trigger kalau code beda dari yang lama.
+        if (otp && otp !== order.code) {
+          await db.order.update({
+            where: { id: order.id },
+            data: { code: otp, resendAt: null },
+          });
+          resendCompleted++;
+          console.log(`[CRON] Resend OTP baru masuk: order ${order.id} → ${otp}`);
+
+          // Webhook untuk SMS baru
+          if (order.user.webhookUrl) {
+            try {
+              await fetch(order.user.webhookUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  event: "otp_resent",
+                  data: {
+                    order_id: order.id,
+                    service: order.serviceName,
+                    number: order.number,
+                    code: otp,
+                  },
+                }),
+              });
+            } catch { /* webhook delivery failure is non-critical */ }
+          }
+        }
+        // Else: belum ada SMS baru, terus polling
+      } catch (err) {
+        const errMsg = (err as Error)?.message || "";
+        const lower = errMsg.toLowerCase();
+        if (PROVIDER_EXPIRED_KEYWORDS.some((kw) => lower.includes(kw))) {
+          await db.order.update({
+            where: { id: order.id },
+            data: { resendAt: null },
+          });
+          resendStopped++;
+          console.log(`[CRON] Resend provider error (status tetap success): order ${order.id} — ${errMsg}`);
+        }
+        // Else: network error, retry next cycle
+      }
+      continue;
+    }
+
+    // ============================================================
+    // NORMAL MODE: status="waiting", nunggu OTP pertama
+    // ============================================================
 
     // === 1. Local timeout: order > 20 menit ===
     if (order.createdAt < expireCutoff) {
       try {
         await cancelOrder(serverId, order.orderId);
       } catch { /* provider cancel may fail if already expired */ }
-
-      // Kalau order udah dapet OTP (resend mode), JANGAN refund — user udah dapet value.
-      // Cuma mark status sebagai timeout.
-      if (order.code) {
-        await db.order.updateMany({
-          where: { id: order.id, status: "waiting" },
-          data: { status: "timeout" },
-        });
-        expired++;
-        console.log(`[CRON] Resend timeout (no refund — already had OTP): order ${order.id}`);
-        continue;
-      }
 
       const refunded = await refundOrder(order.id, order.userId, order.price, "timeout", {
         server: order.server,
@@ -173,17 +254,6 @@ export async function GET(req: NextRequest) {
 
       // === 2a. Cek apakah provider sudah cancel/expire order ini ===
       if (isProviderExpired(data)) {
-        // Kalau udah ada OTP, JANGAN refund (resend mode)
-        if (order.code) {
-          await db.order.updateMany({
-            where: { id: order.id, status: "waiting" },
-            data: { status: "cancelled" },
-          });
-          providerCancelled++;
-          console.log(`[CRON] Resend provider cancelled (no refund): order ${order.id}`);
-          continue;
-        }
-
         const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled", {
           server: order.server,
           service: order.service,
@@ -198,11 +268,6 @@ export async function GET(req: NextRequest) {
 
       // === 2b. Cek apakah OTP sudah masuk ===
       const otp = extractOtp(data as Record<string, unknown>);
-      // Resend mode: kalau provider balikin code yang SAMA dengan order.code,
-      // skip — anggap belum ada SMS baru, lanjut polling.
-      if (otp && otp === order.code) {
-        continue;
-      }
       if (otp) {
         let waCheck = null;
         const rawSvc = order.service.toLowerCase();
@@ -251,24 +316,14 @@ export async function GET(req: NextRequest) {
       const errMsg = (err as Error)?.message || "";
       const lower = errMsg.toLowerCase();
       if (PROVIDER_EXPIRED_KEYWORDS.some((kw) => lower.includes(kw))) {
-        // Resend mode: udah ada OTP, gak refund
-        if (order.code) {
-          await db.order.updateMany({
-            where: { id: order.id, status: "waiting" },
-            data: { status: "cancelled" },
-          });
+        const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled", {
+          server: order.server,
+          service: order.service,
+          countryId: order.countryId,
+        });
+        if (refunded) {
           providerCancelled++;
-          console.log(`[CRON] Resend provider error (no refund): order ${order.id} — ${errMsg}`);
-        } else {
-          const refunded = await refundOrder(order.id, order.userId, order.price, "cancelled", {
-            server: order.server,
-            service: order.service,
-            countryId: order.countryId,
-          });
-          if (refunded) {
-            providerCancelled++;
-            console.log(`[CRON] Provider error (expired) + refund: order ${order.id} — ${errMsg}`);
-          }
+          console.log(`[CRON] Provider error (expired) + refund: order ${order.id} — ${errMsg}`);
         }
       }
       // Else: network error, skip silently
@@ -279,11 +334,13 @@ export async function GET(req: NextRequest) {
     success: true,
     timestamp: now.toISOString(),
     results: {
-      totalWaiting: waitingOrders.length,
+      totalTargets: targetOrders.length,
       polled,
       otpReceived,
       expired,
       providerCancelled,
+      resendCompleted,
+      resendStopped,
     },
   });
 }

@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
         status: true,
         code: true,
         createdAt: true,
+        resendAt: true,
       },
     });
 
@@ -57,6 +58,14 @@ export async function POST(req: NextRequest) {
     if (!order.code) {
       return NextResponse.json(
         { error: "Tunggu OTP pertama dulu sebelum minta SMS baru." },
+        { status: 400 }
+      );
+    }
+
+    // Lagi nunggu SMS baru — cegah double-click
+    if (order.resendAt) {
+      return NextResponse.json(
+        { error: "Sedang menunggu SMS baru, sabar bentar." },
         { status: 400 }
       );
     }
@@ -89,11 +98,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Set order status balik ke waiting biar SSE/cron polling jalan lagi.
-    // Code lama TETAP disimpan — user masih bisa liat OTP pertama sampai yang baru masuk.
+    // Status TETAP "success" — user udah dapat OTP pertama, jadi order memang berhasil.
+    // Set resendAt biar cron/SSE tau lagi nunggu SMS baru. Code lama tetap kelihatan
+    // sampai SMS baru masuk dan replace-nya.
     await db.order.update({
       where: { id: order.id },
-      data: { status: "waiting" },
+      data: { resendAt: new Date() },
     });
 
     logAction(userId, "resend_sms", JSON.stringify({ orderId: order.id, server: order.server }));

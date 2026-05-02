@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
       waCheck: o.waCheck ? JSON.parse(o.waCheck) : null,
       tgCheck: o.tgCheck ? JSON.parse(o.tgCheck) : null,
       checkedAt: o.checkedAt?.toISOString() ?? null,
+      resendAt: o.resendAt?.toISOString() ?? null,
     })),
     pagination: {
       page,

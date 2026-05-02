@@ -47,26 +47,37 @@ export async function POST(req: NextRequest) {
     });
 
     if (order) {
-      const refunded = await db.$transaction(async (tx) => {
-        const updated = await tx.order.updateMany({
+      // Resend mode guard: kalau order udah pernah dapet OTP (code ada),
+      // user udah dapet value — JANGAN refund. Balikin status ke "success".
+      // Ini cegah double-dip dari fitur resend SMS (Neptune).
+      if (order.code) {
+        await db.order.updateMany({
           where: { id: order.id, userId, status: "waiting" },
-          data: { status: "cancelled" },
+          data: { status: "success" },
         });
-
-        if (updated.count === 0) return false;
-
-        await tx.user.update({
-          where: { id: userId },
-          data: { balance: { increment: order.price } },
-        });
-
-        return true;
-      });
-
-      if (refunded) {
-        console.log(`[Cancel] Refunded Rp ${order.price} for order ${id} to user ${userId}`);
+        console.log(`[Cancel] Skip refund for order ${id}: already had OTP (resend mode) — restored to success`);
       } else {
-        console.warn(`[Cancel] Skip refund for order ${id}: already processed`);
+        const refunded = await db.$transaction(async (tx) => {
+          const updated = await tx.order.updateMany({
+            where: { id: order.id, userId, status: "waiting" },
+            data: { status: "cancelled" },
+          });
+
+          if (updated.count === 0) return false;
+
+          await tx.user.update({
+            where: { id: userId },
+            data: { balance: { increment: order.price } },
+          });
+
+          return true;
+        });
+
+        if (refunded) {
+          console.log(`[Cancel] Refunded Rp ${order.price} for order ${id} to user ${userId}`);
+        } else {
+          console.warn(`[Cancel] Skip refund for order ${id}: already processed`);
+        }
       }
     } else {
       console.warn(`[Cancel] Order ${id} not found or already cancelled for user ${userId}`);

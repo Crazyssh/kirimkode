@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
     const orders = await db.order.findMany({
         where: { id: { in: orderIds }, userId },
-        select: { id: true, server: true, orderId: true, status: true, code: true, number: true, service: true },
+        select: { id: true, server: true, orderId: true, status: true, code: true, number: true, service: true, resendAt: true },
     });
 
     if (orders.length === 0) {
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
                 // Get fresh order data
                 const freshOrders = await db.order.findMany({
                     where: { id: { in: orderIds }, userId },
-                    select: { id: true, server: true, orderId: true, status: true, code: true, number: true, service: true },
+                    select: { id: true, server: true, orderId: true, status: true, code: true, number: true, service: true, resendAt: true },
                 });
 
                 let hasActiveOrders = false;
@@ -98,6 +98,13 @@ export async function GET(req: NextRequest) {
                         continue;
                     }
 
+                    // Order ini aktif kalau:
+                    //   - status="waiting" (nunggu OTP pertama), atau
+                    //   - resendAt is not null (status=success, lagi nunggu SMS baru)
+                    const isWaiting = order.status === "waiting";
+                    const isResending = !!order.resendAt;
+                    if (!isWaiting && !isResending) continue;
+
                     hasActiveOrders = true;
 
                     // Poll JasaOTP
@@ -106,18 +113,22 @@ export async function GET(req: NextRequest) {
                             const data = await checkSms(order.server as "api1" | "api2" | "api3" | "api4", order.orderId);
                             const otp = extractOtp(data as Record<string, unknown>);
 
-                            // Resend mode: kalau OTP sama persis dengan code di DB, skip
-                            // (anggap belum ada SMS baru). Cuma push kalau OTP genuinely baru.
+                            // Cuma push kalau OTP genuinely baru (beda dari code lama di DB
+                            // dan beda dari yang udah pernah kita push di session ini).
                             if (otp && otp !== order.code && otp !== knownCodes[order.id]) {
                                 knownCodes[order.id] = otp;
 
-                                // Set timer OTP pertama
+                                // Set timer OTP pertama (hanya kalau belum di-set)
                                 if (!firstOtpAt) firstOtpAt = now;
 
-                                // Update DB
+                                // Update DB: code baru + clear resendAt kalau lagi resend
                                 await db.order.update({
                                     where: { id: order.id },
-                                    data: { code: otp, status: "success" },
+                                    data: {
+                                        code: otp,
+                                        status: "success",
+                                        ...(isResending ? { resendAt: null } : {}),
+                                    },
                                 });
 
                                 send({
@@ -126,6 +137,7 @@ export async function GET(req: NextRequest) {
                                     code: otp,
                                     number: order.number,
                                     service: order.service,
+                                    resend: isResending,
                                 });
                             }
                         } catch {
