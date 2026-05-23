@@ -84,6 +84,8 @@ export async function GET() {
         method: d.channelName,
         status: d.status,
         time: d.createdAt.toISOString(),
+        payUrl: d.payUrl,
+        gateway: d.gateway,
       })),
     },
   });

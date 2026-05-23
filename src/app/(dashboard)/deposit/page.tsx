@@ -64,6 +64,8 @@ interface DepositHistoryItem {
   method: string;
   status: string;
   time: string;
+  payUrl: string | null;
+  gateway: string;
 }
 
 const presetAmounts = [10000, 25000, 50000, 100000, 250000, 500000];
@@ -83,6 +85,7 @@ export default function DepositPage() {
   const [error, setError] = useState<string>("");
   const [cancelling, setCancelling] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [cancellingTrxId, setCancellingTrxId] = useState<string | null>(null);
   const [voucherCode, setVoucherCode] = useState("");
   const [voucherApplied, setVoucherApplied] = useState<{ code: string; bonus: number; description: string } | null>(null);
   const [applyingVoucher, setApplyingVoucher] = useState(false);
@@ -107,6 +110,41 @@ export default function DepositPage() {
     checkDepositStatus();
   }, []);
 
+  // Fetch deposit history (extracted supaya bisa dipanggil ulang setelah cancel)
+  const fetchHistory = useCallback(async () => {
+    try {
+      const res = await fetch("/api/dashboard");
+      if (res.ok) {
+        const json = await res.json();
+        setDepositHistory(
+          (json.data.recentDeposits || []).map(
+            (d: {
+              id: string;
+              trxId: string;
+              amount: number;
+              method: string;
+              status: string;
+              time: string;
+              payUrl: string | null;
+              gateway: string;
+            }) => ({
+              id: d.id,
+              trxId: d.trxId,
+              amount: d.amount,
+              method: d.method,
+              status: d.status,
+              time: new Date(d.time).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+              payUrl: d.payUrl,
+              gateway: d.gateway,
+            })
+          )
+        );
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
   // Fetch payment channels & deposit history
   useEffect(() => {
     async function fetchChannels() {
@@ -127,29 +165,9 @@ export default function DepositPage() {
         setLoadingChannels(false);
       }
     }
-    async function fetchHistory() {
-      try {
-        const res = await fetch("/api/dashboard");
-        if (res.ok) {
-          const json = await res.json();
-          setDepositHistory(
-            (json.data.recentDeposits || []).map((d: { id: string; trxId: string; amount: number; method: string; status: string; time: string }) => ({
-              id: d.id,
-              trxId: d.trxId,
-              amount: d.amount,
-              method: d.method,
-              status: d.status,
-              time: new Date(d.time).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
-            }))
-          );
-        }
-      } catch {
-        // silent
-      }
-    }
     fetchChannels();
     fetchHistory();
-  }, []);
+  }, [fetchHistory]);
 
   // Polling status pembayaran setiap 5 detik
   const checkStatus = useCallback(async () => {
@@ -191,7 +209,7 @@ export default function DepositPage() {
     return () => clearInterval(interval);
   }, [step, depositResult, paymentStatus, checkStatus]);
 
-  // Cancel deposit
+  // Cancel deposit aktif (di step "payment")
   async function handleCancelDeposit() {
     if (!depositResult || cancelling) return;
     setCancelling(true);
@@ -218,6 +236,7 @@ export default function DepositPage() {
           // Informational, tidak fatal
           setError(data.message);
         }
+        fetchHistory(); // refresh sidebar
       } else {
         setError(data?.error || "Gagal membatalkan deposit");
       }
@@ -225,6 +244,44 @@ export default function DepositPage() {
       setError("Terjadi kesalahan jaringan saat membatalkan");
     } finally {
       setCancelling(false);
+    }
+  }
+
+  // Cancel deposit dari riwayat (item history)
+  async function handleCancelFromHistory(trxId: string) {
+    if (cancellingTrxId) return;
+    const confirmed = window.confirm(
+      "Yakin batalkan deposit ini?\n\nJika kamu sudah transfer, JANGAN klik OK — tunggu konfirmasi otomatis."
+    );
+    if (!confirmed) return;
+
+    setCancellingTrxId(trxId);
+    try {
+      const res = await fetch("/api/deposit/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trx_id: trxId }),
+      });
+      const data = await res.json();
+
+      if (res.ok || res.status === 409) {
+        const newStatus = data?.data?.status || data?.status || "cancelled";
+
+        if (newStatus === "paid") {
+          // Race: ternyata sudah dibayar — saldo sudah di-credit di backend
+          alert(
+            "Pembayaran sudah terdeteksi! Saldo sudah ditambahkan ke akun kamu."
+          );
+          fetchUser();
+        }
+        fetchHistory();
+      } else {
+        alert(data?.error || "Gagal membatalkan deposit");
+      }
+    } catch {
+      alert("Terjadi kesalahan jaringan saat membatalkan");
+    } finally {
+      setCancellingTrxId(null);
     }
   }
 
@@ -825,27 +882,101 @@ export default function DepositPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {depositHistory.map((dep) => (
-                  <div
-                    key={dep.id}
-                    className="flex items-center justify-between p-3 rounded-xl bg-background/50"
-                  >
-                    <div>
-                      <div className="text-sm font-medium font-[family-name:var(--font-jetbrains-mono)]">
-                        +{formatRupiah(dep.amount)}
+                {depositHistory.map((dep) => {
+                  const isPending = dep.status === "pending";
+                  const isTerminalFail =
+                    dep.status === "cancelled" ||
+                    dep.status === "expired" ||
+                    dep.status === "failed" ||
+                    dep.status === "refunded";
+                  const cancellingThis = cancellingTrxId === dep.trxId;
+
+                  return (
+                    <div
+                      key={dep.id}
+                      className="p-3 rounded-xl bg-background/50 space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium font-[family-name:var(--font-jetbrains-mono)]">
+                            +{formatRupiah(dep.amount)}
+                          </div>
+                          <div className="text-xs text-muted truncate">
+                            {dep.trxId}
+                          </div>
+                          <div className="text-xs text-muted">
+                            {dep.method} &middot; {dep.time}
+                          </div>
+                        </div>
+                        <Badge
+                          variant={
+                            dep.status === "paid"
+                              ? "success"
+                              : isTerminalFail
+                              ? "error"
+                              : "warning"
+                          }
+                        >
+                          {dep.status === "paid"
+                            ? t("status.deposit.paid")
+                            : dep.status === "cancelled"
+                            ? "Batal"
+                            : dep.status === "expired"
+                            ? "Expired"
+                            : dep.status === "failed"
+                            ? "Gagal"
+                            : dep.status === "refunded"
+                            ? "Refund"
+                            : t("status.deposit.pending")}
+                        </Badge>
                       </div>
-                      <div className="text-xs text-muted">
-                        {dep.trxId}
-                      </div>
-                      <div className="text-xs text-muted">
-                        {dep.method} &middot; {dep.time}
-                      </div>
+
+                      {/* Action buttons untuk deposit pending */}
+                      {isPending && (
+                        <div className="flex gap-2 pt-1">
+                          {dep.payUrl && (
+                            <a
+                              href={dep.payUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1"
+                            >
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="w-full"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                Buka QRIS
+                              </Button>
+                            </a>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={dep.payUrl ? "flex-1" : "w-full"}
+                            onClick={() => handleCancelFromHistory(dep.trxId)}
+                            disabled={cancellingThis}
+                          >
+                            {cancellingThis ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <>
+                                <XCircle className="w-3 h-3" />
+                                Batal
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                    <Badge variant={dep.status === "paid" ? "success" : "warning"}>
-                      {dep.status === "paid" ? t("status.deposit.paid") : t("status.deposit.pending")}
-                    </Badge>
+                  );
+                })}
+                {depositHistory.length === 0 && (
+                  <div className="text-xs text-muted text-center py-6">
+                    Belum ada riwayat deposit.
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
