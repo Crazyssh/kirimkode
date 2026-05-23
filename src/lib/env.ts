@@ -14,8 +14,9 @@ const envSchema = z.object({
     AUTH_GOOGLE_SECRET: z.string().optional(),
 
     // Paymenku
-    PAYMENKU_MERCHANT_ID: z.string().optional(),
     PAYMENKU_API_KEY: z.string().optional(),
+    PAYMENKU_WEBHOOK_SECRET: z.string().optional(),
+    PAYMENKU_BASE_URL: z.string().optional(),
 
     // JasaOTP
     JASA_OTP_API_KEY: z.string().optional(),

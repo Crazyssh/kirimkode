@@ -74,6 +74,8 @@ export async function GET(req: NextRequest) {
     let paid = 0;
     let expired = 0;
     let cancelled = 0;
+    let failed = 0;
+    let refunded = 0;
     let stillPending = 0;
     let errors = 0;
 
@@ -236,18 +238,22 @@ export async function GET(req: NextRequest) {
                     console.log(
                         `[CRON Deposits] PAYMENKU PAID: ${deposit.trxId} | +Rp ${deposit.amount} for user ${deposit.userId}`
                     );
-                } else if (apiStatus === "expired") {
+                } else if (
+                    apiStatus === "expired" ||
+                    apiStatus === "cancelled" ||
+                    apiStatus === "failed" ||
+                    apiStatus === "refunded"
+                ) {
                     const updated = await db.deposit.updateMany({
                         where: { trxId: deposit.trxId, status: "pending" },
-                        data: { status: "expired" },
+                        data: { status: apiStatus },
                     });
-                    if (updated.count > 0) expired++;
-                } else if (apiStatus === "cancelled") {
-                    const updated = await db.deposit.updateMany({
-                        where: { trxId: deposit.trxId, status: "pending" },
-                        data: { status: "cancelled" },
-                    });
-                    if (updated.count > 0) cancelled++;
+                    if (updated.count > 0) {
+                        if (apiStatus === "expired") expired++;
+                        else if (apiStatus === "cancelled") cancelled++;
+                        else if (apiStatus === "failed") failed++;
+                        else refunded++;
+                    }
                 } else {
                     stillPending++;
                 }
@@ -259,7 +265,7 @@ export async function GET(req: NextRequest) {
     }
 
     console.log(
-        `[CRON Deposits] Done: ${checked} checked, ${paid} paid, ${expired} expired, ${cancelled} cancelled, ${stillPending} still pending, ${errors} errors`
+        `[CRON Deposits] Done: ${checked} checked, ${paid} paid, ${expired} expired, ${cancelled} cancelled, ${failed} failed, ${refunded} refunded, ${stillPending} still pending, ${errors} errors`
     );
 
     return NextResponse.json({
@@ -273,6 +279,8 @@ export async function GET(req: NextRequest) {
             paid,
             expired,
             cancelled,
+            failed,
+            refunded,
             stillPending,
             errors,
         },

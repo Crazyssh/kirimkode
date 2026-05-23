@@ -13,6 +13,15 @@
 const PAYMENKU_BASE_URL =
   process.env.PAYMENKU_BASE_URL || "https://paymenku.com/api/v1";
 const PAYMENKU_API_KEY = process.env.PAYMENKU_API_KEY || "";
+const PAYMENKU_WEBHOOK_SECRET = process.env.PAYMENKU_WEBHOOK_SECRET || "";
+
+export type PaymenkuStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "expired"
+  | "cancelled"
+  | "refunded";
 
 // ==================== TYPES ====================
 
@@ -47,7 +56,7 @@ export interface TransactionResponse {
     trx_id: string;
     reference_id: string;
     amount: string;
-    status: "pending" | "paid" | "expired" | "cancelled";
+    status: PaymenkuStatus;
     pay_url: string;
     payment_info: PaymentInfo;
   };
@@ -62,7 +71,7 @@ export interface CheckStatusResponse {
     amount: string;
     total_fee: string;
     amount_received: string;
-    status: "pending" | "paid" | "expired" | "cancelled";
+    status: PaymenkuStatus;
     is_sandbox: boolean;
     customer_name: string;
     customer_email: string;
@@ -107,15 +116,16 @@ export interface WebhookPayload {
   event: "payment.status_updated";
   trx_id: string;
   reference_id: string;
-  status: "pending" | "paid" | "expired" | "cancelled";
+  status: PaymenkuStatus;
   amount: string;
   total_fee: string;
   amount_received: string;
   payment_channel: string;
   customer_name: string;
   customer_email: string;
-  paid_at: string;
+  paid_at: string | null;
   created_at: string;
+  is_sandbox?: boolean;
 }
 
 // ==================== API CLIENT ====================
@@ -131,6 +141,7 @@ async function paymentRequest<T>(
     headers: {
       Authorization: `Bearer ${PAYMENKU_API_KEY}`,
       "Content-Type": "application/json",
+      Accept: "application/json",
       ...options.headers,
     },
   });
@@ -147,13 +158,22 @@ async function paymentRequest<T>(
 // ==================== FUNCTIONS ====================
 
 /**
- * Buat transaksi pembayaran baru
+ * Buat transaksi pembayaran baru.
+ *
+ * Channel codes per docs lowercase: qris, bca_va, bni_va, dana, ovo, dst.
+ * Idempotency-Key opsional — bila network retry, request yang sama tidak
+ * akan dobel charge di sisi Paymenku.
  */
 export async function createTransaction(
-  params: CreateTransactionParams
+  params: CreateTransactionParams,
+  opts: { idempotencyKey?: string } = {}
 ): Promise<TransactionResponse> {
+  const headers: Record<string, string> = {};
+  if (opts.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+
   return paymentRequest<TransactionResponse>("/transaction/create", {
     method: "POST",
+    headers,
     body: JSON.stringify(params),
   });
 }
@@ -197,4 +217,51 @@ export function calculateTotalWithFee(
   const percentFee = (amount * channel.fee.percent) / 100;
   const fee = Math.ceil(flatFee + percentFee);
   return { total: amount + fee, fee };
+}
+
+/**
+ * Verifikasi signature webhook dari Paymenku.
+ * Formula (per docs): HMAC-SHA256(timestamp + "." + raw_body, webhook_secret)
+ * Header: X-PaymenKu-Signature, X-PaymenKu-Timestamp
+ *
+ * PENTING: rawBody harus body request mentah (string), bukan hasil JSON.parse +
+ * JSON.stringify, karena re-encoding bisa mengubah byte order/whitespace.
+ */
+export async function verifyWebhookSignature(
+  rawBody: string,
+  timestamp: string,
+  signature: string
+): Promise<boolean> {
+  if (!PAYMENKU_WEBHOOK_SECRET || !signature || !timestamp) return false;
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(PAYMENKU_WEBHOOK_SECRET),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const data = `${timestamp}.${rawBody}`;
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
+  const expected = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  const provided = signature.toLowerCase();
+  if (expected.length !== provided.length) return false;
+  let result = 0;
+  for (let i = 0; i < expected.length; i++) {
+    result |= expected.charCodeAt(i) ^ provided.charCodeAt(i);
+  }
+  return result === 0;
+}
+
+/**
+ * Cek apakah webhook secret dikonfigurasi.
+ * Berguna untuk fallback ke callback-verification ketika belum diset.
+ */
+export function isWebhookSecretConfigured(): boolean {
+  return PAYMENKU_WEBHOOK_SECRET.length > 0;
 }

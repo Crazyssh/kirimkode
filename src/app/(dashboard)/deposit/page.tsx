@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Ticket,
   Send,
+  XCircle,
 } from "lucide-react";
 
 interface PaymentChannel {
@@ -80,6 +81,8 @@ export default function DepositPage() {
   const [depositResult, setDepositResult] = useState<DepositResult | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string>("pending");
   const [error, setError] = useState<string>("");
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState(false);
   const [voucherCode, setVoucherCode] = useState("");
   const [voucherApplied, setVoucherApplied] = useState<{ code: string; bonus: number; description: string } | null>(null);
   const [applyingVoucher, setApplyingVoucher] = useState(false);
@@ -171,13 +174,59 @@ export default function DepositPage() {
     } catch {
       // silent fail
     }
-  }, [depositResult]);
+  }, [depositResult, fetchUser]);
+
+  // Stop polling untuk semua terminal status (paid/cancelled/expired/failed/refunded)
+  const isTerminalStatus = (s: string) =>
+    s === "paid" ||
+    s === "cancelled" ||
+    s === "expired" ||
+    s === "failed" ||
+    s === "refunded";
 
   useEffect(() => {
     if (step !== "payment" || !depositResult) return;
+    if (isTerminalStatus(paymentStatus)) return;
     const interval = setInterval(checkStatus, 5000);
     return () => clearInterval(interval);
-  }, [step, depositResult, checkStatus]);
+  }, [step, depositResult, paymentStatus, checkStatus]);
+
+  // Cancel deposit
+  async function handleCancelDeposit() {
+    if (!depositResult || cancelling) return;
+    setCancelling(true);
+    setError("");
+    try {
+      const res = await fetch("/api/deposit/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trx_id: depositResult.trx_id }),
+      });
+      const data = await res.json();
+
+      // Sukses cancel atau gateway return terminal status
+      if (res.ok || res.status === 409) {
+        const newStatus = data?.data?.status || data?.status || "cancelled";
+        setPaymentStatus(newStatus);
+        setCancelConfirm(false);
+
+        if (newStatus === "paid") {
+          // Race: sudah dibayar — credit balance, lanjut ke done
+          setStep("done");
+          fetchUser();
+        } else if (data?.message) {
+          // Informational, tidak fatal
+          setError(data.message);
+        }
+      } else {
+        setError(data?.error || "Gagal membatalkan deposit");
+      }
+    } catch {
+      setError("Terjadi kesalahan jaringan saat membatalkan");
+    } finally {
+      setCancelling(false);
+    }
+  }
 
   // Buat deposit via BAYAR.GG
   async function handleCreateDeposit() {
@@ -521,8 +570,29 @@ export default function DepositPage() {
                   )}
                   <div className="flex justify-between">
                     <span className="text-muted">{t("deposit.status")}</span>
-                    <Badge variant={paymentStatus === "paid" ? "success" : "warning"}>
-                      {paymentStatus === "paid" ? t("status.deposit.paid") : t("status.deposit.pending")}
+                    <Badge
+                      variant={
+                        paymentStatus === "paid"
+                          ? "success"
+                          : paymentStatus === "cancelled" ||
+                            paymentStatus === "expired" ||
+                            paymentStatus === "failed" ||
+                            paymentStatus === "refunded"
+                          ? "error"
+                          : "warning"
+                      }
+                    >
+                      {paymentStatus === "paid"
+                        ? t("status.deposit.paid")
+                        : paymentStatus === "cancelled"
+                        ? "Dibatalkan"
+                        : paymentStatus === "expired"
+                        ? "Kedaluwarsa"
+                        : paymentStatus === "failed"
+                        ? "Gagal"
+                        : paymentStatus === "refunded"
+                        ? "Direfund"
+                        : t("status.deposit.pending")}
                     </Badge>
                   </div>
                   {depositResult.payment_info.expiration_date && (
@@ -611,23 +681,101 @@ export default function DepositPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3">
+                {/* Banner buat status terminal non-paid */}
+                {(paymentStatus === "cancelled" ||
+                  paymentStatus === "expired" ||
+                  paymentStatus === "failed" ||
+                  paymentStatus === "refunded") && (
+                  <div className="p-3 rounded-xl bg-error/10 border border-error/20 flex items-start gap-2 text-sm text-error">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div>
+                      {paymentStatus === "cancelled" && (
+                        <>Deposit ini sudah dibatalkan. Buat deposit baru untuk melanjutkan.</>
+                      )}
+                      {paymentStatus === "expired" && (
+                        <>Deposit ini sudah kedaluwarsa. Silakan buat deposit baru.</>
+                      )}
+                      {paymentStatus === "failed" && (
+                        <>Pembayaran gagal diproses oleh payment gateway.</>
+                      )}
+                      {paymentStatus === "refunded" && (
+                        <>Deposit ini telah direfund.</>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Cancel confirmation banner */}
+                {cancelConfirm && paymentStatus === "pending" && (
+                  <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 space-y-2">
+                    <div className="flex items-start gap-2 text-sm text-foreground">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-warning" />
+                      <div>
+                        Yakin batalkan deposit ini? Jika kamu sudah transfer, JANGAN klik batal —
+                        tunggu konfirmasi otomatis.
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => setCancelConfirm(false)}
+                        disabled={cancelling}
+                      >
+                        Tidak, lanjut bayar
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        className="flex-1"
+                        onClick={handleCancelDeposit}
+                        disabled={cancelling}
+                      >
+                        {cancelling ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Membatalkan...
+                          </>
+                        ) : (
+                          <>Ya, batalkan</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tombol aksi utama */}
+                {paymentStatus === "pending" ? (
+                  <div className="flex gap-3">
+                    <Button
+                      variant="ghost"
+                      className="flex-1"
+                      onClick={() => setCancelConfirm(true)}
+                      disabled={cancelling || cancelConfirm}
+                    >
+                      <XCircle className="w-4 h-4" />
+                      Batalkan
+                    </Button>
+                    <Button className="flex-1" onClick={checkStatus}>
+                      <RefreshCw className="w-4 h-4" />
+                      {t("deposit.checkStatus")}
+                    </Button>
+                  </div>
+                ) : (
                   <Button
-                    variant="secondary"
-                    className="flex-1"
+                    className="w-full"
                     onClick={() => {
                       setStep("amount");
                       setDepositResult(null);
+                      setPaymentStatus("pending");
+                      setCancelConfirm(false);
                       setError("");
                     }}
                   >
                     {t("deposit.newDeposit")}
                   </Button>
-                  <Button className="flex-1" onClick={checkStatus}>
-                    <RefreshCw className="w-4 h-4" />
-                    {t("deposit.checkStatus")}
-                  </Button>
-                </div>
+                )}
               </CardContent>
             </Card>
           )}

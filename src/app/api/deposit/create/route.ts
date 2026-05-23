@@ -78,15 +78,18 @@ export async function POST(req: NextRequest) {
       // === PAYMENKU QRIS ===
       const referenceId = paymenkuRefId(user.id);
 
-      const result = await paymenkuCreateTransaction({
-        reference_id: referenceId,
-        amount,
-        customer_name: user.name || "KirimKode User",
-        customer_email: user.email,
-        customer_phone: user.phone || undefined,
-        channel_code: "QRIS",
-        return_url: `${appUrl}/deposit?status=success`,
-      });
+      const result = await paymenkuCreateTransaction(
+        {
+          reference_id: referenceId,
+          amount,
+          customer_name: user.name || "KirimKode User",
+          customer_email: user.email,
+          customer_phone: user.phone || undefined,
+          channel_code: "qris", // lowercase per Paymenku docs
+          return_url: `${appUrl}/deposit?status=success`,
+        },
+        { idempotencyKey: referenceId }
+      );
 
       await db.deposit.create({
         data: {

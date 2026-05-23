@@ -152,6 +152,19 @@ export async function GET(req: NextRequest) {
           console.error("[Mail] Email deposit error:", e);
         }
       }
+    } else if (
+      deposit.status === "pending" &&
+      (apiStatus === "expired" ||
+        apiStatus === "cancelled" ||
+        apiStatus === "failed" ||
+        apiStatus === "refunded")
+    ) {
+      // Sinkron terminal status non-paid ke DB supaya UI bisa stop polling
+      await db.deposit.updateMany({
+        where: { trxId: orderId, status: "pending" },
+        data: { status: apiStatus },
+      });
+      console.log(`[Deposit Status] ${apiStatus.toUpperCase()} (${deposit.gateway}): ${orderId}`);
     }
 
     return NextResponse.json({

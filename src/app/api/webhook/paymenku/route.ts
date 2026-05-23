@@ -1,36 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { checkTransactionStatus } from "@/lib/paymenku";
+import {
+  checkTransactionStatus,
+  verifyWebhookSignature,
+  isWebhookSecretConfigured,
+} from "@/lib/paymenku";
 import { giveReferralCommission } from "@/lib/referral";
 import { sendDepositSuccessEmail } from "@/lib/mail";
 
 /**
- * Webhook handler untuk Paymenku
+ * Webhook handler untuk Paymenku.
  *
- * Karena Paymenku tidak menyediakan webhook secret/signature,
- * kita pakai strategi CALLBACK VERIFICATION:
- *   1. Terima webhook sebagai trigger saja
- *   2. Panggil check-status API Paymenku untuk verifikasi langsung
- *   3. Cocokkan data dari API dengan database internal
- *   4. Baru proses update balance
+ * Defense-in-depth dua lapis:
+ *   1. HMAC-SHA256 signature verification (header X-PaymenKu-Signature)
+ *      - formula: HMAC(timestamp + "." + raw_body, PAYMENKU_WEBHOOK_SECRET)
+ *      - kalau secret belum diset, di-skip dan langsung jalan ke step 2
+ *   2. Callback verification — call check-status API & match reference_id+amount
+ *      sebelum credit balance, supaya payload nakal tidak bisa fake "paid".
  *
  * Set callback URL di dashboard merchant Paymenku:
- * https://yourdomain.com/api/webhook/paymenku
+ *   https://yourdomain.com/api/webhook/paymenku
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    // Body harus dibaca sebagai TEXT mentah dulu — kalau pakai req.json()
+    // langsung, signature verification bakal gagal karena byte berubah.
+    const rawBody = await req.text();
 
-    console.log("[Paymenku Webhook] Received:", JSON.stringify(body, null, 2));
+    // === LAYER 1: HMAC signature verification ===
+    if (isWebhookSecretConfigured()) {
+      const signature = req.headers.get("x-paymenku-signature") || "";
+      const timestamp = req.headers.get("x-paymenku-timestamp") || "";
 
-    // Ambil trx_id dari webhook payload (hanya sebagai trigger)
-    const trxId: string | undefined = body?.trx_id;
+      const valid = await verifyWebhookSignature(rawBody, timestamp, signature);
+      if (!valid) {
+        console.warn("[Paymenku Webhook] Invalid signature — rejected");
+        return NextResponse.json(
+          { error: "Invalid signature" },
+          { status: 401 }
+        );
+      }
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+
+    console.log("[Paymenku Webhook] Received:", JSON.stringify(body));
+
+    // Validate event field (saat ini cuma payment.status_updated)
+    const event = typeof body.event === "string" ? body.event : "";
+    if (event && event !== "payment.status_updated") {
+      console.log(`[Paymenku Webhook] Ignored event: ${event}`);
+      return NextResponse.json({ status: "ignored" });
+    }
+
+    const trxId = typeof body.trx_id === "string" ? body.trx_id : "";
     if (!trxId) {
       console.warn("[Paymenku Webhook] Missing trx_id in payload");
       return NextResponse.json({ status: "ignored" });
     }
 
-    // Cek apakah deposit dengan trx_id ini ada di database kita
     const deposit = await db.deposit.findUnique({
       where: { trxId },
     });
@@ -40,48 +73,54 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: "not_found" });
     }
 
-    // Sudah diproses sebelumnya (idempotency)
-    if (deposit.status !== "pending") {
-      console.log(`[Paymenku Webhook] Already processed: ${trxId} (${deposit.status})`);
+    // Sudah credit sebelumnya — idempotent skip
+    if (deposit.status === "paid" || deposit.status === "refunded") {
+      console.log(
+        `[Paymenku Webhook] Already processed: ${trxId} (${deposit.status})`
+      );
       return NextResponse.json({ status: "already_processed" });
     }
 
-    // === CALLBACK VERIFICATION ===
-    // Jangan percaya webhook payload — verifikasi langsung ke API Paymenku
+    // === LAYER 2: callback verification ===
     const verified = await checkTransactionStatus(trxId);
 
     if (verified.status !== "success" || !verified.data) {
-      console.error(`[Paymenku Webhook] Verification failed for ${trxId}:`, verified);
+      console.error(
+        `[Paymenku Webhook] Verification failed for ${trxId}:`,
+        verified
+      );
       return NextResponse.json({ status: "verification_failed" });
     }
 
     const apiData = verified.data;
 
-    // Cocokkan reference_id untuk memastikan ini memang transaksi kita
     if (apiData.reference_id !== deposit.referenceId) {
-      console.error(`[Paymenku Webhook] Reference ID mismatch: API=${apiData.reference_id}, DB=${deposit.referenceId}`);
+      console.error(
+        `[Paymenku Webhook] Reference ID mismatch: API=${apiData.reference_id}, DB=${deposit.referenceId}`
+      );
       return NextResponse.json({ status: "mismatch" });
     }
 
-    // Cocokkan amount
     const apiAmount = Math.floor(parseFloat(apiData.amount));
     if (apiAmount !== deposit.amount) {
-      console.error(`[Paymenku Webhook] Amount mismatch: API=${apiAmount}, DB=${deposit.amount}`);
+      console.error(
+        `[Paymenku Webhook] Amount mismatch: API=${apiAmount}, DB=${deposit.amount}`
+      );
       return NextResponse.json({ status: "mismatch" });
     }
 
-    // Proses berdasarkan status DARI API (bukan dari webhook payload)
     const apiStatus = apiData.status;
 
     if (apiStatus === "paid") {
       const fee = Math.floor(parseFloat(apiData.total_fee || "0"));
-      const amountReceived = Math.floor(parseFloat(apiData.amount_received || "0"));
+      const amountReceived = Math.floor(
+        parseFloat(apiData.amount_received || "0")
+      );
 
-      // Interactive transaction dengan re-check untuk prevent race condition
-      // (Paymenku bisa kirim webhook 2x hampir bersamaan)
       const processed = await db.$transaction(async (tx) => {
+        // Allow revival dari cancelled/expired/failed kalau ternyata gateway konfirm paid
         const claimed = await tx.deposit.updateMany({
-          where: { trxId, status: "pending" },
+          where: { trxId, status: { not: "paid" } },
           data: {
             status: "paid",
             paidAt: apiData.paid_at ? new Date(apiData.paid_at) : new Date(),
@@ -91,7 +130,9 @@ export async function POST(req: NextRequest) {
         });
 
         if (claimed.count === 0) {
-          console.log(`[Paymenku Webhook] Race condition prevented: ${trxId} already processed`);
+          console.log(
+            `[Paymenku Webhook] Race condition prevented: ${trxId} already processed`
+          );
           return false;
         }
 
@@ -106,20 +147,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ status: "already_processed" });
       }
 
-      console.log(`[Paymenku] VERIFIED & PAID: ${trxId} | +Rp ${deposit.amount} for user ${deposit.userId}`);
+      console.log(
+        `[Paymenku] VERIFIED & PAID: ${trxId} | +Rp ${deposit.amount} for user ${deposit.userId}`
+      );
 
-      // Komisi referral (non-blocking, jangan block email)
       try {
         await giveReferralCommission(deposit.userId, deposit.amount);
       } catch (e) {
         console.error("[Paymenku] Referral commission error:", e);
       }
 
-      // Kirim email notifikasi deposit berhasil
       try {
-        const user = await db.user.findUnique({ where: { id: deposit.userId }, select: { email: true, name: true, balance: true } });
+        const user = await db.user.findUnique({
+          where: { id: deposit.userId },
+          select: { email: true, name: true, balance: true },
+        });
         if (user?.email) {
-          console.log(`[Mail] Sending deposit email to ${user.email}...`);
           await sendDepositSuccessEmail(user.email, {
             name: user.name || "User",
             amount: deposit.amount,
@@ -127,20 +170,25 @@ export async function POST(req: NextRequest) {
             balance: user.balance,
           });
           console.log(`[Mail] Deposit email sent to ${user.email}`);
-        } else {
-          console.warn(`[Mail] No email found for user ${deposit.userId}`);
         }
       } catch (e) {
         console.error("[Mail] Email deposit error:", e);
       }
-    } else if (apiStatus === "expired" || apiStatus === "cancelled") {
+    } else if (
+      apiStatus === "expired" ||
+      apiStatus === "cancelled" ||
+      apiStatus === "failed" ||
+      apiStatus === "refunded"
+    ) {
       const updated = await db.deposit.updateMany({
         where: { trxId, status: "pending" },
         data: { status: apiStatus },
       });
 
       if (updated.count > 0) {
-        console.log(`[Paymenku] VERIFIED & ${apiStatus.toUpperCase()}: ${trxId}`);
+        console.log(
+          `[Paymenku] VERIFIED & ${apiStatus.toUpperCase()}: ${trxId}`
+        );
       }
     } else {
       console.log(`[Paymenku] Status still ${apiStatus} for ${trxId} — no action`);
