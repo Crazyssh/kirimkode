@@ -3,7 +3,9 @@
     "allow": [
       "Bash(npx tsc *)",
       "WebFetch(domain:paymenku.com)",
-      "WebFetch(domain:docs.paymenku.com)"
+      "WebFetch(domain:docs.paymenku.com)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'fix: validasi expiration_date dari Paymenku sebelum simpan ke DB *)"
     ]
   }
 }

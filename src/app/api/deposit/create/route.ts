@@ -91,6 +91,21 @@ export async function POST(req: NextRequest) {
         { idempotencyKey: referenceId }
       );
 
+      // Safe parse expiration_date — Paymenku kadang return format yang
+      // tidak bisa di-parse Date constructor → simpan null daripada throw.
+      const expRaw = result.data.payment_info?.expiration_date;
+      let expiresAt: Date | null = null;
+      if (expRaw) {
+        const parsed = new Date(expRaw);
+        if (!isNaN(parsed.getTime())) {
+          expiresAt = parsed;
+        } else {
+          console.warn(
+            `[Paymenku] Invalid expiration_date format: "${expRaw}" — fallback ke null`
+          );
+        }
+      }
+
       await db.deposit.create({
         data: {
           userId: user.id,
@@ -103,7 +118,7 @@ export async function POST(req: NextRequest) {
           gateway: "paymenku",
           status: "pending",
           payUrl: result.data.pay_url,
-          expiresAt: result.data.payment_info.expiration_date ? new Date(result.data.payment_info.expiration_date) : null,
+          expiresAt,
         },
       });
 
