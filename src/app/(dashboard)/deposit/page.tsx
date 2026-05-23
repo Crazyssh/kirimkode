@@ -110,6 +110,19 @@ export default function DepositPage() {
     checkDepositStatus();
   }, []);
 
+  // Detect ?status=success — user balik dari Paymenku setelah bayar
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("status") === "success") {
+      setStep("done");
+      setPaymentStatus("paid");
+      fetchUser(); // refresh saldo
+      // Bersihin query string biar gak nge-trigger ulang kalau user navigate
+      window.history.replaceState({}, "", "/deposit");
+    }
+  }, [fetchUser]);
+
   // Fetch deposit history (extracted supaya bisa dipanggil ulang setelah cancel)
   const fetchHistory = useCallback(async () => {
     try {
@@ -285,7 +298,7 @@ export default function DepositPage() {
     }
   }
 
-  // Buat deposit via BAYAR.GG
+  // Buat deposit
   async function handleCreateDeposit() {
     setLoading(true);
     setError("");
@@ -303,25 +316,39 @@ export default function DepositPage() {
       const data = await res.json();
 
       if (data.status === "success") {
-        setDepositResult(data.data);
-        setPaymentStatus("pending");
-        setStep("payment");
-
-        // Auto buka tab baru HANYA jika QR tidak tersedia (fallback)
-        const qrUrl = data.data.payment_info?.qr_url;
-        if (!qrUrl) {
-          const payUrl = data.data.payment_info?.checkout_url || data.data.pay_url;
-          if (payUrl) {
-            window.open(payUrl, "_blank");
-          }
-        }
-
         if (typeof window !== "undefined" && window.gtag) {
           window.gtag("event", "begin_checkout", {
             currency: "IDR",
             value: amount,
             payment_method: selectedChannel,
           });
+        }
+
+        // Paymenku QRIS → redirect langsung ke pay_url Paymenku
+        // QR tidak ditampilkan di web kita.
+        if (selectedChannel === "QRIS") {
+          const payUrl = data.data.pay_url;
+          if (payUrl) {
+            window.location.href = payUrl;
+            return;
+          }
+          // Fallback kalau pay_url kosong (seharusnya gak terjadi)
+          setError("Gagal membuka halaman pembayaran Paymenku");
+          return;
+        }
+
+        // BAYAR.GG / Manual QRIS → tampil QR inline di web
+        setDepositResult(data.data);
+        setPaymentStatus("pending");
+        setStep("payment");
+
+        // Auto buka tab baru kalau QR gak tersedia (fallback bayargg)
+        const qrUrl = data.data.payment_info?.qr_url;
+        if (!qrUrl) {
+          const payUrl = data.data.payment_info?.checkout_url || data.data.pay_url;
+          if (payUrl) {
+            window.open(payUrl, "_blank");
+          }
         }
       } else {
         setError(data.error || "Gagal membuat deposit");
@@ -937,7 +964,7 @@ export default function DepositPage() {
                           {dep.payUrl && (
                             <a
                               href={dep.payUrl}
-                              target="_blank"
+                              target={dep.gateway === "paymenku" ? "_self" : "_blank"}
                               rel="noopener noreferrer"
                               className="flex-1"
                             >
@@ -947,7 +974,7 @@ export default function DepositPage() {
                                 className="w-full"
                               >
                                 <ExternalLink className="w-3 h-3" />
-                                Buka QRIS
+                                {dep.gateway === "paymenku" ? "Bayar" : "Buka QRIS"}
                               </Button>
                             </a>
                           )}
