@@ -53,7 +53,7 @@ const balance = await fetch(\`\${BASE}/balance\`, {
 }).then(r => r.json());
 console.log("Saldo:", balance.data.balance);
 
-// Order nomor virtual (Indonesia)
+// Order nomor virtual (Indonesia, WhatsApp)
 const order = await fetch(\`\${BASE}/order\`, {
   method: "POST",
   headers: {
@@ -61,18 +61,19 @@ const order = await fetch(\`\${BASE}/order\`, {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    server: "api1",
-    country: 6,
-    service: "wa",
+    server: "api1",      // api1, api2, api3, api4
+    country: 6,          // 6 = Indonesia
+    service: "wa",       // kode layanan, bukan nama full
     operator: "any",
   }),
 }).then(r => r.json());
-console.log("Nomor:", order.data.number);
+console.log("Order ID:", order.data.id, "Nomor:", order.data.number);
 
-// Poll OTP (cek setiap 5 detik)
-const checkOtp = async (orderId) => {
+// Poll OTP setiap 5 detik
+// Path /order/{id}/status menerima id (cuid) ATAU order_id (integer)
+const checkOtp = async (id) => {
   const res = await fetch(
-    \`\${BASE}/order/\${orderId}/status\`,
+    \`\${BASE}/order/\${id}/status\`,
     { headers: { "X-API-Key": API_KEY } }
   ).then(r => r.json());
 
@@ -81,10 +82,10 @@ const checkOtp = async (orderId) => {
     return res.data.code;
   }
   await new Promise(r => setTimeout(r, 5000));
-  return checkOtp(orderId);
+  return checkOtp(id);
 };
 
-const otp = await checkOtp(order.data.order_id);`,
+const otp = await checkOtp(order.data.id);`,
     },
     python: {
       label: "Python",
@@ -99,19 +100,19 @@ headers = {"X-API-Key": API_KEY}
 balance = requests.get(f"{BASE}/balance", headers=headers).json()
 print(f"Saldo: {balance['data']['balance']}")
 
-# Order nomor virtual (Indonesia)
+# Order nomor virtual (Indonesia, WhatsApp)
 order = requests.post(f"{BASE}/order", headers={
     **headers, "Content-Type": "application/json"
 }, json={
-    "server": "api1",
-    "country": 6,
+    "server": "api1",   # api1, api2, api3, api4
+    "country": 6,       # 6 = Indonesia
     "service": "wa",
     "operator": "any"
 }).json()
-print(f"Nomor: {order['data']['number']}")
+print(f"Order: {order['data']['id']} | Nomor: {order['data']['number']}")
 
-# Poll OTP (cek setiap 5 detik)
-order_id = order["data"]["order_id"]
+# Poll OTP setiap 5 detik
+order_id = order["data"]["id"]  # bisa juga pakai order["data"]["order_id"]
 while True:
     status = requests.get(
         f"{BASE}/order/{order_id}/status",
@@ -135,7 +136,7 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $balance = json_decode(curl_exec($ch), true);
 echo "Saldo: " . $balance["data"]["balance"] . "\\n";
 
-// Order nomor virtual (Indonesia)
+// Order nomor virtual (Indonesia, WhatsApp)
 $ch = curl_init("$base/order");
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
@@ -150,10 +151,10 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
 ]));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $order = json_decode(curl_exec($ch), true);
-echo "Nomor: " . $order["data"]["number"] . "\\n";
+echo "Order: " . $order["data"]["id"] . " | Nomor: " . $order["data"]["number"] . "\\n";
 
 // Poll OTP
-$orderId = $order["data"]["order_id"];
+$orderId = $order["data"]["id"];
 while (true) {
     $ch = curl_init("$base/order/$orderId/status");
     curl_setopt($ch, CURLOPT_HTTPHEADER, ["X-API-Key: $apiKey"]);
@@ -172,14 +173,14 @@ while (true) {
 curl -H "X-API-Key: YOUR_API_KEY" \\
   https://api.kirimkode.com/v1/balance
 
-# Order nomor virtual (Indonesia)
+# Order nomor virtual (Indonesia, WhatsApp)
 curl -X POST \\
   -H "X-API-Key: YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"server":"api1","country":6,"service":"wa","operator":"any"}' \\
   https://api.kirimkode.com/v1/order
 
-# Cek status OTP
+# Cek status OTP (id cuid atau order_id integer dua-duanya bisa)
 curl -H "X-API-Key: YOUR_API_KEY" \\
   https://api.kirimkode.com/v1/order/ORDER_ID/status
 
@@ -192,11 +193,15 @@ curl -X POST \\
 
   const apiEndpoints = [
     { method: "GET", path: "/balance", description: t("apiDocs.descBalance"), example: `{\n  "success": true,\n  "data": {\n    "balance": 125000,\n    "currency": "IDR"\n  },\n  "timestamp": "2026-03-11T16:31:48.817Z"\n}` },
-    { method: "GET", path: "/services", description: t("apiDocs.descServices"), example: `// Query: ?server=api1&country=6\n\n{\n  "success": true,\n  "data": [\n    {\n      "code": "wa",\n      "name": "WhatsApp",\n      "price": 1500,\n      "stock": 342\n    }\n  ],\n  "timestamp": "2026-03-11T16:32:03.746Z"\n}` },
-    { method: "POST", path: "/order", description: t("apiDocs.descOrder"), example: `// Request\n{\n  "server": "api1",\n  "country": 6,\n  "service": "wa",\n  "operator": "any"\n}\n\n// Response\n{\n  "success": true,\n  "data": {\n    "order_id": 12003637,\n    "number": "+62881025274888",\n    "service": "wa",\n    "price": 1500,\n    "expires_at": "2026-03-11T16:54:58.177Z"\n  },\n  "timestamp": "2026-03-11T16:34:58.177Z"\n}` },
-    { method: "GET", path: "/order/{id}/status", description: t("apiDocs.descStatus"), example: `{\n  "success": true,\n  "data": {\n    "order_id": "cmmm9f3ei000r3xkpvjnwtkfy",\n    "number": "+62881025274888",\n    "code": "482916",\n    "status": "success",\n    "received_at": "2026-03-11T14:42:15Z"\n  },\n  "timestamp": "2026-03-11T14:42:15.123Z"\n}` },
-    { method: "POST", path: "/order/{id}/cancel", description: t("apiDocs.descCancel"), example: `// Success\n{\n  "success": true,\n  "message": "Order cancelled and balance refunded",\n  "timestamp": "2026-03-11T14:45:00.123Z"\n}\n\n// Error (cancel terlalu cepat)\n{\n  "success": false,\n  "error": {\n    "message": "Cannot cancel within 3 minutes of order",\n    "code": "CANCEL_TOO_EARLY"\n  },\n  "timestamp": "2026-03-11T14:42:30.456Z"\n}` },
-    { method: "GET", path: "/orders", description: t("apiDocs.descHistory"), example: `{\n  "success": true,\n  "data": [\n    {\n      "id": "cmmm9f3ei000r3xkpvjnwtkfy",\n      "order_id": 12003637,\n      "service": "wa",\n      "number": "+62881025274888",\n      "code": "482916",\n      "status": "success",\n      "price": 1500\n    }\n  ],\n  "pagination": {\n    "page": 1,\n    "limit": 20,\n    "total": 47,\n    "total_pages": 3\n  },\n  "timestamp": "2026-03-11T16:35:30.077Z"\n}` },
+    { method: "GET", path: "/services", description: t("apiDocs.descServices"), example: `// Query: ?server=api1&country=6\n// Server pilihan: api1, api2, api3, api4\n\n{\n  "success": true,\n  "data": [\n    {\n      "code": "wa",\n      "name": "WhatsApp",\n      "price": 1500,\n      "stock": 342\n    }\n  ],\n  "timestamp": "2026-03-11T16:32:03.746Z"\n}` },
+    { method: "POST", path: "/order", description: t("apiDocs.descOrder"), example: `// Request\n{\n  "server": "api1",      // api1 | api2 | api3 | api4\n  "country": 6,          // ID negara (6 = Indonesia)\n  "service": "wa",       // kode layanan dari /services\n  "operator": "any"      // optional, default "any"\n}\n\n// Response\n{\n  "success": true,\n  "data": {\n    "id": "cmmm9f3ei000r3xkpvjnwtkfy",   // gunakan ini untuk endpoint /order/{id}/*\n    "order_id": 12003637,                  // ID dari provider, juga diterima di /order/{id}/*\n    "number": "+62881025274888",\n    "service": "wa",\n    "server": "api1",\n    "price": 1500,\n    "expires_at": "2026-03-11T16:54:58.177Z"\n  },\n  "timestamp": "2026-03-11T16:34:58.177Z"\n}` },
+    { method: "GET", path: "/order/{id}/status", description: t("apiDocs.descStatus"), example: `// {id} bisa cuid (id) ATAU integer (order_id) dari response POST /order\n\n{\n  "success": true,\n  "data": {\n    "id": "cmmm9f3ei000r3xkpvjnwtkfy",\n    "order_id": 12003637,\n    "number": "+62881025274888",\n    "code": "482916",            // null kalau OTP belum masuk\n    "status": "success",          // waiting | success | cancelled | timeout\n    "received_at": "2026-03-11T14:42:15Z"\n  },\n  "timestamp": "2026-03-11T14:42:15.123Z"\n}` },
+    { method: "POST", path: "/order/{id}/cancel", description: t("apiDocs.descCancel"), example: `// Success\n{\n  "success": true,\n  "message": "Order cancelled and balance refunded",\n  "timestamp": "2026-03-11T14:45:00.123Z"\n}\n\n// Error (cancel terlalu cepat — minimal 3 menit setelah order)\n{\n  "success": false,\n  "error": {\n    "message": "Cannot cancel within 3 minutes of order",\n    "code": "CANCEL_TOO_EARLY"\n  },\n  "timestamp": "2026-03-11T14:42:30.456Z"\n}` },
+    { method: "GET", path: "/orders", description: t("apiDocs.descHistory"), example: `// Query: ?page=1&limit=20&status=success (optional)\n\n{\n  "success": true,\n  "data": [\n    {\n      "id": "cmmm9f3ei000r3xkpvjnwtkfy",\n      "order_id": 12003637,\n      "service": "wa",\n      "number": "+62881025274888",\n      "code": "482916",\n      "status": "success",\n      "server": "api1",\n      "price": 1500\n    }\n  ],\n  "pagination": {\n    "page": 1,\n    "limit": 20,\n    "total": 47,\n    "total_pages": 3\n  },\n  "timestamp": "2026-03-11T16:35:30.077Z"\n}` },
+    { method: "GET", path: "/user/me", description: "Info profile user yang sedang authenticated (saldo, api_key, dll)", example: `{\n  "success": true,\n  "data": {\n    "id": "cmxxxxxxxxx",\n    "name": "John Doe",\n    "email": "john@example.com",\n    "balance": 125000,\n    "role": "user",\n    "api_key": "kk_xxxxxxxxxxxxxxxxxxxxxx",\n    "phone": "08123456789"\n  },\n  "timestamp": "2026-03-11T16:31:48.817Z"\n}` },
+    { method: "POST", path: "/deposit/create", description: "Buat transaksi deposit (top-up saldo) via Paymenku QRIS", example: `// Request\n{\n  "amount": 50000,         // minimal Rp 5.000\n  "channel": "qris"\n}\n\n// Response\n{\n  "success": true,\n  "data": {\n    "trx_id": "IDP202602271040123456",\n    "amount": "50350.00",\n    "pay_url": "https://paymenku.com/pay/IDP202602271040123456"\n  },\n  "timestamp": "2026-03-11T16:35:00.000Z"\n}` },
+    { method: "POST", path: "/auth/login", description: "Login dengan email & password — dipakai aplikasi pihak ketiga untuk dapetin API key user. Rate limit 10/menit.", example: `// Request\n{\n  "email": "user@example.com",\n  "password": "secret"\n}\n\n// Response\n{\n  "success": true,\n  "data": {\n    "api_key": "kk_xxxxxxxxxxxxxxxxxxxxxx",\n    "user": {\n      "id": "cmxxxxxxxxx",\n      "name": "John Doe",\n      "email": "user@example.com",\n      "balance": 125000\n    }\n  }\n}` },
+    { method: "POST", path: "/auth/register", description: "Daftar akun baru. Rate limit 5/menit. Setelah register, gunakan /auth/login untuk dapetin api_key.", example: `// Request\n{\n  "name": "John Doe",\n  "email": "user@example.com",\n  "password": "secret123",\n  "phone": "08123456789",       // optional\n  "referralCode": "KKXXXXXX"     // optional\n}\n\n// Response (201)\n{\n  "success": true,\n  "data": {\n    "id": "cmxxxxxxxxx",\n    "name": "John Doe",\n    "email": "user@example.com",\n    "message": "Registrasi berhasil"\n  }\n}` },
   ];
 
   const errorCodes = [
@@ -328,7 +333,12 @@ curl -X POST \\
                   {t("apiDocs.quickStart")}
                 </CardTitle>
                 <button
-                  onClick={() => handleCopy(`curl -H "X-API-Key: YOUR_API_KEY" https://api.kirimkode.com/v1/balance`, "quickstart")}
+                  onClick={() =>
+                    handleCopy(
+                      `curl -H "X-API-Key: YOUR_API_KEY" https://api.kirimkode.com/v1/balance\n\ncurl -X POST \\\n  -H "X-API-Key: YOUR_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"server":"api1","country":6,"service":"wa"}' \\\n  https://api.kirimkode.com/v1/order`,
+                      "quickstart"
+                    )
+                  }
                   className="text-xs text-muted hover:text-foreground flex items-center gap-1"
                 >
                   {copied === "quickstart" ? <CheckCircle className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
@@ -346,7 +356,7 @@ curl -X POST \\
                     {"\n\n"}<span className="text-muted"># {t("apiDocs.buyWhatsapp")}</span>
                     {"\n"}<span className="text-accent">curl</span> -X POST{"\n  "}-H <span className="text-primary">{'"X-API-Key: YOUR_API_KEY"'}</span>
                     {"\n  "}-H <span className="text-primary">{'"Content-Type: application/json"'}</span>
-                    {"\n  "}-d <span className="text-primary">{"'{\"service\":\"whatsapp\",\"country\":\"ID\"}"}</span><span className="text-primary">{"'"}</span>
+                    {"\n  "}-d <span className="text-primary">{"'{\"server\":\"api1\",\"country\":6,\"service\":\"wa\"}"}</span><span className="text-primary">{"'"}</span>
                     {"\n  "}https://api.kirimkode.com/v1/order
                   </code>
                 </pre>

@@ -4,11 +4,21 @@ import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
 import { applyPricing } from "@/lib/pricing";
 
+type PublicServer = "api1" | "api2" | "api3" | "api4";
+const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4"];
+
+// Provider yang harganya sudah final (USD→IDR + markup di adapter) — skip applyPricing.
+const FINAL_PRICE_SERVERS = new Set<PublicServer>(["api3", "api4"]);
+
 /**
- * Ambil harga dari server JasaOTP + apply pricing rules.
+ * Ambil harga dari server provider + apply pricing rules untuk api1/api2 saja.
  * TIDAK BOLEH percaya harga dari client.
  */
-async function getServerPrice(server: "api1" | "api2", country: number, service: string): Promise<number> {
+async function getServerPrice(
+  server: PublicServer,
+  country: number,
+  service: string
+): Promise<number> {
   const data = await getLayanan(server, country);
   const key = String(country);
 
@@ -17,6 +27,11 @@ async function getServerPrice(server: "api1" | "api2", country: number, service:
 
   if (!serviceInfo || typeof serviceInfo.harga !== "number") {
     throw new Error("Service not found or price unavailable");
+  }
+
+  if (FINAL_PRICE_SERVERS.has(server)) {
+    // api3/api4 sudah USD→IDR + markup, gak perlu applyPricing lagi
+    return serviceInfo.harga;
   }
 
   const result = await applyPricing(serviceInfo.harga, service, country);
@@ -32,12 +47,20 @@ export const POST = withApiAuth(async (req, user) => {
       return apiError("service is required", 400, "MISSING_FIELDS");
     }
 
-    if (!["api1", "api2"].includes(server)) {
-      return apiError("Invalid server (api1 or api2)", 400, "INVALID_SERVER");
+    if (!VALID_SERVERS.includes(server)) {
+      return apiError(
+        "Invalid server (api1, api2, api3, or api4)",
+        400,
+        "INVALID_SERVER"
+      );
     }
 
     // Harga WAJIB dari server, bukan dari client
-    const orderPrice = await getServerPrice(server as "api1" | "api2", Number(country), service);
+    const orderPrice = await getServerPrice(
+      server as PublicServer,
+      Number(country),
+      service
+    );
 
     // Atomic balance check + deduct + order creation
     const result = await db.$transaction(async (tx) => {
@@ -50,7 +73,12 @@ export const POST = withApiAuth(async (req, user) => {
         throw new Error("INSUFFICIENT_BALANCE");
       }
 
-      const data = await createOrder(server as "api1" | "api2", Number(country), service, operator);
+      const data = await createOrder(
+        server as PublicServer,
+        Number(country),
+        service,
+        operator
+      );
       const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
       const number = data?.number ?? data?.data?.number ?? "";
 
@@ -63,7 +91,7 @@ export const POST = withApiAuth(async (req, user) => {
         data: { balance: { decrement: orderPrice } },
       });
 
-      await tx.order.create({
+      const dbOrder = await tx.order.create({
         data: {
           userId: user.id,
           server,
@@ -79,13 +107,15 @@ export const POST = withApiAuth(async (req, user) => {
         },
       });
 
-      return { orderId, number: String(number) };
+      return { id: dbOrder.id, orderId, number: String(number) };
     });
 
     return apiSuccess({
+      id: result.id,
       order_id: result.orderId,
       number: result.number,
       service,
+      server,
       price: orderPrice,
       expires_at: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
     });

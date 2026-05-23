@@ -2,17 +2,23 @@ import { withApiAuthParams } from "@/lib/api-auth";
 import { apiMessage, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { cancelOrder } from "@/lib/otp";
+import { findOrderByAnyId } from "@/lib/order-lookup";
 
 export const POST = withApiAuthParams(async (_req, user, params) => {
   const { id } = params;
 
-  const order = await db.order.findFirst({
-    where: { id, userId: user.id, status: "waiting" },
-  });
-
-  if (!order) {
-    return apiError("Order not found or already completed", 404, "ORDER_NOT_FOUND");
+  const lookup = await findOrderByAnyId(id, user.id);
+  if (lookup.status !== "found") {
+    return apiError("Order not found", 404, "ORDER_NOT_FOUND");
   }
+  if (lookup.order.status !== "waiting") {
+    return apiError(
+      "Order not found or already completed",
+      404,
+      "ORDER_NOT_FOUND"
+    );
+  }
+  const order = lookup.order;
 
   // Check 3-minute rule
   const diffMs = Date.now() - new Date(order.createdAt).getTime();
@@ -20,12 +26,15 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
     return apiError("Cannot cancel within 3 minutes of order", 400, "CANCEL_TOO_EARLY");
   }
 
-  let jasaotpWarning: string | undefined;
+  let providerWarning: string | undefined;
   try {
-    await cancelOrder(order.server as "api1" | "api2", order.orderId);
+    await cancelOrder(
+      order.server as "api1" | "api2" | "api3" | "api4",
+      order.orderId
+    );
   } catch (e) {
-    console.warn("[v1/order/cancel] JasaOTP error (proceeding with refund):", e);
-    jasaotpWarning = "JasaOTP returned an error but refund was processed";
+    console.warn(`[v1/order/cancel] ${order.server} error (proceeding with refund):`, e);
+    providerWarning = `Provider ${order.server} returned an error but refund was processed`;
   }
 
   const refunded = await db.$transaction(async (tx) => {
@@ -70,8 +79,8 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
   }
 
   return apiMessage(
-    jasaotpWarning
-      ? `Order cancelled and balance refunded. Warning: ${jasaotpWarning}`
+    providerWarning
+      ? `Order cancelled and balance refunded. Warning: ${providerWarning}`
       : "Order cancelled and balance refunded"
   );
 });

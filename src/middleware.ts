@@ -7,6 +7,19 @@ const authPaths = ["/login", "/register"];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Handle CORS preflight untuk public API (/api/v1/*)
+  if (pathname.startsWith("/api/v1/") && request.method === "OPTIONS") {
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, X-API-Key, Authorization",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  }
+
   // Check for session token (NextAuth JWT)
   const token =
     request.cookies.get("authjs.session-token")?.value ||
@@ -38,6 +51,7 @@ export const config = {
     "/admin/:path*",
     "/login",
     "/register",
+    "/api/v1/:path*",
   ],
 };
 

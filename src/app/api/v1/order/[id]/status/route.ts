@@ -3,22 +3,24 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { checkSms } from "@/lib/otp";
 import { extractOtp } from "@/lib/otp-extract";
+import { findOrderByAnyId } from "@/lib/order-lookup";
 
 export const GET = withApiAuthParams(async (_req, user, params) => {
   const { id } = params;
 
-  const order = await db.order.findFirst({
-    where: { id, userId: user.id },
-  });
-
-  if (!order) {
+  const result = await findOrderByAnyId(id, user.id);
+  if (result.status !== "found") {
     return apiError("Order not found", 404, "ORDER_NOT_FOUND");
   }
+  const order = result.order;
 
   // If still waiting, poll for OTP
   if (order.status === "waiting" && !order.code) {
     try {
-      const data = await checkSms(order.server as "api1" | "api2", order.orderId);
+      const data = await checkSms(
+        order.server as "api1" | "api2" | "api3" | "api4",
+        order.orderId
+      );
       const otp = extractOtp(data as Record<string, unknown>);
       if (otp) {
         await db.order.update({
@@ -26,7 +28,8 @@ export const GET = withApiAuthParams(async (_req, user, params) => {
           data: { code: otp, status: "success" },
         });
         return apiSuccess({
-          order_id: order.id,
+          id: order.id,
+          order_id: order.orderId,
           number: order.number,
           code: otp,
           status: "success",
@@ -39,7 +42,8 @@ export const GET = withApiAuthParams(async (_req, user, params) => {
   }
 
   return apiSuccess({
-    order_id: order.id,
+    id: order.id,
+    order_id: order.orderId,
     number: order.number,
     code: order.code,
     status: order.status,

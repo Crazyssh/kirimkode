@@ -23,6 +23,19 @@ const nextConfig: NextConfig = {
 
   compress: true,
 
+  // Subdomain api.kirimkode.com → /api/v1/*
+  // Customer pakai: https://api.kirimkode.com/v1/balance
+  // Internal route: /api/v1/balance
+  async rewrites() {
+    return [
+      {
+        source: "/v1/:path*",
+        destination: "/api/v1/:path*",
+        has: [{ type: "host", value: "api.kirimkode.com" }],
+      },
+    ];
+  },
+
   async headers() {
     return [
       {
@@ -32,6 +45,22 @@ const nextConfig: NextConfig = {
             key: "Cache-Control",
             value: "public, max-age=31536000, immutable",
           },
+        ],
+      },
+      // CORS untuk public API — biar client browser pihak ke-3 bisa call
+      {
+        source: "/api/v1/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          {
+            key: "Access-Control-Allow-Methods",
+            value: "GET, POST, PUT, DELETE, OPTIONS",
+          },
+          {
+            key: "Access-Control-Allow-Headers",
+            value: "Content-Type, X-API-Key, Authorization",
+          },
+          { key: "Access-Control-Max-Age", value: "86400" },
         ],
       },
       {
