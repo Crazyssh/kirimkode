@@ -17,6 +17,7 @@ const ALL_SERVERS = [
   { id: "unified", name: "Bimasakti", icon: "⚡", description: "Server utama (gabungan api1+api2+api3)" },
   { id: "api1", name: "Mars", icon: "🔴", description: "JasaOTP V1 (cadangan)" },
   { id: "api4", name: "Neptune", icon: "🔵", description: "HeroSMS V2 (manual stock)" },
+  { id: "api5", name: "Earth (Beta)", icon: "🌍", description: "Mars KirimKode / Ditznesia (BETA)" },
 ];
 
 const ALL_UNIFIED_PROVIDERS = [

@@ -7,7 +7,7 @@ import {
   invalidateSettingCache,
 } from "@/lib/site-settings";
 
-const ALLOWED_SERVERS = ["unified", "api1", "api4"];
+const ALLOWED_SERVERS = ["unified", "api1", "api4", "api5"];
 const ALLOWED_UNIFIED_PROVIDERS = ["api1", "api2", "api3"];
 
 /**

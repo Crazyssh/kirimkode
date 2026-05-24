@@ -3,8 +3,8 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { getNegara } from "@/lib/otp";
 
-type PublicServer = "api1" | "api2" | "api3" | "api4";
-const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4"];
+type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5";
+const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5"];
 
 interface CountryRow {
   id: number;
@@ -18,7 +18,7 @@ interface CountryRow {
  * Gunakan `id` di field `country` saat POST /order.
  *
  * Source:
- *  - api1/api2/api3: dari DB (di-sync cron). Fallback ke API kalau DB kosong.
+ *  - api1/api2/api3/api5: dari DB (di-sync cron). Fallback ke API kalau DB kosong.
  *  - api4: dari DB (manual entry admin). Cuma negara yang punya minimal 1 layanan.
  */
 export const GET = withApiAuth(async (req) => {
@@ -26,7 +26,7 @@ export const GET = withApiAuth(async (req) => {
 
   if (!server || !VALID_SERVERS.includes(server)) {
     return apiError(
-      "Invalid server (api1, api2, api3, or api4)",
+      "Invalid server (api1, api2, api3, api4, or api5)",
       400,
       "INVALID_SERVER"
     );
@@ -51,7 +51,7 @@ export const GET = withApiAuth(async (req) => {
       return apiSuccess(data);
     }
 
-    // api1/api2/api3: pakai DB (cached via cron sync), fallback ke API
+    // api1/api2/api3/api5: pakai DB (cached via cron sync), fallback ke API
     const countries = await db.providerCountry.findMany({
       where: { serverId: server },
       select: { externalId: true, name: true },

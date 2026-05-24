@@ -5,10 +5,10 @@ import { db } from "@/lib/db";
 import { getUnifiedLayanan } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "unified";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "api5", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
     }
 
     // api1/api2/api3: baca dari database (cached by cron sync)
+    // api5 (Earth): juga di-sync ke DB, sama treatment seperti api1
     // Cari country di DB
     const country = await db.providerCountry.findUnique({
       where: {
@@ -96,6 +97,7 @@ export async function GET(req: NextRequest) {
         if (skipPricing) {
           customPrice = svc.price;
         } else {
+          // api1/api2/api5: apply pricing rules (admin markup)
           const result = await applyPricing(svc.price, svc.code, negaraId);
           customPrice = result.price;
         }
@@ -128,6 +130,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (serviceData && server !== "api3") {
+      // api1/api2/api5: apply pricing
       for (const [code, info] of Object.entries(serviceData)) {
         if (info && typeof info === "object" && "harga" in info) {
           const rawPrice = info.harga;

@@ -1,5 +1,5 @@
 /**
- * Sync semua provider (api1/api2/api3) data ke database lokal.
+ * Sync semua provider (api1/api2/api3/api5) data ke database lokal.
  * Dipanggil oleh cron endpoint setiap 1 jam.
  *
  * NOTE: api4 (HeroSMS V2) sengaja TIDAK di-sync — semua data negara/layanan
@@ -11,7 +11,7 @@ import { getNegara, getLayanan, getOperator } from "@/lib/otp";
 import type { ServerId } from "@/lib/otp";
 import { normalizeCountryName } from "@/data/country-mapping";
 
-type SyncableServerId = "api1" | "api2" | "api3";
+type SyncableServerId = "api1" | "api2" | "api3" | "api5";
 
 interface SyncResult {
   server: string;
@@ -213,13 +213,13 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
 }
 
 /**
- * Sync semua provider (api1 + api2 + api3) — sequential supaya gak overload.
+ * Sync semua provider (api1 + api2 + api3 + api5) — sequential supaya gak overload.
  * api4 di-skip — diambil realtime dari API.
  */
 export async function syncAllProviders(): Promise<SyncResult[]> {
   const results: SyncResult[] = [];
 
-  for (const server of ["api1", "api2", "api3"] as SyncableServerId[]) {
+  for (const server of ["api1", "api2", "api3", "api5"] as SyncableServerId[]) {
     console.log(`[Sync] Starting sync for ${server}...`);
     const result = await syncProvider(server);
     console.log(

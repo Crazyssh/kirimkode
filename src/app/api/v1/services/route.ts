@@ -3,8 +3,8 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { getLayanan } from "@/lib/otp";
 import { applyPricing } from "@/lib/pricing";
 
-type PublicServer = "api1" | "api2" | "api3" | "api4";
-const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4"];
+type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5";
+const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5"];
 const FINAL_PRICE_SERVERS = new Set<PublicServer>(["api3", "api4"]);
 
 export const GET = withApiAuth(async (req) => {
@@ -13,7 +13,7 @@ export const GET = withApiAuth(async (req) => {
 
   if (!VALID_SERVERS.includes(server)) {
     return apiError(
-      "Invalid server (api1, api2, api3, or api4)",
+      "Invalid server (api1, api2, api3, api4, or api5)",
       400,
       "INVALID_SERVER"
     );
@@ -34,7 +34,7 @@ export const GET = withApiAuth(async (req) => {
         )
         .map(async ([code, info]) => {
           const item = info as { layanan: string; harga: number; stok: number };
-          // api1/api2: harga raw dari JasaOTP → apply pricing rules
+          // api1/api2/api5: harga raw → apply pricing rules
           // api3/api4: harga sudah final di adapter
           const finalPrice = isFinal
             ? item.harga

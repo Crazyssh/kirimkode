@@ -19,6 +19,7 @@ const SERVER_NAMES: Record<string, { name: string; icon: string }> = {
   api1: { name: "Mars", icon: "🔴" },
   api2: { name: "Jupiter", icon: "🟠" },
   api3: { name: "Saturn", icon: "🟣" },
+  api5: { name: "Earth (Beta)", icon: "🌍" },
 };
 
 // ---------- Types ----------

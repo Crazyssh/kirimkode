@@ -1,5 +1,6 @@
 import * as provider3 from "@/lib/provider3";
 import * as provider4 from "@/lib/provider4";
+import * as provider5 from "@/lib/provider5";
 
 const API_URLS = {
   api1: process.env.JASAOTP_API1_URL || "https://api.jasaotp.id/v1",
@@ -8,7 +9,7 @@ const API_URLS = {
 
 const API_KEY = process.env.JASAOTP_API_KEY || "";
 
-export type ServerId = "api1" | "api2" | "api3" | "api4" | "unified";
+export type ServerId = "api1" | "api2" | "api3" | "api4" | "api5" | "unified";
 
 type JasaOtpServerId = "api1" | "api2";
 
@@ -139,6 +140,7 @@ export async function getBalance(server: ServerId) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.getBalance();
   if (server === "api4") return provider4.getBalance();
+  if (server === "api5") return provider5.getBalance();
   return fetchApi(server, "balance.php", { api_key: API_KEY });
 }
 
@@ -146,6 +148,7 @@ export async function getNegara(server: ServerId) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.getNegara();
   if (server === "api4") return provider4.getNegara();
+  if (server === "api5") return provider5.getNegara();
   return fetchApi(server, "negara.php");
 }
 
@@ -153,6 +156,7 @@ export async function getOperator(server: ServerId, negara: number) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.getOperator(negara);
   if (server === "api4") return provider4.getOperator(negara);
+  if (server === "api5") return provider5.getOperator(negara);
   return fetchApi(server, "operator.php", { negara: String(negara) });
 }
 
@@ -160,6 +164,7 @@ export async function getLayanan(server: ServerId, negara: number) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.getLayanan(negara);
   if (server === "api4") return provider4.getLayanan(negara);
+  if (server === "api5") return provider5.getLayanan(negara);
   return fetchApi(server, "layanan.php", { negara: String(negara) });
 }
 
@@ -180,6 +185,7 @@ export async function createOrder(
       fixedPrice: opts?.fixedPrice ?? true,
     });
   }
+  if (server === "api5") return provider5.createOrder(negara, layanan, operator);
   return fetchApi(server, "order.php", {
     api_key: API_KEY,
     negara: String(negara),
@@ -192,6 +198,7 @@ export async function checkSms(server: ServerId, orderId: number) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.checkSms(orderId);
   if (server === "api4") return provider4.checkSms(orderId);
+  if (server === "api5") return provider5.checkSms(orderId);
   return fetchApi(server, "sms.php", {
     api_key: API_KEY,
     id: String(orderId),
@@ -211,6 +218,7 @@ export async function cancelOrder(server: ServerId, orderId: number) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
   if (server === "api3") return provider3.cancelOrder(orderId);
   if (server === "api4") return provider4.cancelOrder(orderId);
+  if (server === "api5") return provider5.cancelOrder(orderId);
   return fetchApi(server, "cancel.php", {
     api_key: API_KEY,
     id: String(orderId),
