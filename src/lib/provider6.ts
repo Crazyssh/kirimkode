@@ -278,24 +278,35 @@ export async function getLayanan(negara: number) {
 
       const productDisplay = productCode.charAt(0).toUpperCase() + productCode.slice(1);
 
-      // List semua operator untuk product ini
+      // List operator yang qualified.
+      // 5sim docs: rate "omitted less than 20% or too few orders" — kalau rate ada,
+      // artinya 5sim sudah validasi kualitas operator. Kita pakai rate sebagai
+      // gate: hanya operator dengan rate > 0 (sudah qualified) DAN ada stok.
       const operators: Array<{ name: string; cost: number; count: number; rate: number }> = [];
       for (const [opName, opData] of Object.entries(operatorBlock)) {
         const cost = typeof opData?.cost === "number" ? opData.cost : null;
         const count = typeof opData?.count === "number" ? opData.count : 0;
         const rate = typeof opData?.rate === "number" ? opData.rate : 0;
         if (cost === null || cost <= 0) continue;
+        if (count <= 0) continue; // skip stok kosong
+        if (rate <= 0) continue; // skip operator yang belum qualified 5sim
         operators.push({ name: opName, cost, count, rate });
       }
 
-      if (operators.length === 0) continue;
-
-      // Sort by cost (termurah dulu)
-      operators.sort((a, b) => a.cost - b.cost);
-
-      // Kalau cuma 1 operator, return tanpa suffix (UX lebih bersih)
-      if (operators.length === 1) {
-        const op = operators[0];
+      if (operators.length === 0) {
+        // Fallback: kalau semua operator gak qualify (rate 0), tampilkan top-1
+        // dengan stok terbanyak supaya product tetap visible (rate "tidak diketahui").
+        const fallback: Array<{ name: string; cost: number; count: number; rate: number }> = [];
+        for (const [opName, opData] of Object.entries(operatorBlock)) {
+          const cost = typeof opData?.cost === "number" ? opData.cost : null;
+          const count = typeof opData?.count === "number" ? opData.count : 0;
+          if (cost === null || cost <= 0) continue;
+          if (count <= 0) continue;
+          fallback.push({ name: opName, cost, count, rate: 0 });
+        }
+        if (fallback.length === 0) continue;
+        fallback.sort((a, b) => b.count - a.count);
+        const op = fallback[0];
         result[productCode] = {
           harga: await convertToIdr(op.cost),
           stok: op.count,
@@ -304,18 +315,32 @@ export async function getLayanan(negara: number) {
         continue;
       }
 
-      // Multi-operator: composite code "<product>#<operator>" (operator dipakai
-      // internal untuk routing order, tapi gak ditampilin ke user).
-      // Display: "Whatsapp 16%" — nama service + rate sukses (rate tinggi = SMS lebih besar peluang masuk).
+      // Sort: rate desc, stock desc, cost asc
+      operators.sort((a, b) => {
+        if (b.rate !== a.rate) return b.rate - a.rate;
+        if (b.count !== a.count) return b.count - a.count;
+        return a.cost - b.cost;
+      });
+
+      // Kalau cuma 1 operator qualified, drop suffix
+      if (operators.length === 1) {
+        const op = operators[0];
+        result[productCode] = {
+          harga: await convertToIdr(op.cost),
+          stok: op.count,
+          layanan: `${productDisplay} ${op.rate.toFixed(0)}%`,
+        };
+        continue;
+      }
+
+      // Multi-operator: composite code "<product>#<operator>".
+      // Display: "Whatsapp 16%" — nama service + rate sukses.
       for (const op of operators) {
         const code = `${productCode}#${op.name}`;
-        const opLabel = op.rate > 0
-          ? `${productDisplay} ${op.rate.toFixed(0)}%`
-          : productDisplay;
         result[code] = {
           harga: await convertToIdr(op.cost),
           stok: op.count,
-          layanan: opLabel,
+          layanan: `${productDisplay} ${op.rate.toFixed(0)}%`,
         };
       }
     }
