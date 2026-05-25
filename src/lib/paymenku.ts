@@ -148,31 +148,17 @@ async function paymentRequest<T>(
   const url = `${PAYMENKU_BASE_URL}${endpoint}`;
   const method = (options.method || "GET").toUpperCase();
 
-  // Paymenku expects form-urlencoded body untuk POST (bukan JSON).
-  // Kalau pakai JSON, server return validation.required untuk semua field.
+  // Sesuai docs resmi: https://docs.paymenku.com/api/transaction/create-transaction
+  // body = JSON, Content-Type: application/json.
+  // Catatan: kalau JSON dari Node.js fetch dapat 422 "validation.required",
+  // itu indikasi Cloudflare di sisi Paymenku block request — User-Agent
+  // wajib di-set supaya gak dianggap bot.
   let bodyPayload: string | undefined;
-  let contentType: string | undefined;
-
   if (method !== "GET" && options.body !== undefined) {
-    let parsed: Record<string, unknown> | null = null;
     if (typeof options.body === "string") {
-      try {
-        parsed = JSON.parse(options.body);
-      } catch {
-        parsed = null;
-      }
+      bodyPayload = options.body;
     } else if (typeof options.body === "object" && options.body !== null) {
-      parsed = options.body as unknown as Record<string, unknown>;
-    }
-
-    if (parsed && typeof parsed === "object") {
-      const form = new URLSearchParams();
-      for (const [k, v] of Object.entries(parsed)) {
-        if (v === undefined || v === null) continue;
-        form.append(k, String(v));
-      }
-      bodyPayload = form.toString();
-      contentType = "application/x-www-form-urlencoded";
+      bodyPayload = JSON.stringify(options.body);
     } else {
       bodyPayload = String(options.body);
     }
@@ -181,9 +167,12 @@ async function paymentRequest<T>(
   const headers: Record<string, string> = {
     Authorization: `Bearer ${PAYMENKU_API_KEY}`,
     Accept: "application/json",
+    "User-Agent": "KirimKode/1.0 (+https://kirimkode.com)",
     ...((options.headers as Record<string, string>) || {}),
   };
-  if (contentType) headers["Content-Type"] = contentType;
+  if (bodyPayload && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
 
   let res: Response;
   try {
