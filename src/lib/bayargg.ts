@@ -2,15 +2,21 @@
  * BAYAR.GG Payment Gateway API Client
  * Docs: https://www.bayar.gg/api-docs
  *
- * Method: GoPay Merchant QRIS (gopay_qris)
- * Fee: 0.5%
+ * Method: QRIS BAYAR GG (qris_bayar_gg) — QRIS dinamis dengan mID merchant kita
+ * Fee: 2.1% (dari nominal user)
  * Auth: X-API-Key header
  */
 
-const BAYARGG_BASE_URL = process.env.BAYARGG_BASE_URL || "https://v2.bayar.gg/api";
+const BAYARGG_BASE_URL = process.env.BAYARGG_BASE_URL || "https://www.bayar.gg/api";
 const BAYARGG_API_KEY = process.env.BAYARGG_API_KEY || "";
 const BAYARGG_QRIS_STRING = process.env.BAYARGG_QRIS_STRING || "";
 const BAYARGG_WEBHOOK_SECRET = process.env.BAYARGG_WEBHOOK_SECRET || "";
+
+// Method preferensi: qris_bayar_gg (per-merchant mID, tanpa kode unik) →
+// fallback ke "qris" (QRIS Admin) kalau provider belum approve grant.
+// Bisa override via env BAYARGG_PAYMENT_METHOD.
+const BAYARGG_PAYMENT_METHOD =
+  process.env.BAYARGG_PAYMENT_METHOD || "qris_bayar_gg";
 
 // ==================== TYPES ====================
 
@@ -84,7 +90,10 @@ async function bayarRequest<T>(
 // ==================== FUNCTIONS ====================
 
 /**
- * Buat pembayaran baru via GoPay Merchant QRIS
+ * Buat pembayaran baru via QRIS BAYAR GG (per-merchant) atau fallback ke QRIS Admin.
+ *
+ * Endpoint: POST /api/create-payment.php (per docs).
+ * Method: lihat BAYARGG_PAYMENT_METHOD env (default "qris_bayar_gg").
  */
 export async function createPayment(
   params: BayarGGCreatePaymentParams
@@ -93,12 +102,12 @@ export async function createPayment(
     method: "POST",
     body: JSON.stringify({
       ...params,
-      payment_method: "qris",
+      payment_method: BAYARGG_PAYMENT_METHOD,
     }),
   });
 
-  // Normalize: v2 pakai "payment", v1 pakai "data"
-  const payment = (raw.payment || raw.data || raw) as BayarGGPaymentData;
+  // Normalize: docs return "data", legacy v2 return "payment". Handle keduanya.
+  const payment = (raw.data || raw.payment || raw) as BayarGGPaymentData;
   const paymentUrl = (raw.payment_url || raw.pay_url || (payment as unknown as Record<string, unknown>).payment_url || "") as string;
 
   return {
@@ -122,7 +131,7 @@ export async function createPayment(
 export async function checkPayment(
   invoiceId: string
 ): Promise<BayarGGCheckPaymentResponse> {
-  const url = `${BAYARGG_BASE_URL}/check-payment?invoice=${encodeURIComponent(invoiceId)}`;
+  const url = `${BAYARGG_BASE_URL}/check-payment.php?invoice=${encodeURIComponent(invoiceId)}`;
 
   try {
     const res = await fetch(url, {
@@ -171,10 +180,10 @@ export function generateDescription(userId: string, amount: number): string {
 }
 
 /**
- * Hitung fee 2%
+ * Hitung fee 2.1% (BAYAR.GG QRIS BAYAR GG / QRIS Admin)
  */
 export function calculateFee(amount: number): { fee: number; total: number } {
-  const fee = Math.ceil(amount * 0.02); // 2%
+  const fee = Math.ceil(amount * 0.021); // 2.1%
   return { fee, total: amount + fee };
 }
 
@@ -260,3 +269,26 @@ export async function convertCustomQris(qrisString: string, nominal: number): Pr
     }),
   });
 }
+
+/**
+ * Normalize qris_convert response — endpoint terbaru return flat object,
+ * lama return { data: {...} }. Caller tetap akses .data untuk backward compat.
+ */
+function normalizeQrisConvertResponse(raw: Record<string, unknown>): QrisConvertResponse {
+  if (raw.data && typeof raw.data === "object") {
+    return raw as unknown as QrisConvertResponse;
+  }
+  return {
+    success: raw.success as boolean,
+    data: {
+      original_qris: (raw.original_qris as string) || "",
+      converted_qris: (raw.qris as string) || (raw.converted_qris as string) || "",
+      nominal: (raw.amount as number) || (raw.nominal as number) || 0,
+      merchant_name: (raw.merchant_name as string) || "",
+      merchant_city: (raw.merchant_city as string) || "",
+      qr_image_url: (raw.qr_image_url as string) || "",
+    },
+  };
+}
+
+void normalizeQrisConvertResponse;

@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
           apiStatus = result.status;
           paidAt = result.paid_at || null;
           totalFee = 0;
-          // Kode unik + 2.2% = fee, saldo yang masuk = deposit.amount
+          // Fee 2.1% dipotong di sisi BAYAR GG, saldo yang masuk = deposit.amount
           creditAmount = deposit.amount;
           amountReceived = creditAmount;
         } else {

@@ -4,13 +4,17 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, CheckCircle, AlertCircle, MessageCircle, Wallet, QrCode, Send } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, MessageCircle, Wallet, QrCode, Send, CreditCard } from "lucide-react";
 
 export default function AdminSettingsPage() {
   const [waNumber, setWaNumber] = useState("");
   const [savedWa, setSavedWa] = useState<string | null>(null);
   const [depositEnabled, setDepositEnabled] = useState(true);
   const [togglingDeposit, setTogglingDeposit] = useState(false);
+  const [paymenkuEnabled, setPaymenkuEnabled] = useState(true);
+  const [togglingPaymenku, setTogglingPaymenku] = useState(false);
+  const [bayargGEnabled, setBayargGEnabled] = useState(true);
+  const [togglingBayargG, setTogglingBayargG] = useState(false);
   const [manualQrisEnabled, setManualQrisEnabled] = useState(false);
   const [togglingManualQris, setTogglingManualQris] = useState(false);
   const [telegramUsername, setTelegramUsername] = useState("");
@@ -31,6 +35,8 @@ export default function AdminSettingsPage() {
         setWaNumber(wa);
         setSavedWa(wa);
         setDepositEnabled(json.data?.deposit_enabled !== "false");
+        setPaymenkuEnabled(json.data?.paymenku_enabled !== "false");
+        setBayargGEnabled(json.data?.bayargg_enabled !== "false");
         setManualQrisEnabled(json.data?.manual_qris_enabled === "true");
         const tg = json.data?.admin_telegram_username ?? "";
         setTelegramUsername(tg);
@@ -219,6 +225,152 @@ export default function AdminSettingsPage() {
                 }`}
               >
                 {depositEnabled ? "✅ Deposit AKTIF" : "⛔ Deposit NONAKTIF"}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Paymenku Gateway Toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CreditCard className="h-4 w-4 text-purple-500" />
+            Gateway: Paymenku QRIS
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Memuat...
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Status Paymenku</p>
+                  <p className="text-xs text-muted-foreground">
+                    {paymenkuEnabled
+                      ? "Channel Paymenku QRIS aktif. Fee Rp 200 + 0.7%."
+                      : "Channel Paymenku tidak akan muncul di halaman deposit."}
+                  </p>
+                </div>
+                <Button
+                  variant={paymenkuEnabled ? "primary" : "secondary"}
+                  size="sm"
+                  disabled={togglingPaymenku}
+                  onClick={async () => {
+                    setTogglingPaymenku(true);
+                    try {
+                      const newValue = !paymenkuEnabled;
+                      const res = await fetch("/api/admin/settings", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          key: "paymenku_enabled",
+                          value: String(newValue),
+                        }),
+                      });
+                      if (res.ok) setPaymenkuEnabled(newValue);
+                    } catch {
+                      // silent
+                    } finally {
+                      setTogglingPaymenku(false);
+                    }
+                  }}
+                  className="min-w-[80px]"
+                >
+                  {togglingPaymenku ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : paymenkuEnabled ? (
+                    "ON"
+                  ) : (
+                    "OFF"
+                  )}
+                </Button>
+              </div>
+              <div
+                className={`rounded-md px-3 py-2 text-sm ${
+                  paymenkuEnabled
+                    ? "bg-purple-500/10 text-purple-500 border border-purple-500/20"
+                    : "bg-muted/50 text-muted-foreground border border-border"
+                }`}
+              >
+                {paymenkuEnabled ? "✅ Paymenku AKTIF — Rp 200 + 0.7%" : "⛔ Paymenku NONAKTIF"}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* BAYAR GG Gateway Toggle */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CreditCard className="h-4 w-4 text-cyan-500" />
+            Gateway: BAYAR GG QRIS
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Memuat...
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Status BAYAR GG</p>
+                  <p className="text-xs text-muted-foreground">
+                    {bayargGEnabled
+                      ? "Channel BAYAR GG QRIS aktif. Fee 2.1%."
+                      : "Channel BAYAR GG tidak akan muncul di halaman deposit."}
+                  </p>
+                </div>
+                <Button
+                  variant={bayargGEnabled ? "primary" : "secondary"}
+                  size="sm"
+                  disabled={togglingBayargG}
+                  onClick={async () => {
+                    setTogglingBayargG(true);
+                    try {
+                      const newValue = !bayargGEnabled;
+                      const res = await fetch("/api/admin/settings", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          key: "bayargg_enabled",
+                          value: String(newValue),
+                        }),
+                      });
+                      if (res.ok) setBayargGEnabled(newValue);
+                    } catch {
+                      // silent
+                    } finally {
+                      setTogglingBayargG(false);
+                    }
+                  }}
+                  className="min-w-[80px]"
+                >
+                  {togglingBayargG ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : bayargGEnabled ? (
+                    "ON"
+                  ) : (
+                    "OFF"
+                  )}
+                </Button>
+              </div>
+              <div
+                className={`rounded-md px-3 py-2 text-sm ${
+                  bayargGEnabled
+                    ? "bg-cyan-500/10 text-cyan-500 border border-cyan-500/20"
+                    : "bg-muted/50 text-muted-foreground border border-border"
+                }`}
+              >
+                {bayargGEnabled ? "✅ BAYAR GG AKTIF — Fee 2.1%" : "⛔ BAYAR GG NONAKTIF"}
               </div>
             </>
           )}

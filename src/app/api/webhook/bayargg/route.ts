@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (verifiedStatus === "paid") {
-      // Kode unik + 2.2% = fee, saldo yang masuk = deposit.amount (nominal asli)
+      // Fee 2.1% dipotong di sisi BAYAR GG, saldo yang masuk = deposit.amount (nominal asli)
       const creditAmount = deposit.amount;
 
       const processed = await db.$transaction(async (tx) => {

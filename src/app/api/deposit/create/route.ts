@@ -45,7 +45,52 @@ export async function POST(req: NextRequest) {
     }
 
     const { amount, channel_code } = validated.data;
-    const gateway = channel_code === "QRIS" ? "paymenku" : channel_code === "manual_qris" ? "manual_qris" : "bayargg";
+
+    // Map channel_code → gateway internal
+    let gateway: "paymenku" | "manual_qris" | "bayargg";
+    if (channel_code === "QRIS") {
+      gateway = "paymenku";
+    } else if (channel_code === "manual_qris") {
+      gateway = "manual_qris";
+    } else if (channel_code === "bayargg_qris" || channel_code === "bayargg_gopay_qris") {
+      // bayargg_gopay_qris di-keep sebagai alias backward compat
+      gateway = "bayargg";
+    } else {
+      return NextResponse.json(
+        { error: "Channel pembayaran tidak dikenal." },
+        { status: 400 }
+      );
+    }
+
+    // Cek toggle per-gateway (admin bisa matikan satu-satu)
+    const gatewaySettings = await db.siteSetting.findMany({
+      where: {
+        key: {
+          in: ["paymenku_enabled", "bayargg_enabled", "manual_qris_enabled"],
+        },
+      },
+    });
+    const settingMap: Record<string, string> = {};
+    for (const s of gatewaySettings) settingMap[s.key] = s.value;
+
+    if (gateway === "paymenku" && settingMap.paymenku_enabled === "false") {
+      return NextResponse.json(
+        { error: "Pembayaran Paymenku sedang dinonaktifkan. Pilih channel lain." },
+        { status: 403 }
+      );
+    }
+    if (gateway === "bayargg" && settingMap.bayargg_enabled === "false") {
+      return NextResponse.json(
+        { error: "Pembayaran BAYAR GG sedang dinonaktifkan. Pilih channel lain." },
+        { status: 403 }
+      );
+    }
+    if (gateway === "manual_qris" && settingMap.manual_qris_enabled !== "true") {
+      return NextResponse.json(
+        { error: "QRIS Manual sedang dinonaktifkan." },
+        { status: 403 }
+      );
+    }
 
     // Anti double charge: cek apakah ada deposit pending yang masih aktif
     const pendingCount = await db.deposit.count({
@@ -151,16 +196,7 @@ export async function POST(req: NextRequest) {
 
     if (gateway === "manual_qris") {
       // === MANUAL QRIS (admin confirm) ===
-      const manualQrisSetting = await db.siteSetting.findUnique({
-        where: { key: "manual_qris_enabled" },
-      });
-      if (manualQrisSetting?.value !== "true") {
-        return NextResponse.json(
-          { error: "QRIS Manual sedang dinonaktifkan." },
-          { status: 403 }
-        );
-      }
-
+      // Toggle sudah dicek di awal — tinggal eksekusi.
       const qrisString = process.env.MANUAL_QRIS_STRING;
       if (!qrisString) {
         return NextResponse.json(
@@ -259,8 +295,8 @@ export async function POST(req: NextRequest) {
         referenceId,
         amount,
         fee: 0,
-        channelCode: "qris",
-        channelName: "QRIS",
+        channelCode: "bayargg_qris",
+        channelName: "QRIS (BAYAR GG)",
         gateway: "bayargg",
         status: "pending",
         payUrl: result.payment_url,
@@ -275,7 +311,7 @@ export async function POST(req: NextRequest) {
         name: user.name || "User",
         amount,
         trxId: result.payment.invoice_id,
-        channelName: "QRIS",
+        channelName: "QRIS (BAYAR GG)",
         payUrl: result.payment_url,
       }).catch((e) => console.error("[Mail] Email deposit pending error:", e));
     }
