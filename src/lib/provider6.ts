@@ -199,8 +199,57 @@ async function resolveSlug(negara: number): Promise<string | null> {
 }
 
 /**
- * GET /v1/guest/prices?country=$slug — prices per product per operator.
- * Response: { "indonesia": { "facebook": { "vodafone": { cost, count, rate }, ... } } }
+ * Cache global semua prices dari 5sim — di-fetch sekali, dipake oleh
+ * semua getLayanan(country) calls dalam window cache.
+ *
+ * Endpoint /v1/guest/prices (tanpa filter) return SEMUA country in one shot.
+ * Jauh lebih cepat dari fetch per-country (1 call vs 150+ calls).
+ */
+type PricesByCountry = Record<
+  string,
+  Record<string, Record<string, { cost?: number; count?: number; rate?: number }>>
+>;
+
+let globalPricesCache: PricesByCountry | null = null;
+let globalPricesCacheTime = 0;
+const GLOBAL_PRICES_TTL = 180000; // 3 menit
+let pendingGlobalFetch: Promise<PricesByCountry> | null = null;
+
+async function getAllPrices(): Promise<PricesByCountry> {
+  const now = Date.now();
+  if (globalPricesCache && now - globalPricesCacheTime < GLOBAL_PRICES_TTL) {
+    return globalPricesCache;
+  }
+  if (pendingGlobalFetch) return pendingGlobalFetch;
+
+  pendingGlobalFetch = (async () => {
+    try {
+      // Fetch tanpa filter — return semua country. Pake skipCache supaya cache
+      // global ini yang dipake, bukan per-URL cache.
+      const raw = (await fetchProvider("/guest/prices", {
+        skipCache: true,
+        ttlMs: GLOBAL_PRICES_TTL,
+      })) as PricesByCountry;
+
+      if (raw && typeof raw === "object") {
+        globalPricesCache = raw;
+        globalPricesCacheTime = now;
+        console.log(`[Provider6] Global prices cached: ${Object.keys(raw).length} countries`);
+        return raw;
+      }
+    } catch (err) {
+      console.warn("[Provider6] Failed to fetch global prices:", (err as Error).message);
+    } finally {
+      pendingGlobalFetch = null;
+    }
+    return globalPricesCache || {};
+  })();
+
+  return pendingGlobalFetch;
+}
+
+/**
+ * GET prices untuk satu country — ambil dari cache global.
  *
  * Untuk tiap product, return SETIAP operator sebagai entry terpisah (composite
  * code "<product>#<operator>") supaya user bisa pilih operator yang berbeda
@@ -217,14 +266,12 @@ export async function getLayanan(negara: number) {
     return { [negaraKey]: {} };
   }
 
-  const raw = (await fetchProvider("/guest/prices", {
-    query: { country: slug },
-    ttlMs: 180000,
-  })) as Record<string, Record<string, Record<string, { cost?: number; count?: number; rate?: number }>>>;
+  // Ambil dari cache global (1 fetch untuk semua country)
+  const allPrices = await getAllPrices();
+  const countryBlock = allPrices[slug];
 
   const result: Record<string, { harga: number; stok: number; layanan: string }> = {};
 
-  const countryBlock = raw?.[slug];
   if (countryBlock && typeof countryBlock === "object") {
     for (const [productCode, operatorBlock] of Object.entries(countryBlock)) {
       if (!operatorBlock || typeof operatorBlock !== "object") continue;
