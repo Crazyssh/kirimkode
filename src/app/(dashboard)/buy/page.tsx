@@ -954,7 +954,6 @@ export default function BuyPage() {
                               </button>
                               <div className={`w-1.5 h-1.5 rounded-full ${service.stock > 100 ? "bg-success" : service.stock > 20 ? "bg-accent" : "bg-error"}`} />
                               <span>{capitalizeFirst(service.name)}</span>
-                              <span className="text-[10px] text-muted font-[family-name:var(--font-jetbrains-mono)] uppercase">{service.code}</span>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-muted">{service.stock}</span>
