@@ -143,20 +143,55 @@ class PaymenkuError extends Error {
 
 async function paymentRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit & { body?: unknown } = {}
 ): Promise<T> {
   const url = `${PAYMENKU_BASE_URL}${endpoint}`;
+  const method = (options.method || "GET").toUpperCase();
+
+  // Paymenku expects form-urlencoded body untuk POST (bukan JSON).
+  // Kalau pakai JSON, server return validation.required untuk semua field.
+  let bodyPayload: string | undefined;
+  let contentType: string | undefined;
+
+  if (method !== "GET" && options.body !== undefined) {
+    let parsed: Record<string, unknown> | null = null;
+    if (typeof options.body === "string") {
+      try {
+        parsed = JSON.parse(options.body);
+      } catch {
+        parsed = null;
+      }
+    } else if (typeof options.body === "object" && options.body !== null) {
+      parsed = options.body as unknown as Record<string, unknown>;
+    }
+
+    if (parsed && typeof parsed === "object") {
+      const form = new URLSearchParams();
+      for (const [k, v] of Object.entries(parsed)) {
+        if (v === undefined || v === null) continue;
+        form.append(k, String(v));
+      }
+      bodyPayload = form.toString();
+      contentType = "application/x-www-form-urlencoded";
+    } else {
+      bodyPayload = String(options.body);
+    }
+  }
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${PAYMENKU_API_KEY}`,
+    Accept: "application/json",
+    ...((options.headers as Record<string, string>) || {}),
+  };
+  if (contentType) headers["Content-Type"] = contentType;
 
   let res: Response;
   try {
     res = await fetch(url, {
       ...options,
-      headers: {
-        Authorization: `Bearer ${PAYMENKU_API_KEY}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        ...options.headers,
-      },
+      method,
+      headers,
+      body: bodyPayload,
     });
   } catch (e) {
     throw new PaymenkuError(
@@ -180,11 +215,21 @@ async function paymentRequest<T>(
   }
 
   if (!res.ok) {
-    const obj = (data as { message?: string; error?: string } | null) || null;
-    const message =
+    const obj =
+      (data as { message?: string; error?: string; errors?: unknown } | null) ||
+      null;
+    let message =
       obj?.message ||
       obj?.error ||
       `Layanan Paymenku sedang bermasalah (HTTP ${res.status}). Coba lagi nanti atau gunakan channel pembayaran lain.`;
+    // Tambahkan detail validation error kalau ada
+    if (obj?.errors && typeof obj.errors === "object") {
+      const firstField = Object.keys(obj.errors as Record<string, unknown>)[0];
+      const firstMsg = (obj.errors as Record<string, string[]>)[firstField]?.[0];
+      if (firstField && firstMsg) {
+        message += ` (${firstField}: ${firstMsg})`;
+      }
+    }
     throw new PaymenkuError(message, res.status, data);
   }
 
