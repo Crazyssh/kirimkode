@@ -63,6 +63,16 @@ export async function GET(req: NextRequest) {
     }
 
     // === CEK STATUS DEPOSIT PENDING ===
+    // Cek dulu toggle gateway — kalau Paymenku/BAYAR.GG OFF, skip cek API mereka
+    // supaya gak boros request & log noise.
+    const gatewaySettings = await db.siteSetting.findMany({
+      where: { key: { in: ["paymenku_enabled", "bayargg_enabled"] } },
+    });
+    const settingMap: Record<string, string> = {};
+    for (const s of gatewaySettings) settingMap[s.key] = s.value;
+    const paymenkuEnabled = settingMap.paymenku_enabled !== "false";
+    const bayargGEnabled = settingMap.bayargg_enabled !== "false";
+
     const pendingDeposits = await db.deposit.findMany({
         where: {
             status: "pending",
@@ -81,6 +91,16 @@ export async function GET(req: NextRequest) {
 
     for (const deposit of pendingDeposits) {
         try {
+            // Skip kalau gateway-nya OFF — gak perlu hit API yang gak bisa dipakai
+            if (deposit.gateway === "paymenku" && !paymenkuEnabled) {
+                stillPending++;
+                continue;
+            }
+            if (deposit.gateway === "bayargg" && !bayargGEnabled) {
+                stillPending++;
+                continue;
+            }
+
             if (deposit.gateway === "bayargg") {
                 // === BAYAR.GG === (checkPayment sudah normalize response)
                 const result = await bayarggCheckPayment(deposit.trxId);
@@ -92,7 +112,7 @@ export async function GET(req: NextRequest) {
                 }
 
                 if (result.status === "paid") {
-                    // Kode unik + 2.2% = fee, saldo yang masuk = deposit.amount
+                    // Fee 2.1% dipotong di sisi BAYAR GG, saldo yang masuk = deposit.amount
                     const creditAmount = deposit.amount;
 
                     const processed = await db.$transaction(async (tx) => {
