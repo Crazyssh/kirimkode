@@ -61,7 +61,7 @@ export const servers: OTPServer[] = [
     name: "Venus (Beta)",
     icon: "\uD83E\uDE90",
     color: "from-amber-500 to-yellow-500",
-    description: "5sim global, harga realtime (BETA)",
+    description: "Server paling stabil",
     status: "online",
   },
 ];
