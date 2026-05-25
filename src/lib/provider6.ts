@@ -17,8 +17,8 @@ import { getUsdToIdr } from "@/lib/usd-rate";
 const BASE_URL = process.env.PROVIDER6_API_URL || "https://5sim.net/v1";
 const API_KEY = process.env.PROVIDER6_API_KEY || "";
 
-// Markup 1.20 (20%) di atas harga 5sim → net ~12% setelah fee top-up & PG
-export const PRICE_MARKUP = 1.20;
+// Markup 1.15 (15%) di atas harga 5sim — net ~7% setelah fee top-up & PG
+export const PRICE_MARKUP = 1.15;
 
 export async function getKurs(): Promise<number> {
   return getUsdToIdr();
