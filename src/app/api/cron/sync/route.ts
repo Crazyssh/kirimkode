@@ -21,11 +21,22 @@ export async function GET(req: NextRequest) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      let closed = false;
       const send = (msg: string) => {
+        if (closed) return;
         try {
           controller.enqueue(encoder.encode(msg + "\n"));
         } catch { /* closed */ }
       };
+
+      // Heartbeat tiap 10s — kirim newline kosong supaya Cloudflare/proxy
+      // tidak nge-cut koneksi karena dianggap idle (default timeout 100s).
+      const heartbeat = setInterval(() => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode("\n"));
+        } catch { /* closed */ }
+      }, 10_000);
 
       try {
         // Refresh USD/IDR rate proactively (api3/api4/api6 use USD prices).
@@ -68,6 +79,8 @@ export async function GET(req: NextRequest) {
       clearUnifiedCache();
       send("[Sync] Unified cache cleared.");
 
+      clearInterval(heartbeat);
+      closed = true;
       controller.close();
     },
   });

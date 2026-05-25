@@ -100,10 +100,14 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
 
     countryCount = countryIds.size;
 
-    // Step 3: Per negara — fetch layanan + operator (batch 5 paralel)
+    // Step 3: Per negara — fetch layanan + operator (batch paralel).
+    // api6 (5sim) lebih lambat & punya rate limit ketat → concurrency lebih rendah.
+    const concurrency = serverId === "api6" ? 3 : 5;
+    const batchDelay = serverId === "api6" ? 300 : 200;
+
     const syncErrors = await batchProcess(
       negaraList,
-      5,
+      concurrency,
       async (negara) => {
         const dbCountryId = countryIds.get(negara.id_negara);
         if (!dbCountryId) return;
@@ -122,8 +126,12 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
           }
 
           if (serviceData) {
+            // Track active codes untuk cleanup di akhir
+            const activeCodes: string[] = [];
+
             for (const [code, info] of Object.entries(serviceData)) {
               if (info && typeof info === "object" && "harga" in info) {
+                activeCodes.push(code);
                 await db.providerService.upsert({
                   where: {
                     serverId_countryId_code: {
@@ -148,6 +156,18 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
                 });
                 serviceCount++;
               }
+            }
+
+            // Cleanup service lama yang sudah tidak ada di provider
+            // Penting untuk Venus (api6) — code berubah dari "whatsapp" → "whatsapp#virtual53"
+            if (activeCodes.length > 0) {
+              await db.providerService.deleteMany({
+                where: {
+                  serverId,
+                  countryId: dbCountryId,
+                  code: { notIn: activeCodes },
+                },
+              });
             }
           }
         } catch (err) {
@@ -184,7 +204,7 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
           }
         }
       },
-      200
+      batchDelay
     );
 
     errors.push(...syncErrors);
