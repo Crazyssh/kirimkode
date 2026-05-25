@@ -202,11 +202,13 @@ async function resolveSlug(negara: number): Promise<string | null> {
  * GET /v1/guest/prices?country=$slug — prices per product per operator.
  * Response: { "indonesia": { "facebook": { "vodafone": { cost, count, rate }, ... } } }
  *
- * Aggregation:
- *   - Untuk tiap product, ambil min cost (operator termurah) + total count semua operator.
- *   - Convert USD cost → IDR + markup.
+ * Untuk tiap product, return SETIAP operator sebagai entry terpisah (composite
+ * code "<product>#<operator>") supaya user bisa pilih operator yang berbeda
+ * dengan harga & stok masing-masing. Mirip pattern Neptune (api4).
  *
- * Output: { "<negaraId>": { "<code>": { harga, stok, layanan } } }
+ * Convert USD cost → IDR + markup.
+ *
+ * Output: { "<negaraId>": { "<code>#<operator>": { harga, stok, layanan } } }
  */
 export async function getLayanan(negara: number) {
   const slug = await resolveSlug(negara);
@@ -227,25 +229,48 @@ export async function getLayanan(negara: number) {
     for (const [productCode, operatorBlock] of Object.entries(countryBlock)) {
       if (!operatorBlock || typeof operatorBlock !== "object") continue;
 
-      let minCost = Number.POSITIVE_INFINITY;
-      let totalCount = 0;
-      for (const opData of Object.values(operatorBlock)) {
+      const productDisplay = productCode.charAt(0).toUpperCase() + productCode.slice(1);
+
+      // List semua operator untuk product ini
+      const operators: Array<{ name: string; cost: number; count: number; rate: number }> = [];
+      for (const [opName, opData] of Object.entries(operatorBlock)) {
         const cost = typeof opData?.cost === "number" ? opData.cost : null;
         const count = typeof opData?.count === "number" ? opData.count : 0;
-        if (cost !== null && cost > 0 && cost < minCost) minCost = cost;
-        totalCount += count;
+        const rate = typeof opData?.rate === "number" ? opData.rate : 0;
+        if (cost === null || cost <= 0) continue;
+        operators.push({ name: opName, cost, count, rate });
       }
 
-      if (!Number.isFinite(minCost)) continue;
+      if (operators.length === 0) continue;
 
-      const priceIdr = await convertToIdr(minCost);
-      // 5sim product code = product name lowercase. UI display = capitalize.
-      const display = productCode.charAt(0).toUpperCase() + productCode.slice(1);
-      result[productCode] = {
-        harga: priceIdr,
-        stok: totalCount,
-        layanan: display,
-      };
+      // Sort by cost (termurah dulu)
+      operators.sort((a, b) => a.cost - b.cost);
+
+      // Kalau cuma 1 operator, return tanpa suffix (UX lebih bersih)
+      if (operators.length === 1) {
+        const op = operators[0];
+        result[productCode] = {
+          harga: await convertToIdr(op.cost),
+          stok: op.count,
+          layanan: productDisplay,
+        };
+        continue;
+      }
+
+      // Multi-operator: composite code "<product>#<operator>" (operator dipakai
+      // internal untuk routing order, tapi gak ditampilin ke user).
+      // Display: "Whatsapp 16%" — nama service + rate sukses (rate tinggi = SMS lebih besar peluang masuk).
+      for (const op of operators) {
+        const code = `${productCode}#${op.name}`;
+        const opLabel = op.rate > 0
+          ? `${productDisplay} ${op.rate.toFixed(0)}%`
+          : productDisplay;
+        result[code] = {
+          harga: await convertToIdr(op.cost),
+          stok: op.count,
+          layanan: opLabel,
+        };
+      }
     }
   }
 
@@ -265,14 +290,25 @@ export async function getOperator(negara: number) {
  * Response: { id, phone, status, ... }
  *
  * Status awal: "PENDING".
+ *
+ * Layanan code bisa composite "<product>#<operator>" — kalau ada suffix,
+ * pakai operator dari suffix (override default "any").
  */
 export async function createOrder(negara: number, layanan: string, operator: string) {
   const slug = await resolveSlug(negara);
   if (!slug) throw new Error("Negara tidak ditemukan di Venus");
 
-  const op = operator && operator !== "any" ? operator : "any";
+  // Parse composite code "<product>#<operator>"
+  let product = layanan;
+  let resolvedOp = operator && operator !== "any" ? operator : "any";
+  const hashIdx = layanan.indexOf("#");
+  if (hashIdx > 0) {
+    product = layanan.slice(0, hashIdx);
+    const opFromCode = layanan.slice(hashIdx + 1);
+    if (opFromCode) resolvedOp = opFromCode;
+  }
 
-  const raw = (await fetchProvider(`/user/buy/activation/${slug}/${op}/${layanan}`, {
+  const raw = (await fetchProvider(`/user/buy/activation/${slug}/${resolvedOp}/${product}`, {
     skipCache: true,
     needAuth: true,
   })) as { id?: number; phone?: string; status?: string; error?: string };
