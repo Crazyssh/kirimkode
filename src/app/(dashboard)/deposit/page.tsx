@@ -316,7 +316,9 @@ export default function DepositPage() {
       // Defensive parse — kalau Paymenku/server bermasalah, response bisa
       // berupa HTML (500 page). Treat parsing gagal sebagai error gateway.
       const rawText = await res.text();
-      let data: { status?: string; data?: Record<string, unknown>; error?: string };
+      // Use loose typing — beberapa field optional saat error.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let data: any;
       try {
         data = rawText ? JSON.parse(rawText) : {};
       } catch {
@@ -327,7 +329,7 @@ export default function DepositPage() {
       }
 
       if (!res.ok) {
-        setError(data.error || `Gagal membuat deposit (HTTP ${res.status}).`);
+        setError(data?.error || `Gagal membuat deposit (HTTP ${res.status}).`);
         return;
       }
 
