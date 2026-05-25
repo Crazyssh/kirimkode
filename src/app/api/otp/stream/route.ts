@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
                     // Poll JasaOTP
                     if (order.server && order.orderId) {
                         try {
-                            const data = await checkSms(order.server as "api1" | "api2" | "api3" | "api4" | "api5", order.orderId);
+                            const data = await checkSms(order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6", order.orderId);
                             const otp = extractOtp(data as Record<string, unknown>);
 
                             // Cuma push kalau OTP genuinely baru (beda dari code lama di DB

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncAllProviders, syncProvider } from "@/lib/sync-providers";
 import { clearUnifiedCache } from "@/lib/unified-provider";
+import { getUsdToIdr } from "@/lib/usd-rate";
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
 
@@ -27,9 +28,18 @@ export async function GET(req: NextRequest) {
       };
 
       try {
-        if (server && ["api1", "api2", "api3", "api5"].includes(server)) {
+        // Refresh USD/IDR rate proactively (api3/api4/api6 use USD prices).
+        // Tanpa await race — kurs di-fetch parallel dengan sync.
+        try {
+          const rate = await getUsdToIdr();
+          send(`[Sync] USD/IDR rate: ${rate}`);
+        } catch (e) {
+          send(`[Sync] WARN refresh rate: ${(e as Error).message}`);
+        }
+
+        if (server && ["api1", "api2", "api3", "api5", "api6"].includes(server)) {
           send(`[Sync] Starting ${server}...`);
-          const result = await syncProvider(server as "api1" | "api2" | "api3" | "api5");
+          const result = await syncProvider(server as "api1" | "api2" | "api3" | "api5" | "api6");
           send(`[Sync] ${server} done: ${result.countries} countries, ${result.services} services in ${result.durationMs}ms`);
           if (result.errors.length > 0) {
             send(`[Sync] ${server} errors: ${result.errors.slice(0, 3).join(", ")}`);
@@ -39,7 +49,7 @@ export async function GET(req: NextRequest) {
           // Sync semua provider satu per satu dengan progress
           // api4 sengaja di-skip — diambil realtime dari API
           const results = [];
-          for (const srv of ["api1", "api2", "api3", "api5"] as const) {
+          for (const srv of ["api1", "api2", "api3", "api5", "api6"] as const) {
             send(`[Sync] Starting ${srv}...`);
             const result = await syncProvider(srv);
             send(`[Sync] ${srv} done: ${result.countries} countries, ${result.services} services in ${result.durationMs}ms`);

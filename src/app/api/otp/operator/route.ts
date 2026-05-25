@@ -4,10 +4,10 @@ import { db } from "@/lib/db";
 import { getUnifiedOperator } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "unified";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4", "api5", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -31,6 +31,11 @@ export async function GET(req: NextRequest) {
 
     // api5 (Earth): provider tidak support operator selection
     if (server === "api5") {
+      return NextResponse.json({ data: { [String(negaraId)]: ["any"] } });
+    }
+
+    // api6 (Venus / 5sim): operator dipakai default "any" — UI tidak expose
+    if (server === "api6") {
       return NextResponse.json({ data: { [String(negaraId)]: ["any"] } });
     }
 

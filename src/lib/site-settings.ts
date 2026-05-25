@@ -9,7 +9,7 @@ const CACHE_TTL = 30_000; // 30 detik
 const cache = new Map<string, { value: string | null; expiry: number }>();
 
 /** Default visibility kalau setting belum di-set */
-const DEFAULT_VISIBLE_SERVERS = ["unified", "api1", "api4", "api5"];
+const DEFAULT_VISIBLE_SERVERS = ["unified", "api1", "api4", "api5", "api6"];
 const DEFAULT_UNIFIED_PROVIDERS = ["api1", "api2", "api3"];
 
 async function getRaw(key: string): Promise<string | null> {
@@ -31,7 +31,7 @@ export function invalidateSettingCache(key?: string) {
 
 /**
  * Daftar server yang visible di /buy page.
- * Default: ["unified", "api1", "api4", "api5"] (semua yang dipasang di data/services.ts).
+ * Default: ["unified", "api1", "api4", "api5", "api6"] (semua yang dipasang di data/services.ts).
  */
 export async function getVisibleServers(): Promise<string[]> {
   const raw = await getRaw("visible_servers");

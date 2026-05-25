@@ -4,11 +4,11 @@ import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
 import { applyPricing } from "@/lib/pricing";
 
-type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5";
-const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5"];
+type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5" | "api6";
+const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5", "api6"];
 
 // Provider yang harganya sudah final (USD→IDR + markup di adapter) — skip applyPricing.
-const FINAL_PRICE_SERVERS = new Set<PublicServer>(["api3", "api4"]);
+const FINAL_PRICE_SERVERS = new Set<PublicServer>(["api3", "api4", "api6"]);
 
 /**
  * Ambil harga dari server provider + apply pricing rules untuk api1/api2 saja.
@@ -49,7 +49,7 @@ export const POST = withApiAuth(async (req, user) => {
 
     if (!VALID_SERVERS.includes(server)) {
       return apiError(
-        "Invalid server (api1, api2, api3, api4, or api5)",
+        "Invalid server (api1, api2, api3, api4, api5, or api6)",
         400,
         "INVALID_SERVER"
       );

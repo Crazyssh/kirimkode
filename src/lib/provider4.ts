@@ -8,6 +8,8 @@
  * menyediakan V2 untuk itu.
  */
 
+import { getUsdToIdr } from "@/lib/usd-rate";
+
 const BASE_URL =
   process.env.PROVIDER4_API_URL ||
   process.env.PROVIDER3_API_URL ||
@@ -17,57 +19,9 @@ const API_KEY = process.env.PROVIDER4_API_KEY || "";
 // Markup 15% di atas harga provider → ~12% untung bersih setelah fee topup HeroSMS (2.5% + $0.2).
 export const PRICE_MARKUP = 1.15;
 
-const FALLBACK_USD_RATE = Number(process.env.PROVIDER4_USD_RATE) || Number(process.env.PROVIDER3_USD_RATE) || 16500;
-
-// --- USD → IDR auto-conversion ---
-
-let cachedUsdRate: number | null = null;
-let usdRateCacheTime = 0;
-const USD_RATE_CACHE_TTL = 6 * 60 * 60 * 1000;
-let pendingRateFetch: Promise<number> | null = null;
-
+// Re-export getUsdToIdr untuk admin pages yang masih akses via getKurs()
 export async function getKurs(): Promise<number> {
   return getUsdToIdr();
-}
-
-async function getUsdToIdr(): Promise<number> {
-  const now = Date.now();
-  if (cachedUsdRate && now - usdRateCacheTime < USD_RATE_CACHE_TTL) {
-    return cachedUsdRate;
-  }
-
-  if (pendingRateFetch) return pendingRateFetch;
-
-  pendingRateFetch = (async () => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-
-      const res = await fetch("https://open.er-api.com/v6/latest/USD", {
-        cache: "no-store",
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-
-      const data = await res.json();
-      const rate = data?.rates?.IDR;
-
-      if (typeof rate === "number" && rate > 0) {
-        cachedUsdRate = rate;
-        usdRateCacheTime = now;
-        console.log(`[Provider4] USD/IDR rate updated: ${rate}`);
-        return rate;
-      }
-    } catch (err) {
-      console.warn("[Provider4] Failed to fetch USD rate, using fallback:", (err as Error).message);
-    } finally {
-      pendingRateFetch = null;
-    }
-
-    return cachedUsdRate || FALLBACK_USD_RATE;
-  })();
-
-  return pendingRateFetch;
 }
 
 async function convertToIdr(usdPrice: number): Promise<number> {

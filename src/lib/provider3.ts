@@ -4,64 +4,14 @@
  * All responses match the format returned by provider 1 & 2 (JasaOTP).
  */
 
+import { getUsdToIdr } from "@/lib/usd-rate";
+
 const BASE_URL =
   process.env.PROVIDER3_API_URL || "https://hero-sms.com/stubs/handler_api.php";
 const API_KEY = process.env.PROVIDER3_API_KEY || "";
 
 // Markup 35% di atas harga provider
 const PRICE_MARKUP = 1.35;
-
-// Fallback rate jika API kurs gagal (dari env atau hardcode)
-const FALLBACK_USD_RATE = Number(process.env.PROVIDER3_USD_RATE) || 16500;
-
-// --- USD → IDR auto-conversion ---
-
-let cachedUsdRate: number | null = null;
-let usdRateCacheTime = 0;
-const USD_RATE_CACHE_TTL = 6 * 60 * 60 * 1000; // 6 jam
-let pendingRateFetch: Promise<number> | null = null;
-
-async function getUsdToIdr(): Promise<number> {
-  const now = Date.now();
-  if (cachedUsdRate && now - usdRateCacheTime < USD_RATE_CACHE_TTL) {
-    return cachedUsdRate;
-  }
-
-  // Reuse in-flight fetch
-  if (pendingRateFetch) return pendingRateFetch;
-
-  pendingRateFetch = (async () => {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-
-      const res = await fetch("https://open.er-api.com/v6/latest/USD", {
-        cache: "no-store",
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-
-      const data = await res.json();
-      const rate = data?.rates?.IDR;
-
-      if (typeof rate === "number" && rate > 0) {
-        cachedUsdRate = rate;
-        usdRateCacheTime = now;
-        console.log(`[Provider3] USD/IDR rate updated: ${rate}`);
-        return rate;
-      }
-    } catch (err) {
-      console.warn("[Provider3] Failed to fetch USD rate, using fallback:", (err as Error).message);
-    } finally {
-      pendingRateFetch = null;
-    }
-
-    // Fallback: pakai cached rate atau default
-    return cachedUsdRate || FALLBACK_USD_RATE;
-  })();
-
-  return pendingRateFetch;
-}
 
 /**
  * Convert USD price to IDR with markup

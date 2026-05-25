@@ -28,6 +28,10 @@ const envSchema = z.object({
     PROVIDER5_API_KEY: z.string().optional(),
     PROVIDER5_API_URL: z.string().optional(),
 
+    // Provider 6 (Venus - 5sim.net)
+    PROVIDER6_API_KEY: z.string().optional(),
+    PROVIDER6_API_URL: z.string().optional(),
+
     // Turnstile
     TURNSTILE_SECRET_KEY: z.string().optional(),
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),

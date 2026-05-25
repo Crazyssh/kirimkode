@@ -5,10 +5,10 @@ import { db } from "@/lib/db";
 import { getUnifiedLayanan } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "unified";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4", "api5", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
 
     // api1/api2/api3: baca dari database (cached by cron sync)
     // api5 (Earth): juga di-sync ke DB, sama treatment seperti api1
+    // api6 (Venus / 5sim): di-sync ke DB, harga sudah final IDR di adapter — skip applyPricing
     // Cari country di DB
     const country = await db.providerCountry.findUnique({
       where: {
@@ -92,7 +93,8 @@ export async function GET(req: NextRequest) {
       const serviceData: Record<string, { harga: number; stok: number; layanan: string }> = {};
 
       for (const svc of services) {
-        const skipPricing = server === "api3";
+        // api3 & api6: harga sudah final (USD→IDR + markup), skip applyPricing
+        const skipPricing = server === "api3" || server === "api6";
         let customPrice: number;
         if (skipPricing) {
           customPrice = svc.price;
@@ -129,7 +131,7 @@ export async function GET(req: NextRequest) {
       serviceData = data.data[negaraKey];
     }
 
-    if (serviceData && server !== "api3") {
+    if (serviceData && server !== "api3" && server !== "api6") {
       // api1/api2/api5: apply pricing
       for (const [code, info] of Object.entries(serviceData)) {
         if (info && typeof info === "object" && "harga" in info) {

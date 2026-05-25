@@ -1,5 +1,5 @@
 export interface OTPServer {
-  id: "api1" | "api2" | "api3" | "api4" | "api5" | "unified";
+  id: "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "unified";
   name: string;
   icon: string;
   color: string;
@@ -54,6 +54,14 @@ export const servers: OTPServer[] = [
     icon: "\uD83C\uDF0D",
     color: "from-emerald-500 to-teal-500",
     description: "Server baru, lokal IDR (BETA)",
+    status: "online",
+  },
+  {
+    id: "api6",
+    name: "Venus (Beta)",
+    icon: "\uD83E\uDE90",
+    color: "from-amber-500 to-yellow-500",
+    description: "5sim global, harga realtime (BETA)",
     status: "online",
   },
 ];
