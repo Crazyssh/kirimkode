@@ -309,11 +309,27 @@ export default function DepositPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount,
-          channel_code: selectedChannel === "bayargg_gopay_qris" ? "gopay_qris" : selectedChannel,
+          channel_code: selectedChannel,
         }),
       });
 
-      const data = await res.json();
+      // Defensive parse — kalau Paymenku/server bermasalah, response bisa
+      // berupa HTML (500 page). Treat parsing gagal sebagai error gateway.
+      const rawText = await res.text();
+      let data: { status?: string; data?: Record<string, unknown>; error?: string };
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch {
+        setError(
+          "Layanan pembayaran sedang bermasalah. Silakan coba lagi atau pilih metode pembayaran lain."
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        setError(data.error || `Gagal membuat deposit (HTTP ${res.status}).`);
+        return;
+      }
 
       if (data.status === "success") {
         if (typeof window !== "undefined" && window.gtag) {

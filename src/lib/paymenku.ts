@@ -130,26 +130,69 @@ export interface WebhookPayload {
 
 // ==================== API CLIENT ====================
 
+class PaymenkuError extends Error {
+  status: number;
+  payload?: unknown;
+  constructor(message: string, status: number, payload?: unknown) {
+    super(message);
+    this.name = "PaymenkuError";
+    this.status = status;
+    this.payload = payload;
+  }
+}
+
 async function paymentRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${PAYMENKU_BASE_URL}${endpoint}`;
 
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: `Bearer ${PAYMENKU_API_KEY}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...options.headers,
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${PAYMENKU_API_KEY}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...options.headers,
+      },
+    });
+  } catch (e) {
+    throw new PaymenkuError(
+      `Paymenku tidak bisa dihubungi: ${(e as Error).message}`,
+      0
+    );
+  }
 
-  const data = await res.json();
+  // Baca raw text dulu — Paymenku kadang return HTML (500 page) saat ada bug
+  // di sisi mereka (mis. SQL error). Kalau langsung res.json() bakal lempar
+  // "Unexpected token '<'" yang menyesatkan user.
+  const rawText = await res.text();
+  let data: unknown = null;
+  if (rawText) {
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      // Bukan JSON — kemungkinan HTML error page
+      data = null;
+    }
+  }
 
   if (!res.ok) {
-    throw new Error(data.message || `Paymenku API error: ${res.status}`);
+    const obj = (data as { message?: string; error?: string } | null) || null;
+    const message =
+      obj?.message ||
+      obj?.error ||
+      `Layanan Paymenku sedang bermasalah (HTTP ${res.status}). Coba lagi nanti atau gunakan channel pembayaran lain.`;
+    throw new PaymenkuError(message, res.status, data);
+  }
+
+  if (data === null) {
+    throw new PaymenkuError(
+      "Paymenku mengembalikan response tidak valid. Coba lagi atau gunakan channel pembayaran lain.",
+      res.status
+    );
   }
 
   return data as T;
