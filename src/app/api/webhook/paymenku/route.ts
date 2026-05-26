@@ -101,10 +101,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: "mismatch" });
     }
 
-    const apiAmount = Math.floor(parseFloat(apiData.amount));
-    if (apiAmount !== deposit.amount) {
+    // Paymenku mengirim 2 angka:
+    //   - apiData.amount         = total yang user bayar (sudah include fee gateway)
+    //   - apiData.amount_received = nominal bersih yang masuk ke merchant
+    //                              = nominal deposit yang kita simpan di DB
+    //
+    // Jadi compare-nya pakai amount_received, BUKAN amount.
+    // Fallback: kalau amount_received tidak ada, terima selama apiData.amount >= deposit.amount
+    // (gateway boleh tambah fee, tapi gak boleh kurangi).
+    const apiAmount = Math.floor(parseFloat(apiData.amount || "0"));
+    const apiReceived = Math.floor(parseFloat(apiData.amount_received || "0"));
+
+    let amountValid = false;
+    if (apiReceived > 0) {
+      amountValid = apiReceived === deposit.amount;
+    } else {
+      amountValid = apiAmount >= deposit.amount;
+    }
+
+    if (!amountValid) {
       console.error(
-        `[Paymenku Webhook] Amount mismatch: API=${apiAmount}, DB=${deposit.amount}`
+        `[Paymenku Webhook] Amount mismatch: API.amount=${apiAmount}, API.received=${apiReceived}, DB=${deposit.amount}`
       );
       return NextResponse.json({ status: "mismatch" });
     }
