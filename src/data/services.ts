@@ -1,5 +1,5 @@
 export interface OTPServer {
-  id: "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "unified";
+  id: "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "unified";
   name: string;
   icon: string;
   color: string;
@@ -62,6 +62,14 @@ export const servers: OTPServer[] = [
     icon: "\uD83E\uDE90",
     color: "from-amber-500 to-yellow-500",
     description: "Server paling stabil",
+    status: "online",
+  },
+  {
+    id: "api7",
+    name: "Mars V2",
+    icon: "\uD83D\uDD34",
+    color: "from-rose-500 to-red-500",
+    description: "Mars versi terbaru, real-time SSE",
     status: "online",
   },
 ];

@@ -19,6 +19,7 @@ const ALL_SERVERS = [
   { id: "api4", name: "Neptune", icon: "🔵", description: "HeroSMS V2 (manual stock)" },
   { id: "api5", name: "Earth (Beta)", icon: "🌍", description: "Mars KirimKode / Ditznesia (BETA)" },
   { id: "api6", name: "Venus (Beta)", icon: "🪐", description: "5sim.net global (BETA)" },
+  { id: "api7", name: "Mars V2", icon: "🔴", description: "Happy Pixel API (Mars terbaru)" },
 ];
 
 const ALL_UNIFIED_PROVIDERS = [

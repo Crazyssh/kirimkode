@@ -32,6 +32,10 @@ const envSchema = z.object({
     PROVIDER6_API_KEY: z.string().optional(),
     PROVIDER6_API_URL: z.string().optional(),
 
+    // Provider 7 (Mars V2 - Happy Pixel)
+    PROVIDER7_API_KEY: z.string().optional(),
+    PROVIDER7_API_URL: z.string().optional(),
+
     // Turnstile
     TURNSTILE_SECRET_KEY: z.string().optional(),
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),

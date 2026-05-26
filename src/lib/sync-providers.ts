@@ -11,7 +11,7 @@ import { getNegara, getLayanan, getOperator } from "@/lib/otp";
 import type { ServerId } from "@/lib/otp";
 import { normalizeCountryName } from "@/data/country-mapping";
 
-type SyncableServerId = "api1" | "api2" | "api3" | "api5" | "api6";
+type SyncableServerId = "api1" | "api2" | "api3" | "api5" | "api6" | "api7";
 
 interface SyncResult {
   server: string;
@@ -174,8 +174,8 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
           errors.push(`[${serverId}] Layanan ${negara.nama_negara}: ${(err as Error).message}`);
         }
 
-        // Fetch operator (hanya api1 yang support operator selection, api2/api3 skip)
-        if (serverId === "api1") {
+        // Fetch operator (api1 & api7 support operator selection, lainnya skip)
+        if (serverId === "api1" || serverId === "api7") {
           try {
             const opData = await getOperator(serverId as ServerId, negara.id_negara);
             const negaraKey = String(negara.id_negara);
@@ -233,13 +233,13 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
 }
 
 /**
- * Sync semua provider (api1 + api2 + api3 + api5 + api6) — sequential supaya gak overload.
+ * Sync semua provider (api1 + api2 + api3 + api5 + api6 + api7) — sequential supaya gak overload.
  * api4 di-skip — diambil realtime dari API.
  */
 export async function syncAllProviders(): Promise<SyncResult[]> {
   const results: SyncResult[] = [];
 
-  for (const server of ["api1", "api2", "api3", "api5", "api6"] as SyncableServerId[]) {
+  for (const server of ["api1", "api2", "api3", "api5", "api6", "api7"] as SyncableServerId[]) {
     console.log(`[Sync] Starting sync for ${server}...`);
     const result = await syncProvider(server);
     console.log(

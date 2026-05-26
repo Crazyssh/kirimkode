@@ -4,10 +4,10 @@ import { db } from "@/lib/db";
 import { getUnifiedOperator } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "unified";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -39,8 +39,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: { [String(negaraId)]: ["any"] } });
     }
 
-    // api1/api2/api3: baca dari database
-    if (server === "api1" || server === "api2" || server === "api3") {
+    // api1/api2/api3/api7: baca dari database
+    if (server === "api1" || server === "api2" || server === "api3" || server === "api7") {
       const country = await db.providerCountry.findUnique({
         where: {
           serverId_externalId: {

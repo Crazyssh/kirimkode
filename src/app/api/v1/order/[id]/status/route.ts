@@ -18,7 +18,7 @@ export const GET = withApiAuthParams(async (_req, user, params) => {
   if (order.status === "waiting" && !order.code) {
     try {
       const data = await checkSms(
-        order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6",
+        order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7",
         order.orderId
       );
       const otp = extractOtp(data as Record<string, unknown>);

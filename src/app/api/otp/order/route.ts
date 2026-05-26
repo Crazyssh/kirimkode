@@ -53,13 +53,16 @@ async function getApi4Entry(negara: number, layanan: string): Promise<{
 /**
  * Ambil harga dari server + apply pricing rules.
  * TIDAK BOLEH percaya harga dari client.
- * Untuk api1/api2/api5: ambil harga dari database (cached by cron sync), apply pricing.
+ * Untuk api1/api2/api5/api7: ambil harga dari database (cached by cron sync), apply pricing.
  * Untuk api3 & api6: harga sudah final dari adapter (USD→IDR + markup), skip applyPricing.
  * (api4 di-handle terpisah di POST handler — pake getApi4Entry)
+ *
+ * Note: api7 (Mars V2) share PriceRule dengan api1 (Mars) karena format country ID
+ * sama (JasaOTP-style) dan rule kita match by serviceCode+countryId tanpa server.
  */
-async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6", negara: number, layanan: string): Promise<number> {
+async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6" | "api7", negara: number, layanan: string): Promise<number> {
   // api3 & api6: harga sudah final (USD→IDR), skip applyPricing
-  // api1/api2/api5: harga raw dari provider, apply admin pricing rules
+  // api1/api2/api5/api7: harga raw dari provider, apply admin pricing rules
   const skipPricing = server === "api3" || server === "api6";
 
   // Coba ambil dari database dulu (synced by cron)
@@ -148,7 +151,7 @@ export async function POST(req: NextRequest) {
       api4FixedPrice = entry.fixedPrice;
     } else {
       // Harga WAJIB dari server, bukan dari client
-      orderPrice = await getServerPrice(server as "api1" | "api2" | "api3" | "api5" | "api6", Number(negara), layanan);
+      orderPrice = await getServerPrice(server as "api1" | "api2" | "api3" | "api5" | "api6" | "api7", Number(negara), layanan);
     }
 
     // Step 1: Pre-check user balance + status (quick DB read, no transaction needed)
@@ -163,7 +166,7 @@ export async function POST(req: NextRequest) {
 
     // Step 2: Call provider API (bisa lambat, HARUS di luar transaction)
     // Bulk order: tanpa timeout, nunggu sampai server respon
-    const data = await createOrder(server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6", Number(negara), layanan, operator, {
+    const data = await createOrder(server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7", Number(negara), layanan, operator, {
       noTimeout: isBulk,
       maxPriceUsd: api4MaxPriceUsd,
       fixedPrice: api4FixedPrice,
