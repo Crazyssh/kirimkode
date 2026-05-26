@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkSms } from "@/lib/otp";
 import { extractOtp } from "@/lib/otp-extract";
+import { subscribeOtpStream } from "@/lib/provider7";
 
 const POLL_INTERVAL = 1000; // 1 detik
 const LINGER_AFTER_FIRST_OTP = 5 * 60 * 1000; // 5 menit setelah OTP pertama
@@ -40,6 +41,8 @@ export async function GET(req: NextRequest) {
             const knownCodes: Record<string, string> = {};
             let firstOtpAt: number | null = null; // Waktu OTP pertama masuk
             let closed = false;
+            // AbortController untuk semua SSE upstream (Mars V2) yang masih hidup
+            const upstreamAborts = new Map<string, AbortController>();
 
             // Initialize known codes dari existing data
             for (const order of orders) {
@@ -61,9 +64,84 @@ export async function GET(req: NextRequest) {
             const cleanup = () => {
                 if (!closed) {
                     closed = true;
+                    // Abort semua upstream SSE Mars V2 yang masih hidup
+                    for (const ac of upstreamAborts.values()) {
+                        try { ac.abort(); } catch { /* already aborted */ }
+                    }
+                    upstreamAborts.clear();
                     try { controller.close(); } catch { /* already closed */ }
                 }
             };
+
+            // Handler kalau OTP masuk via SSE upstream (Mars V2) atau polling
+            const handleOtpReceived = async (
+                order: { id: string; number: string; service: string; code: string | null; resendAt: Date | null },
+                otp: string,
+                isResending: boolean
+            ) => {
+                if (closed) return;
+                // Cek dedup: jangan push kalau code sama dengan yang sudah dikirim sebelumnya
+                if (otp === order.code || otp === knownCodes[order.id]) return;
+
+                knownCodes[order.id] = otp;
+                if (!firstOtpAt) firstOtpAt = Date.now();
+
+                try {
+                    await db.order.update({
+                        where: { id: order.id },
+                        data: {
+                            code: otp,
+                            status: "success",
+                            ...(isResending ? { resendAt: null } : {}),
+                        },
+                    });
+                } catch { /* DB write failure non-fatal — caller will retry */ }
+
+                send({
+                    type: "otp",
+                    orderId: order.id,
+                    code: otp,
+                    number: order.number,
+                    service: order.service,
+                    resend: isResending,
+                });
+            };
+
+            // Subscribe SSE upstream Mars V2 untuk satu order — non-blocking,
+            // jalan paralel dengan polling fallback. Auto-cleanup saat OTP masuk.
+            const subscribeMarsV2 = (order: typeof orders[number]) => {
+                if (order.server !== "api7" || !order.orderId) return;
+                if (upstreamAborts.has(order.id)) return; // sudah subscribed
+
+                const ac = new AbortController();
+                upstreamAborts.set(order.id, ac);
+
+                subscribeOtpStream(order.orderId, {
+                    onOtp: (otp) => {
+                        // Refresh order dari DB untuk dapat code & resendAt terbaru
+                        db.order.findUnique({
+                            where: { id: order.id },
+                            select: { id: true, number: true, service: true, code: true, resendAt: true },
+                        }).then((fresh) => {
+                            if (fresh) {
+                                handleOtpReceived(fresh, otp, !!fresh.resendAt);
+                            }
+                        }).catch(() => { /* ignore */ });
+                    },
+                    onTimeout: () => {
+                        send({ type: "status", orderId: order.id, status: "timeout" });
+                    },
+                }, ac.signal).catch(() => { /* swallow — polling fallback tetap jalan */ }).finally(() => {
+                    upstreamAborts.delete(order.id);
+                });
+            };
+
+            // Subscribe SSE upstream untuk semua order Mars V2 yang masih waiting
+            for (const order of orders) {
+                if (order.status === "waiting" && !order.code) {
+                    subscribeMarsV2(order);
+                }
+            }
 
             const poll = async () => {
                 if (closed) return;
@@ -107,7 +185,13 @@ export async function GET(req: NextRequest) {
 
                     hasActiveOrders = true;
 
-                    // Poll JasaOTP
+                    // Re-subscribe Mars V2 SSE kalau belum (jaga-jaga koneksi sebelumnya putus)
+                    if (order.server === "api7" && !upstreamAborts.has(order.id)) {
+                        subscribeMarsV2({ ...order, code: order.code });
+                    }
+
+                    // Poll provider (untuk semua server, termasuk api7 sebagai safety net
+                    // kalau SSE upstream sempat putus)
                     if (order.server && order.orderId) {
                         try {
                             const data = await checkSms(order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7", order.orderId);
@@ -116,29 +200,7 @@ export async function GET(req: NextRequest) {
                             // Cuma push kalau OTP genuinely baru (beda dari code lama di DB
                             // dan beda dari yang udah pernah kita push di session ini).
                             if (otp && otp !== order.code && otp !== knownCodes[order.id]) {
-                                knownCodes[order.id] = otp;
-
-                                // Set timer OTP pertama (hanya kalau belum di-set)
-                                if (!firstOtpAt) firstOtpAt = now;
-
-                                // Update DB: code baru + clear resendAt kalau lagi resend
-                                await db.order.update({
-                                    where: { id: order.id },
-                                    data: {
-                                        code: otp,
-                                        status: "success",
-                                        ...(isResending ? { resendAt: null } : {}),
-                                    },
-                                });
-
-                                send({
-                                    type: "otp",
-                                    orderId: order.id,
-                                    code: otp,
-                                    number: order.number,
-                                    service: order.service,
-                                    resend: isResending,
-                                });
+                                await handleOtpReceived(order, otp, isResending);
                             }
                         } catch {
                             // Retry next cycle

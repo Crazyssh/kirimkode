@@ -394,3 +394,142 @@ export async function cancelOrder(orderId: number) {
     throw err;
   }
 }
+
+// ============================================================
+// SSE Stream Subscription
+// ============================================================
+
+export type StreamCallbacks = {
+  onOtp?: (otp: string) => void;
+  onTimeout?: () => void;
+  onError?: (err: Error) => void;
+  onConnected?: () => void;
+};
+
+/**
+ * Subscribe ke `/v1/sms/stream?id=<order_id>` (Server-Sent Events).
+ *
+ * Lebih efisien daripada polling: 1 koneksi tetap, OTP delivered instant
+ * begitu masuk di sisi provider. Heartbeat tiap 15s dari provider.
+ *
+ * Event yang dihandle:
+ *   - "connected" → trigger onConnected
+ *   - "otp" → trigger onOtp, lalu auto-close stream
+ *   - "timeout" → trigger onTimeout, lalu auto-close stream
+ *
+ * Caller harus:
+ *   - Pass AbortSignal supaya bisa cleanup connection saat user disconnect
+ *   - Handle race condition: kalau OTP sudah masuk di DB sebelum subscribe,
+ *     SSE upstream mungkin langsung kirim "otp" begitu connect
+ *
+ * Resolve: setelah OTP/timeout/error/abort. Return value:
+ *   - "otp_received" — onOtp sudah dipanggil
+ *   - "timeout"      — onTimeout sudah dipanggil
+ *   - "aborted"      — caller signal abort
+ *   - "error"        — onError sudah dipanggil
+ *   - "closed"       — stream closed tanpa event terminal
+ */
+export async function subscribeOtpStream(
+  orderId: number,
+  callbacks: StreamCallbacks,
+  signal?: AbortSignal
+): Promise<"otp_received" | "timeout" | "aborted" | "error" | "closed"> {
+  const url = new URL(`${BASE_URL}/sms/stream`);
+  url.searchParams.set("id", String(orderId));
+
+  try {
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        Accept: "text/event-stream",
+        "Cache-Control": "no-cache",
+      },
+      cache: "no-store",
+      signal,
+    });
+
+    if (!res.ok || !res.body) {
+      const err = new Error(`Mars V2 SSE connect failed: HTTP ${res.status}`);
+      callbacks.onError?.(err);
+      return "error";
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let currentEvent = "";
+
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines, keep incomplete trailing line in buffer
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const rawLine of lines) {
+          const line = rawLine.replace(/\r$/, "");
+
+          if (line === "") {
+            // Empty line = event boundary
+            currentEvent = "";
+            continue;
+          }
+
+          // Comment / heartbeat (e.g. ": heartbeat")
+          if (line.startsWith(":")) continue;
+
+          if (line.startsWith("event:")) {
+            currentEvent = line.substring("event:".length).trim();
+            continue;
+          }
+
+          if (line.startsWith("data:")) {
+            const dataStr = line.substring("data:".length).trim();
+            if (!dataStr) continue;
+
+            let parsed: { otp?: string; type?: string; status?: string } | null = null;
+            try {
+              parsed = JSON.parse(dataStr);
+            } catch {
+              continue;
+            }
+
+            if (currentEvent === "connected") {
+              callbacks.onConnected?.();
+              continue;
+            }
+
+            if (currentEvent === "otp" || parsed?.type === "otp") {
+              const otp = parsed?.otp;
+              if (otp) {
+                try { callbacks.onOtp?.(String(otp)); } catch { /* swallow */ }
+                try { reader.cancel(); } catch { /* already closed */ }
+                return "otp_received";
+              }
+            }
+
+            if (currentEvent === "timeout" || parsed?.type === "timeout") {
+              try { callbacks.onTimeout?.(); } catch { /* swallow */ }
+              try { reader.cancel(); } catch { /* already closed */ }
+              return "timeout";
+            }
+          }
+        }
+      }
+    } finally {
+      try { reader.releaseLock(); } catch { /* already released */ }
+    }
+
+    return "closed";
+  } catch (err) {
+    if ((err as Error).name === "AbortError") return "aborted";
+    const e = err instanceof Error ? err : new Error(String(err));
+    callbacks.onError?.(e);
+    return "error";
+  }
+}

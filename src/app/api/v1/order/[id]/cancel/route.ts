@@ -20,10 +20,16 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
   }
   const order = lookup.order;
 
-  // Check 3-minute rule
+  // Mars V2 (api7) cancel rule lebih singkat: 1 menit. Default: 3 menit.
+  const cancelMinMs = order.server === "api7" ? 1 * 60 * 1000 : 3 * 60 * 1000;
+  const cancelMinMins = cancelMinMs / 60_000;
   const diffMs = Date.now() - new Date(order.createdAt).getTime();
-  if (diffMs < 3 * 60 * 1000) {
-    return apiError("Cannot cancel within 3 minutes of order", 400, "CANCEL_TOO_EARLY");
+  if (diffMs < cancelMinMs) {
+    return apiError(
+      `Cannot cancel within ${cancelMinMins} minute${cancelMinMins > 1 ? "s" : ""} of order`,
+      400,
+      "CANCEL_TOO_EARLY"
+    );
   }
 
   let providerWarning: string | undefined;

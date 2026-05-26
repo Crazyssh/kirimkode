@@ -1282,7 +1282,8 @@ export default function BuyPage() {
                             <td className="py-3">
                               {(o.status === "waiting" || o.status === "success") && (() => {
                                 const orderAge = Date.now() - new Date(o.date).getTime();
-                                const threeMin = 3 * 60 * 1000;
+                                // Mars V2 (api7) cancel rule lebih singkat: 1 menit. Default: 3 menit.
+                                const cancelMinMs = o.server === "api7" ? 1 * 60 * 1000 : 3 * 60 * 1000;
                                 const twentyMin = 20 * 60 * 1000;
 
                                 const isResending = !!o.resendAt;
@@ -1291,10 +1292,10 @@ export default function BuyPage() {
                                   o.server === "api4" && !!o.code && orderAge < twentyMin && !isResending;
 
                                 // Cancel: cuma muncul saat status waiting (OTP pertama belum masuk)
-                                // + udah lewat 3 menit. Order success tidak punya tombol cancel.
+                                // + udah lewat batas waktu cancel server. Order success tidak punya tombol cancel.
                                 const isWaiting = o.status === "waiting";
-                                const canCancel = isWaiting && orderAge >= threeMin;
-                                const secsLeft = Math.ceil((threeMin - orderAge) / 1000);
+                                const canCancel = isWaiting && orderAge >= cancelMinMs;
+                                const secsLeft = Math.ceil((cancelMinMs - orderAge) / 1000);
                                 const minsLeft = Math.floor(secsLeft / 60);
                                 const secsRem = secsLeft % 60;
 
