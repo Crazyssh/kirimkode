@@ -20,13 +20,16 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
   }
   const order = lookup.order;
 
-  // Mars V2 (api7) cancel rule lebih singkat: 1 menit. Default: 3 menit.
-  const cancelMinMs = order.server === "api7" ? 1 * 60 * 1000 : 3 * 60 * 1000;
-  const cancelMinMins = cancelMinMs / 60_000;
+  // Mars V2 (api7) cancel rule lebih singkat: 2 menit 30 detik. Default: 3 menit.
+  const cancelMinMs = order.server === "api7" ? 2.5 * 60 * 1000 : 3 * 60 * 1000;
+  const cancelMinSec = cancelMinMs / 1000;
   const diffMs = Date.now() - new Date(order.createdAt).getTime();
   if (diffMs < cancelMinMs) {
+    const min = Math.floor(cancelMinSec / 60);
+    const sec = cancelMinSec % 60;
+    const label = sec > 0 ? `${min} minute(s) ${sec} second(s)` : `${min} minute(s)`;
     return apiError(
-      `Cannot cancel within ${cancelMinMins} minute${cancelMinMins > 1 ? "s" : ""} of order`,
+      `Cannot cancel within ${label} of order`,
       400,
       "CANCEL_TOO_EARLY"
     );

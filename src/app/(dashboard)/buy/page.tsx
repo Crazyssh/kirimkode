@@ -1282,8 +1282,8 @@ export default function BuyPage() {
                             <td className="py-3">
                               {(o.status === "waiting" || o.status === "success") && (() => {
                                 const orderAge = Date.now() - new Date(o.date).getTime();
-                                // Mars V2 (api7) cancel rule lebih singkat: 1 menit. Default: 3 menit.
-                                const cancelMinMs = o.server === "api7" ? 1 * 60 * 1000 : 3 * 60 * 1000;
+                                // Mars V2 (api7) cancel rule lebih singkat: 2 menit 30 detik. Default: 3 menit.
+                                const cancelMinMs = o.server === "api7" ? 2.5 * 60 * 1000 : 3 * 60 * 1000;
                                 const twentyMin = 20 * 60 * 1000;
 
                                 const isResending = !!o.resendAt;
