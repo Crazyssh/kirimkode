@@ -309,11 +309,16 @@ async function callSmsEndpoint(orderId: number): Promise<SmsCallResult> {
     }
 
     const code = parsed?.code ?? res.status;
-    const otp = parsed?.data?.otp;
+    const rawOtp = parsed?.data?.otp;
 
-    // 200 + otp → success (fast path)
-    if (code === 200 && otp) {
-      return { otp: String(otp), status: "success", code };
+    // PENTING: Mars V2 punya kuirk — saat OTP belum masuk, response-nya:
+    //   HTTP 200 + { code: 200, data: { otp: "Menunggu" } }   ← bukan 202 seperti di docs
+    // Jadi kita cek otp harus pure digits (4-8 karakter), bukan sembarang string.
+    // Kalau "Menunggu" / "pending" / null → masih nunggu.
+    const isValidOtp = typeof rawOtp === "string" && /^\d{4,8}$/.test(rawOtp);
+
+    if (code === 200 && isValidOtp) {
+      return { otp: String(rawOtp), status: "success", code };
     }
 
     return { otp: null, status: "waiting", code };
@@ -358,9 +363,11 @@ async function callOrderDetailEndpoint(orderId: number) {
 
     const data = parsed.data || {};
     const status = (data.status || "").toLowerCase();
-    const otp = data.otp;
+    const rawOtp = data.otp;
+    // Validate OTP harus digits 4-8 karakter, bukan placeholder string
+    const isValidOtp = typeof rawOtp === "string" && /^\d{4,8}$/.test(rawOtp);
 
-    if (status === "received" && otp) return { otp: String(otp), status: "success" };
+    if (status === "received" && isValidOtp) return { otp: String(rawOtp), status: "success" };
     if (status === "received") return { otp: null, status: "waiting" };
     if (status === "cancelled" || status === "canceled") return { otp: null, status: "cancelled" };
     if (status === "timeout" || status === "expired") return { otp: null, status: "timeout" };
@@ -506,11 +513,14 @@ export async function subscribeOtpStream(
 
             if (currentEvent === "otp" || parsed?.type === "otp") {
               const otp = parsed?.otp;
-              if (otp) {
+              // Mars V2 quirk: validate OTP harus digits 4-8 karakter
+              const isValidOtp = typeof otp === "string" && /^\d{4,8}$/.test(otp);
+              if (isValidOtp) {
                 try { callbacks.onOtp?.(String(otp)); } catch { /* swallow */ }
                 try { reader.cancel(); } catch { /* already closed */ }
                 return "otp_received";
               }
+              // Bukan OTP valid (mis. placeholder "Menunggu") — biarkan loop continue
             }
 
             if (currentEvent === "timeout" || parsed?.type === "timeout") {
