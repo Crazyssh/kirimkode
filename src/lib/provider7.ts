@@ -125,7 +125,26 @@ interface LayananInfo {
   layanan: string;
 }
 
-// --- Public API (matches otp.ts dispatcher contract) ---
+/**
+ * Format orderId untuk URL Mars V2.
+ *
+ * Mars V2 punya quirk: `order_id` di provider adalah string angka dengan
+ * leading zeros (mis. "00000039", "5849273011"). Kita simpan sebagai Int
+ * di DB (orderId 39), tapi saat call API kembali harus pad ke format asli
+ * supaya endpoint match.
+ *
+ * Aturan: kalau angka < 10 digit, pad dengan '0' kiri jadi 8 digit.
+ * Kalau >= 10 digit, return as-is (id sudah panjang seperti production).
+ *
+ * Note: docs Mars V2 example kasih "5849273011" (10 digit). Sample real test
+ * kasih "00000018" (8 digit) — sequential ID development. Logika ini cover
+ * keduanya.
+ */
+function padOrderId(orderId: number): string {
+  const s = String(orderId);
+  if (s.length >= 8) return s;
+  return s.padStart(8, "0");
+}
 
 /**
  * GET /v1/balance
@@ -282,7 +301,7 @@ interface SmsCallResult {
 
 async function callSmsEndpoint(orderId: number): Promise<SmsCallResult> {
   const url = new URL(`${BASE_URL}/sms`);
-  url.searchParams.set("id", String(orderId));
+  url.searchParams.set("id", padOrderId(orderId));
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -330,7 +349,7 @@ async function callSmsEndpoint(orderId: number): Promise<SmsCallResult> {
 }
 
 async function callOrderDetailEndpoint(orderId: number) {
-  const url = new URL(`${BASE_URL}/orders/${orderId}`);
+  const url = new URL(`${BASE_URL}/orders/${padOrderId(orderId)}`);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -387,7 +406,7 @@ async function callOrderDetailEndpoint(orderId: number) {
 export async function cancelOrder(orderId: number) {
   try {
     await fetchProvider("/cancel", {
-      query: { id: String(orderId) },
+      query: { id: padOrderId(orderId) },
       skipCache: true,
     });
     return { success: true };
@@ -442,7 +461,7 @@ export async function subscribeOtpStream(
   signal?: AbortSignal
 ): Promise<"otp_received" | "timeout" | "aborted" | "error" | "closed"> {
   const url = new URL(`${BASE_URL}/sms/stream`);
-  url.searchParams.set("id", String(orderId));
+  url.searchParams.set("id", padOrderId(orderId));
 
   try {
     const res = await fetch(url.toString(), {
