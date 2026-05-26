@@ -23,6 +23,7 @@ import {
   Activity,
   RefreshCw,
   Box,
+  Database,
 } from "lucide-react";
 
 interface SystemInfo {
@@ -77,6 +78,19 @@ interface NodeInfo {
   memoryTotal: string;
 }
 
+interface DbInfo {
+  version: string;
+  sizeBytes: number;
+  sizePretty: string;
+  connections: number;
+  maxConnections: number;
+  cacheHitRatio: number;
+  uptimeSeconds: number;
+  uptimePretty: string;
+  topTables: Array<{ table: string; rows: number; size: string }>;
+  latencyMs: number;
+}
+
 interface ServerData {
   system: SystemInfo;
   cpu: CpuInfo;
@@ -85,6 +99,7 @@ interface ServerData {
   pm2: Pm2Process[];
   cron: CronJob[];
   node: NodeInfo;
+  db?: DbInfo | null;
 }
 
 interface HistoryPoint {
@@ -657,6 +672,103 @@ export default function AdminServerPage() {
             <div className="text-center py-8 text-muted">
               <Clock className="w-8 h-8 mx-auto mb-3 opacity-50" />
               <p className="text-sm">Tidak ada cron job yang terdeteksi</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Database Stats */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Database className="w-4 h-4 text-success" />
+            Database PostgreSQL
+            {data.db && (
+              <Badge variant="success">{data.db.version}</Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.db ? (
+            <div className="space-y-4">
+              {/* Top stats grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-xl bg-background/50 border border-border/30 p-3">
+                  <div className="text-xs text-muted">DB Size</div>
+                  <div className="text-lg font-bold font-[family-name:var(--font-jetbrains-mono)] text-success">
+                    {data.db.sizePretty}
+                  </div>
+                </div>
+                <div className="rounded-xl bg-background/50 border border-border/30 p-3">
+                  <div className="text-xs text-muted">Connections</div>
+                  <div className="text-lg font-bold font-[family-name:var(--font-jetbrains-mono)]">
+                    {data.db.connections}
+                    <span className="text-xs text-muted font-normal"> / {data.db.maxConnections}</span>
+                  </div>
+                </div>
+                <div className="rounded-xl bg-background/50 border border-border/30 p-3">
+                  <div className="text-xs text-muted">Cache Hit</div>
+                  <div className={`text-lg font-bold font-[family-name:var(--font-jetbrains-mono)] ${
+                    data.db.cacheHitRatio >= 95 ? "text-success" : data.db.cacheHitRatio >= 80 ? "text-accent" : "text-warning"
+                  }`}>
+                    {data.db.cacheHitRatio.toFixed(1)}%
+                  </div>
+                </div>
+                <div className="rounded-xl bg-background/50 border border-border/30 p-3">
+                  <div className="text-xs text-muted">Uptime</div>
+                  <div className="text-lg font-bold font-[family-name:var(--font-jetbrains-mono)]">
+                    {data.db.uptimePretty}
+                  </div>
+                </div>
+              </div>
+
+              {/* Latency */}
+              <div className="flex items-center justify-between text-xs text-muted px-1">
+                <span>Query latency (sampling roundtrip)</span>
+                <span className="font-[family-name:var(--font-jetbrains-mono)]">
+                  {data.db.latencyMs} ms
+                </span>
+              </div>
+
+              {/* Top tables */}
+              {data.db.topTables.length > 0 && (
+                <div>
+                  <div className="text-xs text-muted mb-2 uppercase tracking-wide">
+                    Top 5 Tabel Terbesar
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-left text-xs text-muted border-b border-border">
+                          <th className="pb-2 font-medium">Tabel</th>
+                          <th className="pb-2 font-medium">Rows</th>
+                          <th className="pb-2 font-medium text-right">Size</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-sm">
+                        {data.db.topTables.map((t) => (
+                          <tr key={t.table} className="border-b border-border/30 last:border-0">
+                            <td className="py-2 font-medium font-[family-name:var(--font-jetbrains-mono)] text-xs">
+                              {t.table}
+                            </td>
+                            <td className="py-2 font-[family-name:var(--font-jetbrains-mono)] text-xs">
+                              {t.rows.toLocaleString("id-ID")}
+                            </td>
+                            <td className="py-2 text-right font-[family-name:var(--font-jetbrains-mono)] text-xs text-muted">
+                              {t.size}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted">
+              <Database className="w-8 h-8 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">Database stats tidak tersedia</p>
             </div>
           )}
         </CardContent>

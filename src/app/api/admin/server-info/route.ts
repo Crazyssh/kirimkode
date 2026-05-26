@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
+import { db } from "@/lib/db";
 import os from "os";
 import { execSync } from "child_process";
 
@@ -139,6 +140,86 @@ export async function GET() {
       memoryTotal: formatBytes(process.memoryUsage().heapTotal),
     };
 
+    // --- Database Info (PostgreSQL) ---
+    interface DbStats {
+      version: string;
+      sizeBytes: number;
+      sizePretty: string;
+      connections: number;
+      maxConnections: number;
+      cacheHitRatio: number; // 0-100 (%)
+      uptimeSeconds: number;
+      uptimePretty: string;
+      topTables: Array<{ table: string; rows: number; size: string }>;
+      slowQueriesEnabled: boolean;
+      latencyMs: number;
+    }
+
+    let dbInfo: DbStats | null = null;
+    try {
+      const tStart = Date.now();
+
+      const [versionRes, sizeRes, connRes, maxConnRes, cacheRes, uptimeRes, tableRes] = await Promise.all([
+        db.$queryRawUnsafe<Array<{ version: string }>>(`SELECT current_setting('server_version_num') AS version`),
+        db.$queryRawUnsafe<Array<{ size: bigint; pretty: string }>>(
+          `SELECT pg_database_size(current_database()) AS size, pg_size_pretty(pg_database_size(current_database())) AS pretty`
+        ),
+        db.$queryRawUnsafe<Array<{ count: bigint }>>(
+          `SELECT count(*)::bigint AS count FROM pg_stat_activity WHERE datname = current_database()`
+        ),
+        db.$queryRawUnsafe<Array<{ setting: string }>>(`SELECT setting FROM pg_settings WHERE name = 'max_connections'`),
+        db.$queryRawUnsafe<Array<{ ratio: number | null }>>(
+          `SELECT
+             CASE WHEN sum(blks_hit) + sum(blks_read) = 0 THEN 0
+                  ELSE (sum(blks_hit)::float / (sum(blks_hit) + sum(blks_read))::float) * 100
+             END AS ratio
+           FROM pg_stat_database WHERE datname = current_database()`
+        ),
+        db.$queryRawUnsafe<Array<{ uptime: number }>>(
+          `SELECT EXTRACT(EPOCH FROM (now() - pg_postmaster_start_time()))::int AS uptime`
+        ),
+        db.$queryRawUnsafe<Array<{ relname: string; rows: bigint; size: string }>>(
+          `SELECT
+             relname,
+             n_live_tup::bigint AS rows,
+             pg_size_pretty(pg_total_relation_size(c.oid)) AS size
+           FROM pg_stat_user_tables s
+           JOIN pg_class c ON c.relname = s.relname AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+           ORDER BY pg_total_relation_size(c.oid) DESC
+           LIMIT 5`
+        ),
+      ]);
+
+      const latencyMs = Date.now() - tStart;
+      const versionNum = parseInt(versionRes[0]?.version || "0", 10);
+      const major = Math.floor(versionNum / 10000);
+      const minor = versionNum % 10000;
+      const versionStr = `PostgreSQL ${major}.${minor}`;
+
+      const uptimeSeconds = uptimeRes[0]?.uptime || 0;
+
+      dbInfo = {
+        version: versionStr,
+        sizeBytes: Number(sizeRes[0]?.size || 0),
+        sizePretty: sizeRes[0]?.pretty || "N/A",
+        connections: Number(connRes[0]?.count || 0),
+        maxConnections: parseInt(maxConnRes[0]?.setting || "0", 10),
+        cacheHitRatio: Math.round((cacheRes[0]?.ratio || 0) * 10) / 10,
+        uptimeSeconds,
+        uptimePretty: formatUptime(uptimeSeconds),
+        topTables: tableRes.map((t) => ({
+          table: t.relname,
+          rows: Number(t.rows),
+          size: t.size,
+        })),
+        slowQueriesEnabled: false, // pg_stat_statements perlu setup khusus
+        latencyMs,
+      };
+    } catch (err) {
+      console.error("[server-info] DB stats error:", err);
+      // dbInfo tetap null — frontend bisa show "N/A"
+    }
+
     return NextResponse.json({
       data: {
         system: systemInfo,
@@ -148,6 +229,7 @@ export async function GET() {
         pm2: pm2Processes,
         cron: cronJobs,
         node: nodeInfo,
+        db: dbInfo,
       },
     });
   } catch (err) {
