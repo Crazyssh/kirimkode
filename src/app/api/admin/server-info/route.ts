@@ -155,36 +155,49 @@ export async function GET() {
       latencyMs: number;
     }
 
+    async function safeQuery<T>(query: string): Promise<T[]> {
+      try {
+        return await db.$queryRawUnsafe<T[]>(query);
+      } catch (e) {
+        console.warn(`[server-info] DB query failed: ${query.slice(0, 80)}... → ${(e as Error).message}`);
+        return [];
+      }
+    }
+
     let dbInfo: DbStats | null = null;
     try {
       const tStart = Date.now();
 
+      // Run each query independently — kalau permission ditolak di salah satu,
+      // yang lain tetep bisa muncul.
       const [versionRes, sizeRes, connRes, maxConnRes, cacheRes, uptimeRes, tableRes] = await Promise.all([
-        db.$queryRawUnsafe<Array<{ version: string }>>(`SELECT current_setting('server_version_num') AS version`),
-        db.$queryRawUnsafe<Array<{ size: bigint; pretty: string }>>(
-          `SELECT pg_database_size(current_database()) AS size, pg_size_pretty(pg_database_size(current_database())) AS pretty`
+        safeQuery<{ version: string }>(`SELECT current_setting('server_version_num') AS version`),
+        safeQuery<{ size: bigint; pretty: string }>(
+          `SELECT pg_database_size(current_database())::bigint AS size, pg_size_pretty(pg_database_size(current_database())) AS pretty`
         ),
-        db.$queryRawUnsafe<Array<{ count: bigint }>>(
+        safeQuery<{ count: bigint }>(
           `SELECT count(*)::bigint AS count FROM pg_stat_activity WHERE datname = current_database()`
         ),
-        db.$queryRawUnsafe<Array<{ setting: string }>>(`SELECT setting FROM pg_settings WHERE name = 'max_connections'`),
-        db.$queryRawUnsafe<Array<{ ratio: number | null }>>(
+        safeQuery<{ setting: string }>(`SELECT setting FROM pg_settings WHERE name = 'max_connections'`),
+        safeQuery<{ ratio: number | null }>(
           `SELECT
              CASE WHEN sum(blks_hit) + sum(blks_read) = 0 THEN 0
                   ELSE (sum(blks_hit)::float / (sum(blks_hit) + sum(blks_read))::float) * 100
              END AS ratio
            FROM pg_stat_database WHERE datname = current_database()`
         ),
-        db.$queryRawUnsafe<Array<{ uptime: number }>>(
+        safeQuery<{ uptime: number }>(
           `SELECT EXTRACT(EPOCH FROM (now() - pg_postmaster_start_time()))::int AS uptime`
         ),
-        db.$queryRawUnsafe<Array<{ relname: string; rows: bigint; size: string }>>(
+        safeQuery<{ relname: string; rows: bigint; size: string }>(
           `SELECT
-             relname,
-             n_live_tup::bigint AS rows,
+             c.relname,
+             COALESCE(s.n_live_tup, 0)::bigint AS rows,
              pg_size_pretty(pg_total_relation_size(c.oid)) AS size
-           FROM pg_stat_user_tables s
-           JOIN pg_class c ON c.relname = s.relname AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
+           FROM pg_class c
+           LEFT JOIN pg_stat_user_tables s ON s.relid = c.oid
+           WHERE c.relkind = 'r'
+             AND c.relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
            ORDER BY pg_total_relation_size(c.oid) DESC
            LIMIT 5`
         ),
@@ -194,9 +207,9 @@ export async function GET() {
       const versionNum = parseInt(versionRes[0]?.version || "0", 10);
       const major = Math.floor(versionNum / 10000);
       const minor = versionNum % 10000;
-      const versionStr = `PostgreSQL ${major}.${minor}`;
+      const versionStr = versionNum > 0 ? `PostgreSQL ${major}.${minor}` : "PostgreSQL";
 
-      const uptimeSeconds = uptimeRes[0]?.uptime || 0;
+      const uptimeSeconds = Number(uptimeRes[0]?.uptime || 0);
 
       dbInfo = {
         version: versionStr,
@@ -206,18 +219,17 @@ export async function GET() {
         maxConnections: parseInt(maxConnRes[0]?.setting || "0", 10),
         cacheHitRatio: Math.round((cacheRes[0]?.ratio || 0) * 10) / 10,
         uptimeSeconds,
-        uptimePretty: formatUptime(uptimeSeconds),
+        uptimePretty: uptimeSeconds > 0 ? formatUptime(uptimeSeconds) : "N/A",
         topTables: tableRes.map((t) => ({
           table: t.relname,
           rows: Number(t.rows),
           size: t.size,
         })),
-        slowQueriesEnabled: false, // pg_stat_statements perlu setup khusus
+        slowQueriesEnabled: false,
         latencyMs,
       };
     } catch (err) {
-      console.error("[server-info] DB stats error:", err);
-      // dbInfo tetap null — frontend bisa show "N/A"
+      console.error("[server-info] DB stats fatal error:", err);
     }
 
     return NextResponse.json({
