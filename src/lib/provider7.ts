@@ -287,17 +287,34 @@ export async function checkSms(orderId: number) {
       return { otp: null, status: "waiting" };
     }
 
-    // 200 + otp
+    // 200 + otp ada → success
     if (code === 200 && data.data?.otp) {
       return { otp: String(data.data.otp), status: "success" };
     }
 
-    // 404 = order tidak ditemukan / sudah selesai
-    if (code === 404) {
-      return { otp: null, status: "cancelled" };
+    // 200 tanpa otp → masih nunggu (response masih bisa pending walau code 200)
+    if (code === 200) {
+      // Cek field data.status — kalau provider explicit bilang cancelled/timeout, hormati
+      const status = data.data?.status?.toLowerCase() || "";
+      if (status === "cancelled" || status === "canceled") {
+        return { otp: null, status: "cancelled" };
+      }
+      if (status === "timeout" || status === "expired") {
+        return { otp: null, status: "timeout" };
+      }
+      return { otp: null, status: "waiting" };
     }
 
-    // Default — masih nunggu
+    // 404/403/500 dll → SAFE FALLBACK ke "waiting", BUKAN cancelled.
+    //
+    // Kenapa? Mars V2 kadang return 404 untuk order yang baru saja dibuat
+    // (race condition: upstream belum propagate ke check-status DB).
+    // Kalau kita treat 404 sebagai cancelled, cron langsung auto-refund
+    // order yang sebenarnya valid → user lihat nomor lalu beberapa detik
+    // langsung cancelled.
+    //
+    // Order yang memang sudah expired akan ditangkap oleh cron timeout 20 menit
+    // (refund timeout, bukan cancelled).
     return { otp: null, status: "waiting" };
   } finally {
     clearTimeout(timeout);
