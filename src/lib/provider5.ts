@@ -276,8 +276,10 @@ export async function checkSms(orderId: number) {
     };
   } catch (err) {
     if (err instanceof Provider5Error && err.status === 404) {
-      // Order hilang dari sisi provider — anggap cancelled
-      return { otp: null, status: "cancelled" };
+      // SAFE FALLBACK: 404 untuk order baru bisa karena race condition
+      // di sisi provider (belum propagate). Treat as "waiting", bukan cancelled.
+      // Order yang memang expired akan ditangkap cron timeout 20 menit.
+      return { otp: null, status: "waiting" };
     }
     throw err;
   }

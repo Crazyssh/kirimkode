@@ -240,17 +240,24 @@ export async function createOrder(negara: number, layanan: string, operator: str
 }
 
 /**
- * GET /v1/sms?id=<order_id>
- * Response 200 OK: { ..., data: { otp: "123456" } }
- * Response 202: { code: 202, ..., data: { status: "pending", otp: null } }
+ * Cek status order via GET /v1/orders/:id (detail order).
  *
- * Note: code 202 = pending (gak throw, return waiting).
+ * Kenapa pakai /orders/:id bukan /sms?
+ * - /sms return 202 untuk pending, 200 untuk OTP. Kasus cancelled/timeout
+ *   tidak jelas dari docs — kemungkinan return 404 yang ambigu.
+ * - /orders/:id selalu return status field eksplisit
+ *   (pending|received|cancelled|timeout) → no ambiguity.
+ *
+ * Status mapping:
+ *   received + otp → { otp, status: "success" }
+ *   pending        → { otp: null, status: "waiting" }
+ *   cancelled      → { otp: null, status: "cancelled" }
+ *   timeout        → { otp: null, status: "timeout" }
+ *   404/500/error  → { otp: null, status: "waiting" } (safe fallback)
  */
 export async function checkSms(orderId: number) {
-  // /v1/sms return 202 untuk pending → fetch helper kita throw karena !res.ok.
-  // Handle manual: bypass helper untuk endpoint ini.
-  const url = new URL(`${BASE_URL}/sms`);
-  url.searchParams.set("id", String(orderId));
+  // Bypass cache helper: state berubah cepat, jangan cache.
+  const url = new URL(`${BASE_URL}/orders/${orderId}`);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
@@ -267,54 +274,47 @@ export async function checkSms(orderId: number) {
     });
 
     const text = await res.text();
-    let data: { code?: number; success?: boolean; message?: string; data?: { otp?: string | null; status?: string } } | null = null;
+    let parsed: { code?: number; success?: boolean; message?: string; data?: { otp?: string | null; status?: string } } | null = null;
     if (text) {
       try {
-        data = JSON.parse(text);
+        parsed = JSON.parse(text);
       } catch {
-        data = null;
+        parsed = null;
       }
     }
 
-    if (!data) {
+    // SAFE FALLBACK: kalau response gak parsable atau HTTP non-2xx, return "waiting".
+    // Mars V2 kadang return 404 untuk order yang baru saja dibuat (race condition
+    // dengan upstream propagation). Kalau treat sebagai cancelled, cron auto-refund
+    // order valid → user lihat nomor lalu langsung dibatalkan.
+    // Order yang memang sudah expired akan ditangkap oleh cron timeout 20 menit.
+    if (!parsed || !res.ok) {
       return { otp: null, status: "waiting" };
     }
 
-    const code = data.code ?? res.status;
+    const data = parsed.data || {};
+    const status = (data.status || "").toLowerCase();
+    const otp = data.otp;
 
-    // 202 = pending
-    if (code === 202) {
+    // received + otp → success
+    if (status === "received" && otp) {
+      return { otp: String(otp), status: "success" };
+    }
+
+    // received tapi otp belum di-set (race condition di provider) → masih nunggu
+    if (status === "received") {
       return { otp: null, status: "waiting" };
     }
 
-    // 200 + otp ada → success
-    if (code === 200 && data.data?.otp) {
-      return { otp: String(data.data.otp), status: "success" };
+    if (status === "cancelled" || status === "canceled") {
+      return { otp: null, status: "cancelled" };
     }
 
-    // 200 tanpa otp → masih nunggu (response masih bisa pending walau code 200)
-    if (code === 200) {
-      // Cek field data.status — kalau provider explicit bilang cancelled/timeout, hormati
-      const status = data.data?.status?.toLowerCase() || "";
-      if (status === "cancelled" || status === "canceled") {
-        return { otp: null, status: "cancelled" };
-      }
-      if (status === "timeout" || status === "expired") {
-        return { otp: null, status: "timeout" };
-      }
-      return { otp: null, status: "waiting" };
+    if (status === "timeout" || status === "expired") {
+      return { otp: null, status: "timeout" };
     }
 
-    // 404/403/500 dll → SAFE FALLBACK ke "waiting", BUKAN cancelled.
-    //
-    // Kenapa? Mars V2 kadang return 404 untuk order yang baru saja dibuat
-    // (race condition: upstream belum propagate ke check-status DB).
-    // Kalau kita treat 404 sebagai cancelled, cron langsung auto-refund
-    // order yang sebenarnya valid → user lihat nomor lalu beberapa detik
-    // langsung cancelled.
-    //
-    // Order yang memang sudah expired akan ditangkap oleh cron timeout 20 menit
-    // (refund timeout, bukan cancelled).
+    // pending atau status tidak dikenal → masih nunggu
     return { otp: null, status: "waiting" };
   } finally {
     clearTimeout(timeout);
