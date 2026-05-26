@@ -240,23 +240,91 @@ export async function createOrder(negara: number, layanan: string, operator: str
 }
 
 /**
- * Cek status order via GET /v1/orders/:id (detail order).
+ * Cek status order — strategi 2 step:
  *
- * Kenapa pakai /orders/:id bukan /sms?
- * - /sms return 202 untuk pending, 200 untuk OTP. Kasus cancelled/timeout
- *   tidak jelas dari docs — kemungkinan return 404 yang ambigu.
- * - /orders/:id selalu return status field eksplisit
- *   (pending|received|cancelled|timeout) → no ambiguity.
+ * Step 1: GET /v1/sms (cepat, hemat — return 200 kalau OTP sudah masuk)
+ * Step 2: Kalau /sms ambigu (404/error), fallback ke /v1/orders/:id untuk
+ *         dapat status eksplisit (pending|received|cancelled|timeout).
  *
- * Status mapping:
- *   received + otp → { otp, status: "success" }
- *   pending        → { otp: null, status: "waiting" }
- *   cancelled      → { otp: null, status: "cancelled" }
- *   timeout        → { otp: null, status: "timeout" }
- *   404/500/error  → { otp: null, status: "waiting" } (safe fallback)
+ * /v1/sms response per docs:
+ *   - 200 + data.otp → OTP sudah masuk
+ *   - 202 + data.status="pending" → masih nunggu
+ *   - 400/401/403/404 → error
+ *
+ * /v1/orders/:id selalu return status field eksplisit di data.
+ *
+ * Kenapa hybrid? /sms cepat untuk happy path (OTP masuk).
+ * /orders/:id reliable untuk cek status terminal (cancelled/timeout).
+ *
+ * SAFE FALLBACK: 404/parse-fail di kedua endpoint → "waiting". Mars V2
+ * kadang race condition untuk order baru. Kalau treat sebagai cancelled,
+ * cron auto-refund order valid → user lihat nomor lalu langsung dibatalkan.
+ * Order yang memang expired akan ditangkap cron timeout 20 menit.
  */
 export async function checkSms(orderId: number) {
-  // Bypass cache helper: state berubah cepat, jangan cache.
+  // === Step 1: cek /v1/sms (fast path) ===
+  const smsRes = await callSmsEndpoint(orderId);
+  if (smsRes.otp) return smsRes;
+  // 202 (pending) → no need to fallback, masih nunggu
+  if (smsRes.code === 202) return { otp: null, status: "waiting" };
+  // 200 tanpa otp → masih nunggu
+  if (smsRes.code === 200) return { otp: null, status: "waiting" };
+
+  // === Step 2: ambigu (404/500) → cek /v1/orders/:id untuk status eksplisit ===
+  return await callOrderDetailEndpoint(orderId);
+}
+
+interface SmsCallResult {
+  otp: string | null;
+  status: string;
+  code: number; // HTTP code dari /v1/sms call
+}
+
+async function callSmsEndpoint(orderId: number): Promise<SmsCallResult> {
+  const url = new URL(`${BASE_URL}/sms`);
+  url.searchParams.set("id", String(orderId));
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    const text = await res.text();
+    let parsed: { code?: number; data?: { otp?: string | null; status?: string } } | null = null;
+    if (text) {
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = null;
+      }
+    }
+
+    const code = parsed?.code ?? res.status;
+    const otp = parsed?.data?.otp;
+
+    // 200 + otp → success (fast path)
+    if (code === 200 && otp) {
+      return { otp: String(otp), status: "success", code };
+    }
+
+    return { otp: null, status: "waiting", code };
+  } catch {
+    return { otp: null, status: "waiting", code: 0 };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function callOrderDetailEndpoint(orderId: number) {
   const url = new URL(`${BASE_URL}/orders/${orderId}`);
 
   const controller = new AbortController();
@@ -274,7 +342,7 @@ export async function checkSms(orderId: number) {
     });
 
     const text = await res.text();
-    let parsed: { code?: number; success?: boolean; message?: string; data?: { otp?: string | null; status?: string } } | null = null;
+    let parsed: { data?: { otp?: string | null; status?: string } } | null = null;
     if (text) {
       try {
         parsed = JSON.parse(text);
@@ -283,11 +351,7 @@ export async function checkSms(orderId: number) {
       }
     }
 
-    // SAFE FALLBACK: kalau response gak parsable atau HTTP non-2xx, return "waiting".
-    // Mars V2 kadang return 404 untuk order yang baru saja dibuat (race condition
-    // dengan upstream propagation). Kalau treat sebagai cancelled, cron auto-refund
-    // order valid → user lihat nomor lalu langsung dibatalkan.
-    // Order yang memang sudah expired akan ditangkap oleh cron timeout 20 menit.
+    // Safe fallback kalau response gak parsable atau non-2xx
     if (!parsed || !res.ok) {
       return { otp: null, status: "waiting" };
     }
@@ -296,25 +360,13 @@ export async function checkSms(orderId: number) {
     const status = (data.status || "").toLowerCase();
     const otp = data.otp;
 
-    // received + otp → success
-    if (status === "received" && otp) {
-      return { otp: String(otp), status: "success" };
-    }
+    if (status === "received" && otp) return { otp: String(otp), status: "success" };
+    if (status === "received") return { otp: null, status: "waiting" };
+    if (status === "cancelled" || status === "canceled") return { otp: null, status: "cancelled" };
+    if (status === "timeout" || status === "expired") return { otp: null, status: "timeout" };
 
-    // received tapi otp belum di-set (race condition di provider) → masih nunggu
-    if (status === "received") {
-      return { otp: null, status: "waiting" };
-    }
-
-    if (status === "cancelled" || status === "canceled") {
-      return { otp: null, status: "cancelled" };
-    }
-
-    if (status === "timeout" || status === "expired") {
-      return { otp: null, status: "timeout" };
-    }
-
-    // pending atau status tidak dikenal → masih nunggu
+    return { otp: null, status: "waiting" };
+  } catch {
     return { otp: null, status: "waiting" };
   } finally {
     clearTimeout(timeout);
