@@ -13,6 +13,7 @@ import {
   Wallet,
   Target,
   DollarSign,
+  Server,
 } from "lucide-react";
 import {
   AreaChart,
@@ -31,6 +32,9 @@ interface TopUser { email: string; name: string; orders: number; spent: number }
 
 interface AnalyticsData {
   period: number;
+  periodLabel: string;
+  startDate: string;
+  endDate: string;
   summary: {
     totalRevenue: number;
     totalDeposits: number;
@@ -45,12 +49,32 @@ interface AnalyticsData {
   ordersPerDay: DayCount[];
   topServices: TopService[];
   topUsers: TopUser[];
+  perServer: PerServer[];
 }
 
+interface PerServer {
+  server: string;
+  successOrders: number;
+  revenue: number;
+}
+
+const SERVER_LABELS: Record<string, { name: string; icon: string }> = {
+  api1: { name: "Mars", icon: "🔴" },
+  api2: { name: "Jupiter", icon: "🟠" },
+  api3: { name: "Saturn", icon: "🟣" },
+  api4: { name: "Neptune", icon: "🔵" },
+  api5: { name: "Earth (Beta)", icon: "🌍" },
+  api6: { name: "Venus (Beta)", icon: "🪐" },
+  api7: { name: "Mars V2", icon: "🔴" },
+  unified: { name: "Bimasakti", icon: "⚡" },
+};
+
 const PERIODS = [
-  { label: "7 Hari", value: 7 },
-  { label: "30 Hari", value: 30 },
-  { label: "90 Hari", value: 90 },
+  { label: "1 Hari", value: "1d" },
+  { label: "3 Hari", value: "3d" },
+  { label: "7 Hari", value: "7d" },
+  { label: "Bulan Ini", value: "this_month" },
+  { label: "Bulan Lalu", value: "last_month" },
 ];
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -176,12 +200,12 @@ function AnalyticsAreaChart({
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState(30);
+  const [period, setPeriod] = useState<string>("7d");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/analytics?days=${period}`);
+      const res = await fetch(`/api/admin/analytics?period=${period}`);
       if (res.ok) {
         const json = await res.json();
         setData(json.data);
@@ -333,6 +357,67 @@ export default function AnalyticsPage() {
             gradientId="gradUsers"
             formatter={fmtCount}
           />
+        </CardContent>
+      </Card>
+
+      {/* Per-Server Performance */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Server className="w-5 h-5 text-primary" />
+            Pendapatan & Order per Server
+            <span className="text-xs text-muted font-normal ml-1">(success only)</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.perServer.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-xs text-muted border-b border-border">
+                    <th className="pb-2 font-medium">Server</th>
+                    <th className="pb-2 font-medium">Order Sukses</th>
+                    <th className="pb-2 font-medium">Pendapatan</th>
+                    <th className="pb-2 font-medium">Avg / Order</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm">
+                  {data.perServer.map((s) => {
+                    const meta = SERVER_LABELS[s.server] || { name: s.server, icon: "⚪" };
+                    const avg = s.successOrders > 0 ? Math.round(s.revenue / s.successOrders) : 0;
+                    return (
+                      <tr key={s.server} className="border-b border-border/50">
+                        <td className="py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{meta.icon}</span>
+                            <span className="font-medium">{meta.name}</span>
+                            <code className="text-[10px] text-muted/70 font-[family-name:var(--font-jetbrains-mono)]">
+                              {s.server}
+                            </code>
+                          </div>
+                        </td>
+                        <td className="py-3">
+                          <Badge variant="primary">
+                            <span className="font-[family-name:var(--font-jetbrains-mono)]">
+                              {s.successOrders}
+                            </span>
+                          </Badge>
+                        </td>
+                        <td className="py-3 font-bold font-[family-name:var(--font-jetbrains-mono)] text-success">
+                          {formatRupiah(s.revenue)}
+                        </td>
+                        <td className="py-3 font-[family-name:var(--font-jetbrains-mono)] text-xs text-muted">
+                          {formatRupiah(avg)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-center py-8 text-muted text-sm">Tidak ada order sukses di periode ini</p>
+          )}
         </CardContent>
       </Card>
 
