@@ -17,7 +17,7 @@ const ALL_SERVERS = [
   { id: "unified", name: "Bimasakti", icon: "⚡", description: "Server utama (gabungan api1+api2+api3)" },
   { id: "api1", name: "Mars", icon: "🔴", description: "JasaOTP V1 (cadangan)" },
   { id: "api4", name: "Neptune", icon: "🔵", description: "HeroSMS V2 (manual stock)" },
-  { id: "api5", name: "Earth (Beta)", icon: "🌍", description: "Mars KirimKode / Ditznesia (BETA)" },
+  { id: "api5", name: "Earth (Beta)", icon: "🌍", description: "Clowatch API (BETA)" },
   { id: "api6", name: "Venus (Beta)", icon: "🪐", description: "5sim.net global (BETA)" },
   { id: "api7", name: "Mars V2", icon: "🔴", description: "Happy Pixel API (Mars terbaru)" },
 ];

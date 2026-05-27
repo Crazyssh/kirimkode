@@ -24,7 +24,7 @@ const envSchema = z.object({
     // Provider 3
     PROVIDER3_API_KEY: z.string().optional(),
 
-    // Provider 5 (Earth - mars.kirimkode.com)
+    // Provider 5 (Earth - api.clowatch.com)
     PROVIDER5_API_KEY: z.string().optional(),
     PROVIDER5_API_URL: z.string().optional(),
 

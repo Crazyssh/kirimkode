@@ -1,8 +1,8 @@
 /**
  * Provider 5 Adapter — Earth (Beta) 🌍
- * KirimKode-format provider (mars.kirimkode.com / Ditznesia API).
+ * KirimKode-format provider via Clowatch API.
  *
- * Endpoint: https://mars.kirimkode.com/api/v1
+ * Endpoint: https://api.clowatch.com/api/v1
  * Auth: Authorization: Bearer <API_KEY>
  *
  * Format response sudah JSON bersih (data array). Harga sudah final IDR.
@@ -12,7 +12,7 @@
  */
 
 const BASE_URL =
-  process.env.PROVIDER5_API_URL || "https://mars.kirimkode.com/api/v1";
+  process.env.PROVIDER5_API_URL || "https://api.clowatch.com/api/v1";
 const API_KEY = process.env.PROVIDER5_API_KEY || "";
 
 // --- Cache ---
