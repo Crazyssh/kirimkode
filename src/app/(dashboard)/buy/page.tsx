@@ -124,6 +124,12 @@ export default function BuyPage() {
   const [bulkOrdering, setBulkOrdering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [serverHealth, setServerHealth] = useState<Record<string, string>>({});
+  // Tick tiap 1 detik untuk smooth countdown timer (cancel button, expiry)
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setNowTick((n) => n + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
   const countryDropdownRef = useRef<HTMLDivElement>(null);
   const operatorDropdownRef = useRef<HTMLDivElement>(null);
   const serviceDropdownRef = useRef<HTMLDivElement>(null);
@@ -1282,8 +1288,12 @@ export default function BuyPage() {
                             <td className="py-3">
                               {(o.status === "waiting" || o.status === "success") && (() => {
                                 const orderAge = Date.now() - new Date(o.date).getTime();
-                                // Mars V2 (api7) cancel rule lebih singkat: 2 menit 30 detik. Default: 3 menit.
-                                const cancelMinMs = o.server === "api7" ? 2.5 * 60 * 1000 : 3 * 60 * 1000;
+                                // Cancel rule per server:
+                                //   api5 (Earth) & api7 (Mars V2): 2 menit 30 detik
+                                //   default: 3 menit
+                                const cancelMinMs = (o.server === "api5" || o.server === "api7")
+                                  ? 2.5 * 60 * 1000
+                                  : 3 * 60 * 1000;
                                 const twentyMin = 20 * 60 * 1000;
 
                                 const isResending = !!o.resendAt;

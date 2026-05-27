@@ -20,8 +20,12 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
   }
   const order = lookup.order;
 
-  // Mars V2 (api7) cancel rule lebih singkat: 2 menit 30 detik. Default: 3 menit.
-  const cancelMinMs = order.server === "api7" ? 2.5 * 60 * 1000 : 3 * 60 * 1000;
+  // Cancel rule per server:
+  //   api5 (Earth) & api7 (Mars V2): 2 menit 30 detik
+  //   default: 3 menit
+  const cancelMinMs = (order.server === "api5" || order.server === "api7")
+    ? 2.5 * 60 * 1000
+    : 3 * 60 * 1000;
   const cancelMinSec = cancelMinMs / 1000;
   const diffMs = Date.now() - new Date(order.createdAt).getTime();
   if (diffMs < cancelMinMs) {
