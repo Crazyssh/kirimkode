@@ -13,7 +13,13 @@ import {
   Loader2,
   ShoppingCart,
   Radio,
+  RotateCcw,
+  AlertCircle,
+  X,
+  CheckCircle,
 } from "lucide-react";
+
+import { toast } from "sonner";
 
 interface OrderItem {
   id: string;
@@ -40,6 +46,7 @@ const statusFilters = [
   { label: "Success", value: "success" },
   { label: "Cancelled", value: "cancelled" },
   { label: "Timeout", value: "timeout" },
+  { label: "Refunded", value: "refunded" },
 ];
 
 export default function AdminOrdersPage() {
@@ -55,6 +62,10 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [liveMode, setLiveMode] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  // Refund modal state
+  const [refundOrder, setRefundOrder] = useState<OrderItem | null>(null);
+  const [refundReason, setRefundReason] = useState("");
+  const [refunding, setRefunding] = useState(false);
   // Refs untuk avoid stale closure di setInterval
   const liveModeRef = useRef(liveMode);
   const paginationRef = useRef(pagination);
@@ -105,6 +116,50 @@ export default function AdminOrdersPage() {
     }, 5000);
     return () => clearInterval(interval);
   }, [liveMode, fetchOrders]);
+
+  // Handler refund
+  const handleRefund = async () => {
+    if (!refundOrder) return;
+    setRefunding(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${refundOrder.id}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: refundReason }),
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        toast.error(json.error || "Refund gagal");
+        return;
+      }
+
+      toast.success(
+        `Refund Rp ${refundOrder.price.toLocaleString("id-ID")} ke ${json.data.user.email}`,
+        {
+          description: `Saldo baru: Rp ${json.data.user.newBalance.toLocaleString("id-ID")}`,
+        }
+      );
+
+      // Update order in current list (optimistic)
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === refundOrder.id ? { ...o, status: "refunded" } : o
+        )
+      );
+
+      // Close modal
+      setRefundOrder(null);
+      setRefundReason("");
+
+      // Silent refresh untuk dapat data terbaru
+      fetchOrders(pagination.page, true);
+    } catch {
+      toast.error("Gagal menghubungi server");
+    } finally {
+      setRefunding(false);
+    }
+  };
 
   const formatDate = (isoString: string) => {
     return new Date(isoString).toLocaleDateString("id-ID", {
@@ -214,6 +269,7 @@ export default function AdminOrdersPage() {
                       <th className="pb-3 font-medium">Harga</th>
                       <th className="pb-3 font-medium">User</th>
                       <th className="pb-3 font-medium">Waktu</th>
+                      <th className="pb-3 font-medium text-right">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="text-sm">
@@ -245,7 +301,9 @@ export default function AdminOrdersPage() {
                                 ? "success"
                                 : order.status === "waiting"
                                   ? "warning"
-                                  : "error"
+                                  : order.status === "refunded"
+                                    ? "primary"
+                                    : "error"
                             }
                           >
                             {order.status === "success"
@@ -256,7 +314,9 @@ export default function AdminOrdersPage() {
                                   ? "Dibatalkan"
                                   : order.status === "timeout"
                                     ? "Time Out"
-                                    : "Gagal"}
+                                    : order.status === "refunded"
+                                      ? "Refunded"
+                                      : "Gagal"}
                           </Badge>
                         </td>
                         <td className="py-3 font-[family-name:var(--font-jetbrains-mono)] text-xs">
@@ -267,6 +327,27 @@ export default function AdminOrdersPage() {
                         </td>
                         <td className="py-3 text-xs text-muted whitespace-nowrap">
                           {formatDate(order.time)}
+                        </td>
+                        <td className="py-3 text-right">
+                          {order.status !== "refunded" && order.price > 0 && (
+                            <button
+                              onClick={() => {
+                                setRefundOrder(order);
+                                setRefundReason("");
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium border border-warning/40 text-warning hover:bg-warning/10 transition-colors"
+                              title="Refund ke saldo user"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              Refund
+                            </button>
+                          )}
+                          {order.status === "refunded" && (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-muted">
+                              <CheckCircle className="w-3 h-3 text-primary" />
+                              Refunded
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -313,6 +394,131 @@ export default function AdminOrdersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal Refund */}
+      {refundOrder && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in"
+          onClick={() => {
+            if (refunding) return;
+            setRefundOrder(null);
+            setRefundReason("");
+          }}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl border border-border bg-background shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                if (refunding) return;
+                setRefundOrder(null);
+                setRefundReason("");
+              }}
+              disabled={refunding}
+              className="absolute top-3 right-3 p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-surface-hover transition-colors disabled:opacity-50"
+              aria-label="Tutup"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="p-6">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-warning/15 text-warning flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold font-[family-name:var(--font-space-grotesk)]">
+                    Refund Order
+                  </h2>
+                  <p className="text-xs text-muted mt-0.5">
+                    Saldo user akan dikredit kembali sesuai harga order.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-surface/50 p-3 space-y-1.5 text-xs mb-4">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">Layanan</span>
+                  <span className="font-medium text-right truncate max-w-[60%]">
+                    {refundOrder.service}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">Negara</span>
+                  <span className="font-medium">{refundOrder.country}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">Nomor</span>
+                  <span className="font-[family-name:var(--font-jetbrains-mono)]">
+                    {refundOrder.number}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted">User</span>
+                  <span className="text-right truncate max-w-[60%]">
+                    {refundOrder.userEmail}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-2 pt-1.5 mt-1.5 border-t border-border">
+                  <span className="text-muted">Jumlah Refund</span>
+                  <span className="font-bold text-success font-[family-name:var(--font-jetbrains-mono)]">
+                    {formatRupiah(refundOrder.price)}
+                  </span>
+                </div>
+              </div>
+
+              <label className="block text-xs font-medium text-muted mb-1.5">
+                Alasan (opsional)
+              </label>
+              <textarea
+                value={refundReason}
+                onChange={(e) => setRefundReason(e.target.value)}
+                placeholder="Misal: OTP salah, request user, goodwill..."
+                maxLength={500}
+                rows={3}
+                disabled={refunding}
+                className="w-full rounded-xl border border-border bg-surface/50 px-3 py-2 text-sm placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary resize-none disabled:opacity-50"
+              />
+              <p className="text-[10px] text-muted/70 mt-1 text-right">
+                {refundReason.length}/500
+              </p>
+
+              <div className="flex items-center gap-2 mt-4">
+                <Button
+                  variant="ghost"
+                  className="flex-1"
+                  onClick={() => {
+                    setRefundOrder(null);
+                    setRefundReason("");
+                  }}
+                  disabled={refunding}
+                >
+                  Batal
+                </Button>
+                <Button
+                  className="flex-1 bg-warning text-background hover:bg-warning/90"
+                  onClick={handleRefund}
+                  disabled={refunding}
+                >
+                  {refunding ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Memproses...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      Konfirmasi Refund
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
