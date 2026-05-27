@@ -26,6 +26,7 @@ const ALL_UNIFIED_PROVIDERS = [
   { id: "api1", name: "Mars (api1)", description: "JasaOTP V1" },
   { id: "api2", name: "Jupiter (api2)", description: "JasaOTP V2" },
   { id: "api3", name: "Saturn (api3)", description: "HeroSMS V1" },
+  { id: "api5", name: "Earth (api5)", description: "Clowatch API (BETA)" },
 ];
 
 export default function ServerVisibilityPage() {

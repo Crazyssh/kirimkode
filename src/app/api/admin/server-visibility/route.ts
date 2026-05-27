@@ -6,9 +6,10 @@ import {
   getUnifiedProviders,
   invalidateSettingCache,
 } from "@/lib/site-settings";
+import { clearUnifiedCache } from "@/lib/unified-provider";
 
 const ALLOWED_SERVERS = ["unified", "api1", "api4", "api5", "api6", "api7"];
-const ALLOWED_UNIFIED_PROVIDERS = ["api1", "api2", "api3"];
+const ALLOWED_UNIFIED_PROVIDERS = ["api1", "api2", "api3", "api5"];
 
 /**
  * GET — Ambil current visibility settings.
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
         create: { key: "unified_providers", value: JSON.stringify(unifiedProviders) },
       });
       invalidateSettingCache("unified_providers");
+      clearUnifiedCache();
     }
 
     return NextResponse.json({ success: true });
