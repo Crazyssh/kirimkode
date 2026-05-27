@@ -59,6 +59,7 @@ const SERVER_LABELS: Record<string, { name: string; icon: string }> = {
   api5: { name: "Earth", icon: "🌍" },
   api6: { name: "Venus", icon: "🪐" },
   api7: { name: "Mars V2", icon: "🔴" },
+  api8: { name: "Mercury", icon: "☿️" },
   bot: { name: "Bot", icon: "🤖" },
 };
 

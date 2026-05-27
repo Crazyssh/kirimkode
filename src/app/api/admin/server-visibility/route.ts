@@ -8,7 +8,7 @@ import {
 } from "@/lib/site-settings";
 import { clearUnifiedCache } from "@/lib/unified-provider";
 
-const ALLOWED_SERVERS = ["unified", "api1", "api4", "api5", "api6", "api7"];
+const ALLOWED_SERVERS = ["unified", "api1", "api4", "api5", "api6", "api7", "api8"];
 const ALLOWED_UNIFIED_PROVIDERS = ["api1", "api2", "api3", "api5"];
 
 /**

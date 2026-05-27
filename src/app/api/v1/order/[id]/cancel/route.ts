@@ -21,9 +21,9 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
   const order = lookup.order;
 
   // Cancel rule per server:
-  //   api5 (Earth) & api7 (Mars V2): 2 menit 30 detik
+  //   api5 (Earth), api7 (Mars V2), api8 (Mercury): 2 menit 30 detik
   //   default: 3 menit
-  const cancelMinMs = (order.server === "api5" || order.server === "api7")
+  const cancelMinMs = (order.server === "api5" || order.server === "api7" || order.server === "api8")
     ? 2.5 * 60 * 1000
     : 3 * 60 * 1000;
   const cancelMinSec = cancelMinMs / 1000;
@@ -42,7 +42,7 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
   let providerWarning: string | undefined;
   try {
     await cancelOrder(
-      order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7",
+      order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8",
       order.orderId
     );
   } catch (e) {

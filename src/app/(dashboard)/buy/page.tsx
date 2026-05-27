@@ -1289,9 +1289,9 @@ export default function BuyPage() {
                               {(o.status === "waiting" || o.status === "success") && (() => {
                                 const orderAge = Date.now() - new Date(o.date).getTime();
                                 // Cancel rule per server:
-                                //   api5 (Earth) & api7 (Mars V2): 2 menit 30 detik
+                                //   api5 (Earth), api7 (Mars V2), api8 (Mercury): 2 menit 30 detik
                                 //   default: 3 menit
-                                const cancelMinMs = (o.server === "api5" || o.server === "api7")
+                                const cancelMinMs = (o.server === "api5" || o.server === "api7" || o.server === "api8")
                                   ? 2.5 * 60 * 1000
                                   : 3 * 60 * 1000;
                                 const twentyMin = 20 * 60 * 1000;

@@ -11,7 +11,7 @@ import { getNegara, getLayanan, getOperator } from "@/lib/otp";
 import type { ServerId } from "@/lib/otp";
 import { normalizeCountryName } from "@/data/country-mapping";
 
-type SyncableServerId = "api1" | "api2" | "api3" | "api5" | "api6" | "api7";
+type SyncableServerId = "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8";
 
 interface SyncResult {
   server: string;
@@ -239,7 +239,7 @@ export async function syncProvider(serverId: SyncableServerId): Promise<SyncResu
 export async function syncAllProviders(): Promise<SyncResult[]> {
   const results: SyncResult[] = [];
 
-  for (const server of ["api1", "api2", "api3", "api5", "api6", "api7"] as SyncableServerId[]) {
+  for (const server of ["api1", "api2", "api3", "api5", "api6", "api7", "api8"] as SyncableServerId[]) {
     console.log(`[Sync] Starting sync for ${server}...`);
     const result = await syncProvider(server);
     console.log(

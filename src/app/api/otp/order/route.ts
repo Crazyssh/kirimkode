@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
-import { applyPricing } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { otpOrderSchema, validateBody } from "@/lib/validations";
@@ -60,9 +60,10 @@ async function getApi4Entry(negara: number, layanan: string): Promise<{
  * Note: api7 (Mars V2) share PriceRule dengan api1 (Mars) karena format country ID
  * sama (JasaOTP-style) dan rule kita match by serviceCode+countryId tanpa server.
  */
-async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6" | "api7", negara: number, layanan: string): Promise<number> {
+async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8", negara: number, layanan: string): Promise<number> {
   // api3 & api6: harga sudah final (USD→IDR), skip applyPricing
-  // api1/api2/api5/api7: harga raw dari provider, apply admin pricing rules
+  // api1/api2/api5/api7/api8: harga raw dari provider, apply admin pricing rules
+  // api8 (Mercury) tambah flat markup +Rp 115 di atas Earth's pricing
   const skipPricing = server === "api3" || server === "api6";
 
   // Coba ambil dari database dulu (synced by cron)
@@ -91,7 +92,7 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6"
     if (service) {
       if (skipPricing) return service.price;
       const result = await applyPricing(service.price, layanan, negara);
-      return result.price;
+      return applyServerExtraMarkup(result.price, server);
     }
   }
 
@@ -110,7 +111,7 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6"
   if (skipPricing) return serviceInfo.harga;
 
   const result = await applyPricing(serviceInfo.harga, layanan, negara);
-  return result.price;
+  return applyServerExtraMarkup(result.price, server);
 }
 
 
@@ -151,7 +152,7 @@ export async function POST(req: NextRequest) {
       api4FixedPrice = entry.fixedPrice;
     } else {
       // Harga WAJIB dari server, bukan dari client
-      orderPrice = await getServerPrice(server as "api1" | "api2" | "api3" | "api5" | "api6" | "api7", Number(negara), layanan);
+      orderPrice = await getServerPrice(server as "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8", Number(negara), layanan);
     }
 
     // Step 1: Pre-check user balance + status (quick DB read, no transaction needed)
@@ -166,7 +167,7 @@ export async function POST(req: NextRequest) {
 
     // Step 2: Call provider API (bisa lambat, HARUS di luar transaction)
     // Bulk order: tanpa timeout, nunggu sampai server respon
-    const data = await createOrder(server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7", Number(negara), layanan, operator, {
+    const data = await createOrder(server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8", Number(negara), layanan, operator, {
       noTimeout: isBulk,
       maxPriceUsd: api4MaxPriceUsd,
       fixedPrice: api4FixedPrice,

@@ -103,3 +103,17 @@ export async function applyPricing(
 export function invalidatePriceCache() {
   cachedRules = null;
 }
+
+/**
+ * Flat extra markup per-server (IDR) — diterapkan SETELAH applyPricing.
+ * Berguna kalau satu provider (misal Planet) mau di-mark up flat di atas
+ * harga server lain (misal Earth) yang share PriceRule.
+ */
+const SERVER_EXTRA_MARKUP_IDR: Record<string, number> = {
+  api8: 115, // Mercury — +Rp 115 di atas harga Earth (api5)
+};
+
+export function applyServerExtraMarkup(price: number, serverId: string): number {
+  const extra = SERVER_EXTRA_MARKUP_IDR[serverId] || 0;
+  return price + extra;
+}

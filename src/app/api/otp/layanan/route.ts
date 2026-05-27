@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLayanan } from "@/lib/otp";
-import { applyPricing } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup } from "@/lib/pricing";
 import { db } from "@/lib/db";
 import { getUnifiedLayanan } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "unified";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -99,10 +99,11 @@ export async function GET(req: NextRequest) {
         if (skipPricing) {
           customPrice = svc.price;
         } else {
-          // api1/api2/api5/api7: apply pricing rules (admin markup)
+          // api1/api2/api5/api7/api8: apply pricing rules (admin markup)
           // api7 (Mars V2) share PriceRule dengan api1 (Mars) karena rule match by serviceCode+countryId
+          // api8 (Mercury) share PriceRule dengan api5 (Earth) + flat extra markup
           const result = await applyPricing(svc.price, svc.code, negaraId);
-          customPrice = result.price;
+          customPrice = applyServerExtraMarkup(result.price, server);
         }
 
         serviceData[svc.code] = {
@@ -133,12 +134,12 @@ export async function GET(req: NextRequest) {
     }
 
     if (serviceData && server !== "api3" && server !== "api6") {
-      // api1/api2/api5/api7: apply pricing
+      // api1/api2/api5/api7/api8: apply pricing + flat extra markup (api8)
       for (const [code, info] of Object.entries(serviceData)) {
         if (info && typeof info === "object" && "harga" in info) {
           const rawPrice = info.harga;
           const result = await applyPricing(rawPrice, code, negaraId);
-          info.harga = result.price;
+          info.harga = applyServerExtraMarkup(result.price, server);
         }
       }
     }

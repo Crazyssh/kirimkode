@@ -14,12 +14,13 @@ import {
 } from "lucide-react";
 
 const ALL_SERVERS = [
-  { id: "unified", name: "Bimasakti", icon: "⚡", description: "Server utama (gabungan api1+api2+api3)" },
+  { id: "unified", name: "Bimasakti", icon: "⚡", description: "Server utama (gabungan api1+api2+api3+api5)" },
   { id: "api1", name: "Mars", icon: "🔴", description: "JasaOTP V1 (cadangan)" },
   { id: "api4", name: "Neptune", icon: "🔵", description: "HeroSMS V2 (manual stock)" },
-  { id: "api5", name: "Earth (Beta)", icon: "🌍", description: "Clowatch API (BETA)" },
+  { id: "api5", name: "Earth (Beta)", icon: "🌍", description: "Clowatch API v1 (BETA)" },
   { id: "api6", name: "Venus (Beta)", icon: "🪐", description: "5sim.net global (BETA)" },
   { id: "api7", name: "Mars V2", icon: "🔴", description: "Happy Pixel API (Mars terbaru)" },
+  { id: "api8", name: "Mercury", icon: "☿️", description: "Clowatch API v2 (markup +Rp 115 dari Earth)" },
 ];
 
 const ALL_UNIFIED_PROVIDERS = [
