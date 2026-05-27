@@ -9,6 +9,7 @@ const ALLOWED_KEYS = [
   "paymenku_enabled",
   "bayargg_enabled",
   "admin_telegram_username",
+  "force_refresh_at",
 ] as const;
 
 // GET: Ambil semua settings
@@ -75,6 +76,22 @@ export async function PATCH(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: { key, value } });
+  }
+
+  // Validasi khusus force_refresh_at — harus angka epoch ms
+  if (key === "force_refresh_at") {
+    const ts = Number(value);
+    if (!Number.isFinite(ts) || ts <= 0) {
+      return NextResponse.json({ error: "Timestamp tidak valid" }, { status: 400 });
+    }
+
+    await db.siteSetting.upsert({
+      where: { key },
+      update: { value: String(ts) },
+      create: { key, value: String(ts) },
+    });
+
+    return NextResponse.json({ success: true, data: { key, value: String(ts) } });
   }
 
   await db.siteSetting.upsert({

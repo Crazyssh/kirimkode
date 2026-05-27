@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, CheckCircle, AlertCircle, MessageCircle, Wallet, QrCode, Send, CreditCard } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, MessageCircle, Wallet, QrCode, Send, CreditCard, RefreshCw } from "lucide-react";
 
 export default function AdminSettingsPage() {
   const [waNumber, setWaNumber] = useState("");
@@ -20,6 +20,8 @@ export default function AdminSettingsPage() {
   const [telegramUsername, setTelegramUsername] = useState("");
   const [savedTelegram, setSavedTelegram] = useState<string | null>(null);
   const [savingTelegram, setSavingTelegram] = useState(false);
+  const [forcingRefresh, setForcingRefresh] = useState(false);
+  const [refreshSuccess, setRefreshSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
@@ -528,6 +530,80 @@ export default function AdminSettingsPage() {
                 Simpan
               </Button>
             </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Force Refresh All Users */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <RefreshCw className="h-4 w-4 text-amber-500" />
+            Paksa Refresh Semua User
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <p className="text-sm">
+              Trigger hard refresh otomatis untuk semua user yang sedang aktif.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Berguna setelah update visibilitas server / pricing / fitur baru, supaya
+              tab user langsung muat ulang dalam ~30 detik tanpa perlu logout.
+              Tidak akan kick session — user tetap login.
+            </p>
+          </div>
+
+          <div className="rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-600">
+            ⚠️ Semua tab aktif akan di-reload. User yang sedang isi form mungkin
+            kehilangan input belum tersimpan.
+          </div>
+
+          <Button
+            variant="secondary"
+            disabled={forcingRefresh}
+            onClick={async () => {
+              if (!confirm("Paksa semua user refresh halaman sekarang?")) return;
+              setForcingRefresh(true);
+              setRefreshSuccess(false);
+              try {
+                const res = await fetch("/api/admin/settings", {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    key: "force_refresh_at",
+                    value: String(Date.now()),
+                  }),
+                });
+                if (res.ok) {
+                  setRefreshSuccess(true);
+                  setTimeout(() => setRefreshSuccess(false), 5000);
+                }
+              } catch {
+                // silent
+              } finally {
+                setForcingRefresh(false);
+              }
+            }}
+          >
+            {forcingRefresh ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Memproses...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Paksa Refresh Semua User
+              </>
+            )}
+          </Button>
+
+          {refreshSuccess && (
+            <div className="flex items-center gap-2 text-green-500 text-sm">
+              <CheckCircle className="h-4 w-4" />
+              Triggered. User akan refresh dalam ~30 detik.
+            </div>
           )}
         </CardContent>
       </Card>

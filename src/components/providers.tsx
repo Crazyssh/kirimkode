@@ -10,7 +10,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const [Lazy, setLazy] = useState<{
     Toaster: ComponentType<any> | null;
     FP: ComponentType | null;
-  }>({ Toaster: null, FP: null });
+    RW: ComponentType | null;
+  }>({ Toaster: null, FP: null, RW: null });
 
   useEffect(() => {
     // Hydrate language store setelah hydration — cegah mismatch
@@ -23,10 +24,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
     Promise.all([
       import("sonner"),
       import("./fingerprint-tracker"),
-    ]).then(([sonner, fp]) => {
+      import("./refresh-watcher"),
+    ]).then(([sonner, fp, rw]) => {
       setLazy({
         Toaster: sonner.Toaster,
         FP: fp.FingerprintTracker,
+        RW: rw.RefreshWatcher,
       });
     });
 
@@ -42,6 +45,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       {Lazy.FP && <Lazy.FP />}
+      {Lazy.RW && <Lazy.RW />}
       {children}
       {Lazy.Toaster && (
         <Lazy.Toaster
