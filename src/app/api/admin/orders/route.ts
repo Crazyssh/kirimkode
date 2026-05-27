@@ -50,6 +50,8 @@ export async function GET(req: NextRequest) {
         code: o.code,
         status: o.status,
         price: o.price,
+        server: o.server,
+        source: o.source,
         userEmail: o.user?.email ?? "-",
         time: o.createdAt.toISOString(),
         waCheck: o.waCheck ? JSON.parse(o.waCheck) : null,

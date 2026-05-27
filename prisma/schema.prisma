@@ -114,6 +114,7 @@ model Order {
   tgCheck     String?  // JSON: {"exists":true,"username":"...","firstName":"..."}
   checkedAt   DateTime? // kapan nomor dicek di WA/TG
   resendAt    DateTime? // resend mode: kapan user request SMS baru. status tetap "success"; cron polling sampai SMS baru masuk atau timeout.
+  source      String   @default("web") // web | api — origin order
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

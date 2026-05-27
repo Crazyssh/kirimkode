@@ -29,6 +29,8 @@ interface OrderItem {
   code: string | null;
   status: string;
   price: number;
+  server: string;
+  source: string;
   userEmail: string;
   time: string;
 }
@@ -48,6 +50,21 @@ const statusFilters = [
   { label: "Timeout", value: "timeout" },
   { label: "Refunded", value: "refunded" },
 ];
+
+const SERVER_LABELS: Record<string, { name: string; icon: string }> = {
+  api1: { name: "Mars", icon: "🔴" },
+  api2: { name: "Jupiter", icon: "🟠" },
+  api3: { name: "Saturn", icon: "🟣" },
+  api4: { name: "Neptune", icon: "🔵" },
+  api5: { name: "Earth", icon: "🌍" },
+  api6: { name: "Venus", icon: "🪐" },
+  api7: { name: "Mars V2", icon: "🔴" },
+  bot: { name: "Bot", icon: "🤖" },
+};
+
+function getServerLabel(id: string): { name: string; icon: string } {
+  return SERVER_LABELS[id] || { name: id, icon: "⚪" };
+}
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<OrderItem[]>([]);
@@ -262,23 +279,33 @@ export default function AdminOrdersPage() {
                   <thead>
                     <tr className="text-left text-xs text-muted border-b border-border">
                       <th className="pb-3 font-medium">Layanan</th>
+                      <th className="pb-3 font-medium">Server</th>
                       <th className="pb-3 font-medium">Negara</th>
                       <th className="pb-3 font-medium">Nomor</th>
                       <th className="pb-3 font-medium">Kode OTP</th>
                       <th className="pb-3 font-medium">Status</th>
                       <th className="pb-3 font-medium">Harga</th>
+                      <th className="pb-3 font-medium">Source</th>
                       <th className="pb-3 font-medium">User</th>
                       <th className="pb-3 font-medium">Waktu</th>
                       <th className="pb-3 font-medium text-right">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="text-sm">
-                    {orders.map((order) => (
+                    {orders.map((order) => {
+                      const srv = getServerLabel(order.server);
+                      return (
                       <tr
                         key={order.id}
                         className="border-b border-border/50 hover:bg-surface/30 transition-colors"
                       >
                         <td className="py-3 font-medium">{order.service}</td>
+                        <td className="py-3">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-hover/50 text-xs">
+                            <span>{srv.icon}</span>
+                            <span>{srv.name}</span>
+                          </span>
+                        </td>
                         <td className="py-3 text-xs text-muted">
                           {order.country}
                         </td>
@@ -322,6 +349,26 @@ export default function AdminOrdersPage() {
                         <td className="py-3 font-[family-name:var(--font-jetbrains-mono)] text-xs">
                           {formatRupiah(order.price)}
                         </td>
+                        <td className="py-3">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wide ${
+                              order.source === "api"
+                                ? "bg-accent/15 text-accent border border-accent/30"
+                                : order.source === "bot"
+                                  ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                                  : "bg-primary/10 text-primary border border-primary/20"
+                            }`}
+                            title={
+                              order.source === "api"
+                                ? "Order via API key (developer)"
+                                : order.source === "bot"
+                                  ? "Order via Telegram Bot"
+                                  : "Order via Website"
+                            }
+                          >
+                            {order.source === "api" ? "API" : order.source === "bot" ? "Bot" : "Web"}
+                          </span>
+                        </td>
                         <td className="py-3 text-xs text-muted max-w-[140px] truncate">
                           {order.userEmail}
                         </td>
@@ -350,7 +397,8 @@ export default function AdminOrdersPage() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

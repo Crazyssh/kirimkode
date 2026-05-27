@@ -221,6 +221,7 @@ export async function POST(req: NextRequest) {
           price: orderPrice,
           status: "waiting",
           operator: operator || "any",
+          source: "web",
         },
       });
 

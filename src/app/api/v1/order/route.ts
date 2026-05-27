@@ -104,6 +104,7 @@ export const POST = withApiAuth(async (req, user) => {
           price: orderPrice,
           status: "waiting",
           operator,
+          source: "api",
         },
       });
 

@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
           price: BOT_OTP_PRICE,
           status: "success",
           operator: "any",
+          source: "bot",
         },
       });
 
