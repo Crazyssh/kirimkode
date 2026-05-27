@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Loader2,
   ShoppingCart,
+  Radio,
 } from "lucide-react";
 
 interface OrderItem {
@@ -52,10 +53,18 @@ export default function AdminOrdersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [liveMode, setLiveMode] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  // Refs untuk avoid stale closure di setInterval
+  const liveModeRef = useRef(liveMode);
+  const paginationRef = useRef(pagination);
+  useEffect(() => { liveModeRef.current = liveMode; }, [liveMode]);
+  useEffect(() => { paginationRef.current = pagination; }, [pagination]);
 
+  // Initial / manual fetch — show loading spinner
   const fetchOrders = useCallback(
-    async (page = 1) => {
-      setLoading(true);
+    async (page = 1, silent = false) => {
+      if (!silent) setLoading(true);
       try {
         const params = new URLSearchParams({
           page: String(page),
@@ -69,11 +78,12 @@ export default function AdminOrdersPage() {
           const json = await res.json();
           setOrders(json.data);
           setPagination(json.pagination);
+          setLastUpdate(new Date());
         }
       } catch {
         // silent
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     },
     [statusFilter, search]
@@ -82,6 +92,19 @@ export default function AdminOrdersPage() {
   useEffect(() => {
     fetchOrders(1);
   }, [fetchOrders]);
+
+  // Auto-refresh tiap 5 detik kalau live mode aktif & masih di page 1
+  // (page 2+ pause karena admin lagi navigate, jangan disturb)
+  useEffect(() => {
+    if (!liveMode) return;
+    const interval = setInterval(() => {
+      if (!liveModeRef.current) return;
+      // Hanya silent refresh kalau di page 1 (tidak ganggu navigasi)
+      if (paginationRef.current.page !== 1) return;
+      fetchOrders(1, true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [liveMode, fetchOrders]);
 
   const formatDate = (isoString: string) => {
     return new Date(isoString).toLocaleDateString("id-ID", {
@@ -95,11 +118,48 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)]">
-          Manajemen Orders
-        </h1>
-        <p className="text-sm text-muted">Semua order pembelian nomor OTP</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)]">
+            Manajemen Orders
+          </h1>
+          <p className="text-sm text-muted">
+            Semua order pembelian nomor OTP
+            {liveMode && pagination.page === 1 && (
+              <span className="inline-flex items-center gap-1 ml-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
+                </span>
+                <span className="text-success text-xs font-medium">Live</span>
+              </span>
+            )}
+            {liveMode && pagination.page !== 1 && (
+              <span className="ml-2 text-xs text-muted">
+                Live paused (page {pagination.page})
+              </span>
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          {lastUpdate && (
+            <span className="text-xs text-muted hidden sm:block font-[family-name:var(--font-jetbrains-mono)]">
+              {lastUpdate.toLocaleTimeString("id-ID")}
+            </span>
+          )}
+          <button
+            onClick={() => setLiveMode(!liveMode)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${
+              liveMode
+                ? "border-success bg-success/10 text-success"
+                : "border-border bg-surface hover:bg-surface-hover"
+            }`}
+            title="Toggle live update tiap 5 detik"
+          >
+            <Radio className={`w-4 h-4 ${liveMode ? "animate-pulse" : ""}`} />
+            <span className="hidden sm:inline">Live {liveMode ? "ON" : "OFF"}</span>
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
