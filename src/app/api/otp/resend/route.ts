@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { requestRetry } from "@/lib/otp";
+import { getOrderTimeoutMs } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
 
 /**
@@ -70,11 +71,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Cek umur order — max 20 menit dari order pertama
+    // Cek umur order — max sesuai timeout per-server
     const ageMs = Date.now() - new Date(order.createdAt).getTime();
-    if (ageMs > 20 * 60 * 1000) {
+    const timeoutMs = getOrderTimeoutMs(order.server);
+    if (ageMs > timeoutMs) {
+      const min = Math.floor(timeoutMs / 60000);
       return NextResponse.json(
-        { error: "Order sudah lebih dari 20 menit. Buat order baru." },
+        { error: `Order sudah lebih dari ${min} menit. Buat order baru.` },
         { status: 400 }
       );
     }

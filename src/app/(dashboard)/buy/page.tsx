@@ -1294,12 +1294,17 @@ export default function BuyPage() {
                                 const cancelMinMs = (o.server === "api5" || o.server === "api7" || o.server === "api8")
                                   ? 2.5 * 60 * 1000
                                   : 3 * 60 * 1000;
-                                const twentyMin = 20 * 60 * 1000;
+                                // Timeout nomor per server:
+                                //   api8 (Mercury): 4.5 menit
+                                //   default: 20 menit
+                                const numberTimeoutMs = o.server === "api8"
+                                  ? 4.5 * 60 * 1000
+                                  : 20 * 60 * 1000;
 
                                 const isResending = !!o.resendAt;
-                                // Resend: api4 + udah dapet OTP + belum 20 menit + lagi gak resend
+                                // Resend: api4 + udah dapet OTP + belum timeout + lagi gak resend
                                 const canResend =
-                                  o.server === "api4" && !!o.code && orderAge < twentyMin && !isResending;
+                                  o.server === "api4" && !!o.code && orderAge < numberTimeoutMs && !isResending;
 
                                 // Cancel: cuma muncul saat status waiting (OTP pertama belum masuk)
                                 // + udah lewat batas waktu cancel server. Order success tidak punya tombol cancel.

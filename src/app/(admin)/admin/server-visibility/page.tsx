@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 const ALL_SERVERS = [
-  { id: "unified", name: "Bimasakti", icon: "⚡", description: "Server utama (gabungan api1+api2+api3+api5)" },
+  { id: "unified", name: "Bimasakti", icon: "⚡", description: "Server utama (gabungan api1+api2+api3+api5+api8)" },
   { id: "api1", name: "Mars", icon: "🔴", description: "JasaOTP V1 (cadangan)" },
   { id: "api4", name: "Neptune", icon: "🔵", description: "HeroSMS V2 (manual stock)" },
   { id: "api5", name: "Earth (Beta)", icon: "🌍", description: "Clowatch API v1 (BETA)" },
@@ -27,7 +27,8 @@ const ALL_UNIFIED_PROVIDERS = [
   { id: "api1", name: "Mars (api1)", description: "JasaOTP V1" },
   { id: "api2", name: "Jupiter (api2)", description: "JasaOTP V2" },
   { id: "api3", name: "Saturn (api3)", description: "HeroSMS V1" },
-  { id: "api5", name: "Earth (api5)", description: "Clowatch API (BETA)" },
+  { id: "api5", name: "Earth (api5)", description: "Clowatch API v1" },
+  { id: "api8", name: "Mercury (api8)", description: "Clowatch API v2 (markup +Rp 115)" },
 ];
 
 export default function ServerVisibilityPage() {

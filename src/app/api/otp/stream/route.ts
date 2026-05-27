@@ -7,7 +7,10 @@ import { subscribeOtpStream } from "@/lib/provider7";
 
 const POLL_INTERVAL = 1000; // 1 detik
 const LINGER_AFTER_FIRST_OTP = 5 * 60 * 1000; // 5 menit setelah OTP pertama
-const MAX_LIFETIME_MS = 20 * 60 * 1000; // 20 menit max (batas waktu nomor)
+// Max lifetime SSE — 20 menit (cocok untuk server default).
+// Server dengan timeout lebih pendek (mis. Mercury 4.5min) tetap aman karena
+// cron backend yang meng-cancel + refund. SSE cuma cleanup connection.
+const MAX_LIFETIME_MS = 20 * 60 * 1000;
 
 export const dynamic = "force-dynamic";
 

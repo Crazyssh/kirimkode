@@ -3,9 +3,9 @@ import { db } from "@/lib/db";
 import { checkSms, cancelOrder, type ServerId } from "@/lib/otp";
 import { extractOtp } from "@/lib/otp-extract";
 import { checkWhatsApp } from "@/lib/checker";
+import { getOrderTimeoutMs } from "@/lib/pricing";
 
 const CRON_SECRET = process.env.CRON_SECRET || "";
-const EXPIRE_MINUTES = 20;
 
 // Keywords dari provider yang menandakan order sudah expired/cancelled di sisi mereka
 const PROVIDER_EXPIRED_KEYWORDS = [
@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  const expireCutoff = new Date(now.getTime() - EXPIRE_MINUTES * 60 * 1000);
+  const nowMs = now.getTime();
 
   // Dua kategori order yang perlu dipolling:
   //   1. status="waiting"     — order normal nunggu OTP pertama
@@ -146,13 +146,16 @@ export async function GET(req: NextRequest) {
   for (const order of targetOrders) {
     const serverId = order.server as ServerId;
     const isResendMode = !!order.resendAt;
+    const orderTimeoutMs = getOrderTimeoutMs(serverId);
+    const orderAgeMs = nowMs - order.createdAt.getTime();
+    const isExpired = orderAgeMs > orderTimeoutMs;
 
     // ============================================================
     // RESEND MODE: status="success", lagi nunggu SMS baru
     // ============================================================
     if (isResendMode) {
-      // Timeout: 20 menit dari order pertama → stop polling, status tetap success
-      if (order.createdAt < expireCutoff) {
+      // Timeout per server (default 20 menit) → stop polling, status tetap success
+      if (isExpired) {
         try { await cancelOrder(serverId, order.orderId); } catch { /* may already be expired */ }
         await db.order.update({
           where: { id: order.id },
@@ -229,8 +232,8 @@ export async function GET(req: NextRequest) {
     // NORMAL MODE: status="waiting", nunggu OTP pertama
     // ============================================================
 
-    // === 1. Local timeout: order > 20 menit ===
-    if (order.createdAt < expireCutoff) {
+    // === 1. Local timeout: order > timeout per-server ===
+    if (isExpired) {
       try {
         await cancelOrder(serverId, order.orderId);
       } catch { /* provider cancel may fail if already expired */ }

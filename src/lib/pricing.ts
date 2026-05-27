@@ -117,3 +117,20 @@ export function applyServerExtraMarkup(price: number, serverId: string): number 
   const extra = SERVER_EXTRA_MARKUP_IDR[serverId] || 0;
   return price + extra;
 }
+
+/**
+ * Timeout nomor (umur max order) per-server, dalam ms.
+ * Default 20 menit — provider kasih waktu 20 menit OTP masuk, lewat itu auto-cancel + refund.
+ *
+ * Override untuk server yang provider-nya lebih ketat:
+ *   - api8 (Mercury): 4 menit 30 detik
+ */
+const SERVER_TIMEOUT_MS: Record<string, number> = {
+  api8: 4.5 * 60 * 1000, // Mercury — 4 menit 30 detik
+};
+
+export const DEFAULT_ORDER_TIMEOUT_MS = 20 * 60 * 1000; // 20 menit
+
+export function getOrderTimeoutMs(serverId: string): number {
+  return SERVER_TIMEOUT_MS[serverId] ?? DEFAULT_ORDER_TIMEOUT_MS;
+}

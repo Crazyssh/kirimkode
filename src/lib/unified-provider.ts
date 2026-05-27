@@ -8,7 +8,7 @@
  */
 
 import { db } from "@/lib/db";
-import { applyPricing } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup } from "@/lib/pricing";
 import { getUnifiedProviders } from "@/lib/site-settings";
 
 // Provider yang harganya sudah final (USD→IDR + markup) — skip applyPricing
@@ -22,6 +22,7 @@ const SERVER_NAMES: Record<string, { name: string; icon: string }> = {
   api5: { name: "Earth (Beta)", icon: "🌍" },
   api6: { name: "Venus (Beta)", icon: "🪐" },
   api7: { name: "Mars V2", icon: "🔴" },
+  api8: { name: "Mercury", icon: "☿️" },
 };
 
 // ---------- Types ----------
@@ -163,7 +164,9 @@ export async function getUnifiedLayanan(
     const pricingResult = skipPricing
       ? { price: rawPrice, hasRule: false }
       : await applyPricing(rawPrice, svc.code, mappings.find(m => m.serverId === svc.serverId)?.externalId || 0);
-    let displayPrice = pricingResult.price;
+    let displayPrice = skipPricing
+      ? pricingResult.price
+      : applyServerExtraMarkup(pricingResult.price, svc.serverId);
 
     const existing = serviceMap.get(svc.code);
     if (existing) {
@@ -284,7 +287,9 @@ export async function getServiceProviders(
     const pricingResult = skipPricing
       ? { price: rawPrice, hasRule: false }
       : await applyPricing(rawPrice, svc.code, mapping.externalId);
-    let displayPrice = pricingResult.price;
+    let displayPrice = skipPricing
+      ? pricingResult.price
+      : applyServerExtraMarkup(pricingResult.price, svc.serverId);
 
     const serverInfo = SERVER_NAMES[svc.serverId] || { name: svc.serverId, icon: "⚪" };
 

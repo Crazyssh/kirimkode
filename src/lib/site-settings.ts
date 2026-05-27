@@ -10,7 +10,7 @@ const cache = new Map<string, { value: string | null; expiry: number }>();
 
 /** Default visibility kalau setting belum di-set */
 const DEFAULT_VISIBLE_SERVERS = ["unified", "api1", "api4", "api5", "api6", "api7", "api8"];
-const DEFAULT_UNIFIED_PROVIDERS = ["api1", "api2", "api3", "api5"];
+const DEFAULT_UNIFIED_PROVIDERS = ["api1", "api2", "api3", "api5", "api8"];
 
 async function getRaw(key: string): Promise<string | null> {
   const now = Date.now();

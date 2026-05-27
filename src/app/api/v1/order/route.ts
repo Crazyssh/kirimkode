@@ -2,7 +2,7 @@ import { withApiAuth } from "@/lib/api-auth";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
-import { applyPricing, applyServerExtraMarkup } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup, getOrderTimeoutMs } from "@/lib/pricing";
 
 type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8";
 const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8"];
@@ -118,7 +118,7 @@ export const POST = withApiAuth(async (req, user) => {
       service,
       server,
       price: orderPrice,
-      expires_at: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
+      expires_at: new Date(Date.now() + getOrderTimeoutMs(server)).toISOString(),
     });
   } catch (error) {
     const rawMsg = error instanceof Error ? error.message : "";
