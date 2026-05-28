@@ -734,9 +734,6 @@ export default function BuyPage() {
                           }`}
                         />
                       </div>
-                      <span className="text-xs text-muted">
-                        {server.description}
-                      </span>
                     </div>
                     {selectedServer.id === server.id && (
                       <CheckCircle className="w-4 h-4 text-primary shrink-0" />
