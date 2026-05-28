@@ -19,7 +19,6 @@
 - **IP**: `103.27.207.116`
 - **OS**: Ubuntu 24.04
 - **Spec**: 6 vCPU, 6GB RAM, swap 4GB
-- **VPS lama** (sudah TIDAK dipakai): `38.147.122.93`
 
 ### Lokasi file penting di VPS
 
@@ -63,11 +62,52 @@ sudo -u postgres psql -d kirimkode
 
 ### Backup DB
 
+**Otomatis (harian jam 00:00 WIB → Cloudflare R2):**
+
+Setup sudah jalan via cron. Script di `/var/www/kirimkode/scripts/backup-db.sh`.
+
+Cek backup terbaru di R2:
+```bash
+rclone ls r2:kirimkode-backups
+```
+
+Cek log backup:
+```bash
+tail -50 /var/log/kirimkode-backup.log
+```
+
+**Manual on-demand:**
+
+```bash
+sudo /var/www/kirimkode/scripts/backup-db.sh
+```
+
+**Storage di R2** (skema replace + previous):
+- `kirimkode-latest.sql.gz` — backup terbaru (overwrite tiap run)
+- `kirimkode-previous.sql.gz` — backup hari kemarin (safety fallback)
+
+R2 bucket: `kirimkode-backups` (Asia-Pacific, akun Cloudflare)
+Endpoint: `https://2f58ef440bb814044b007fd56187ef1f.r2.cloudflarestorage.com`
+Config rclone di VPS: `~/.config/rclone/rclone.conf`
+
+**Backup quick-and-dirty (lokal, tanpa upload):**
+
 ```bash
 sudo -u postgres pg_dump kirimkode > /root/kirimkode-backup-$(date +%Y%m%d-%H%M).sql
 ```
 
 ### Restore DB
+
+**Dari R2:**
+
+```bash
+sudo /var/www/kirimkode/scripts/restore-db.sh latest      # backup terbaru
+sudo /var/www/kirimkode/scripts/restore-db.sh previous    # hari kemarin
+```
+
+Script akan minta konfirmasi (`YES RESTORE`), bikin safety snapshot DB sekarang dulu, stop PM2, drop+create+restore, lalu start PM2.
+
+**Dari file lokal:**
 
 ```bash
 sudo -u postgres psql -d kirimkode < /root/kirimkode-backup-XXX.sql
