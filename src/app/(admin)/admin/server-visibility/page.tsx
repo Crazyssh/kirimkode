@@ -21,7 +21,7 @@ const ALL_SERVERS = [
   { id: "api6", name: "Venus (Beta)", icon: "🪐", description: "5sim.net global (BETA)" },
   { id: "api7", name: "Mars V2", icon: "🔴", description: "Happy Pixel API (Mars terbaru)" },
   { id: "api8", name: "Mercury", icon: "☿️", description: "Clowatch API v2 (markup +Rp 115 dari Earth)" },
-  { id: "api9", name: "Uranus", icon: "🌌", description: "Clowatch API v3 (harga final, cancel 10 detik)" },
+  { id: "api9", name: "Uranus", icon: "🌌", description: "Clowatch API v3 (harga final, cancel 2 menit)" },
 ];
 
 const ALL_UNIFIED_PROVIDERS = [

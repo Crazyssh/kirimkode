@@ -147,7 +147,7 @@ sudo -u postgres psql -d kirimkode < /root/kirimkode-backup-XXX.sql
 | Server | Cancel min |
 |--------|-----------|
 | api5 (Earth), api7 (Mars V2), api8 (Mercury) | 2 menit 30 detik |
-| api9 (Uranus) | 10 detik |
+| api9 (Uranus) | 2 menit |
 | Lainnya | 3 menit (default) |
 
 ### Timeout nomor (umur max order)
