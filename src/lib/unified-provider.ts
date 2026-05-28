@@ -156,26 +156,45 @@ export async function getUnifiedLayanan(
     select: { code: true, name: true, price: true, stock: true, serverId: true },
   });
 
-  // Group by service code
-  const serviceMap = new Map<string, { name: string; minPrice: number; totalStock: number }>();
+  // Group by service NAME (case-insensitive) — bukan code.
+  // Tujuannya: provider yang punya banyak varian operator dengan code beda
+  // tapi nama sama (misal Uranus: wa, wa#virtual53, wa#virtual58 → semua
+  // bernama "Whatsapp") muncul sebagai SATU entry "Whatsapp" di list service.
+  // Cheapest variant dengan stok > 0 yang dipakai sebagai displayKey + harga.
+  type Bucket = {
+    displayName: string;
+    displayCode: string; // code yang dipakai sebagai key (untuk getServiceProviders lookup)
+    minPrice: number;
+    totalStock: number;
+  };
+
+  const serviceMap = new Map<string, Bucket>();
 
   for (const svc of allServices) {
+    if (svc.stock <= 0) continue; // skip stok kosong
+
     const skipPricing = FINAL_PRICE_PROVIDERS.has(svc.serverId);
     const rawPrice = svc.price;
     const pricingResult = skipPricing
       ? { price: rawPrice, hasRule: false }
       : await applyPricing(rawPrice, svc.code, mappings.find(m => m.serverId === svc.serverId)?.externalId || 0);
-    let displayPrice = skipPricing
+    const displayPrice = skipPricing
       ? pricingResult.price
       : applyServerExtraMarkup(pricingResult.price, svc.serverId);
 
-    const existing = serviceMap.get(svc.code);
+    const groupKey = svc.name.trim().toLowerCase();
+    const existing = serviceMap.get(groupKey);
+
     if (existing) {
-      if (displayPrice < existing.minPrice) existing.minPrice = displayPrice;
       existing.totalStock += svc.stock;
+      if (displayPrice < existing.minPrice) {
+        existing.minPrice = displayPrice;
+        existing.displayCode = svc.code; // code dari varian termurah
+      }
     } else {
-      serviceMap.set(svc.code, {
-        name: svc.name,
+      serviceMap.set(groupKey, {
+        displayName: svc.name,
+        displayCode: svc.code,
         minPrice: displayPrice,
         totalStock: svc.stock,
       });
@@ -185,11 +204,11 @@ export async function getUnifiedLayanan(
   const negaraKey = String(unifiedNegaraId);
   const merged: Record<string, { harga: number; stok: number; layanan: string }> = {};
 
-  for (const [code, info] of serviceMap.entries()) {
-    merged[code] = {
-      harga: info.minPrice,
-      stok: info.totalStock,
-      layanan: info.name,
+  for (const bucket of serviceMap.values()) {
+    merged[bucket.displayCode] = {
+      harga: bucket.minPrice,
+      stok: bucket.totalStock,
+      layanan: bucket.displayName,
     };
   }
 
@@ -273,35 +292,72 @@ export async function getServiceProviders(
     actualCode: string;
   }> = [];
 
-  // Deduplicate: only one entry per serverId (cheapest)
-  const seen = new Set<string>();
+  // Deduplicate: pilih ENTRY TERBAIK per serverId.
+  // Untuk server yang punya banyak varian operator (misal Uranus dengan
+  // wa, wa#virtual53, wa#virtual58 yang semua bernama "Whatsapp"), kita harus:
+  //   1. Skip varian yang stok = 0
+  //   2. Pick varian dengan harga termurah
+  //   3. Sum total stok semua varian (biar user lihat total stok gabungan)
+  //
+  // Tanpa ini, urutan iterasi DB undefined → kadang varian termahal/habis ke-pick,
+  // bikin harga di Bimasakti keliatan acak & server hilang dari list.
+  type Candidate = {
+    serverId: string;
+    name: string;
+    rawPrice: number;
+    stock: number;
+    countryId: string;
+    code: string;
+  };
 
+  // Group candidates per serverId
+  const perServer = new Map<string, Candidate[]>();
   for (const svc of services) {
-    if (seen.has(svc.serverId)) continue;
-    seen.add(svc.serverId);
+    if (svc.stock <= 0) continue; // skip stok kosong
+    const arr = perServer.get(svc.serverId) ?? [];
+    arr.push({
+      serverId: svc.serverId,
+      name: svc.name,
+      rawPrice: svc.price,
+      stock: svc.stock,
+      countryId: svc.countryId,
+      code: svc.code,
+    });
+    perServer.set(svc.serverId, arr);
+  }
 
-    const mapping = mappings.find((m) => m.dbCountryId === svc.countryId && m.serverId === svc.serverId);
+  for (const [serverId, candidates] of perServer.entries()) {
+    if (candidates.length === 0) continue;
+
+    // Pilih varian termurah, sum total stok
+    const cheapest = candidates.reduce((min, c) =>
+      c.rawPrice < min.rawPrice ? c : min
+    );
+    const totalStock = candidates.reduce((sum, c) => sum + c.stock, 0);
+
+    const mapping = mappings.find(
+      (m) => m.dbCountryId === cheapest.countryId && m.serverId === serverId
+    );
     if (!mapping) continue;
 
-    const skipPricing = FINAL_PRICE_PROVIDERS.has(svc.serverId);
-    const rawPrice = svc.price;
+    const skipPricing = FINAL_PRICE_PROVIDERS.has(serverId);
     const pricingResult = skipPricing
-      ? { price: rawPrice, hasRule: false }
-      : await applyPricing(rawPrice, svc.code, mapping.externalId);
-    let displayPrice = skipPricing
+      ? { price: cheapest.rawPrice, hasRule: false }
+      : await applyPricing(cheapest.rawPrice, cheapest.code, mapping.externalId);
+    const displayPrice = skipPricing
       ? pricingResult.price
-      : applyServerExtraMarkup(pricingResult.price, svc.serverId);
+      : applyServerExtraMarkup(pricingResult.price, serverId);
 
-    const serverInfo = SERVER_NAMES[svc.serverId] || { name: svc.serverId, icon: "⚪" };
+    const serverInfo = SERVER_NAMES[serverId] || { name: serverId, icon: "⚪" };
 
     providers.push({
-      serverId: svc.serverId,
+      serverId,
       name: serverInfo.name,
       icon: serverInfo.icon,
       price: displayPrice,
-      stock: svc.stock,
+      stock: totalStock,
       negaraId: mapping.externalId,
-      actualCode: svc.code, // actual code to use for this provider's API
+      actualCode: cheapest.code, // code asli varian termurah untuk createOrder
     });
   }
 
