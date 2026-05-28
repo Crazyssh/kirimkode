@@ -10,10 +10,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9";
   const id = req.nextUrl.searchParams.get("id");
 
-  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 

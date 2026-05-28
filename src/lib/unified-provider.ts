@@ -11,8 +11,8 @@ import { db } from "@/lib/db";
 import { applyPricing, applyServerExtraMarkup } from "@/lib/pricing";
 import { getUnifiedProviders } from "@/lib/site-settings";
 
-// Provider yang harganya sudah final (USD→IDR + markup) — skip applyPricing
-const FINAL_PRICE_PROVIDERS = new Set(["api3", "api6"]);
+// Provider yang harganya sudah final (USD→IDR + markup, atau langsung IDR) — skip applyPricing
+const FINAL_PRICE_PROVIDERS = new Set(["api3", "api6", "api9"]);
 
 // Server display names
 const SERVER_NAMES: Record<string, { name: string; icon: string }> = {
@@ -23,6 +23,7 @@ const SERVER_NAMES: Record<string, { name: string; icon: string }> = {
   api6: { name: "Venus (Beta)", icon: "🪐" },
   api7: { name: "Mars V2", icon: "🔴" },
   api8: { name: "Mercury", icon: "☿️" },
+  api9: { name: "Uranus", icon: "🌌" },
 };
 
 // ---------- Types ----------

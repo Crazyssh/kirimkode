@@ -27,7 +27,7 @@ git commit -m "deskripsi perubahan"
 git push
 ```
 
-4. Kasih command deploy ke user untuk dijalankan di VPS:
+4. Kasih command deploy ke user untuk dijalankan di VPS ingat kasih comand yang tidak menghapus database:
 ```
 cd /var/www/kirimkode && git pull && npm run build && pm2 restart kirimkode
 ```

@@ -48,9 +48,9 @@ export async function GET(req: NextRequest) {
           send(`[Sync] WARN refresh rate: ${(e as Error).message}`);
         }
 
-        if (server && ["api1", "api2", "api3", "api5", "api6", "api7", "api8"].includes(server)) {
+        if (server && ["api1", "api2", "api3", "api5", "api6", "api7", "api8", "api9"].includes(server)) {
           send(`[Sync] Starting ${server}...`);
-          const result = await syncProvider(server as "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8");
+          const result = await syncProvider(server as "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8" | "api9");
           send(`[Sync] ${server} done: ${result.countries} countries, ${result.services} services in ${result.durationMs}ms`);
           if (result.errors.length > 0) {
             send(`[Sync] ${server} errors: ${result.errors.slice(0, 3).join(", ")}`);
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
           // Sync semua provider satu per satu dengan progress
           // api4 sengaja di-skip — diambil realtime dari API
           const results = [];
-          for (const srv of ["api1", "api2", "api3", "api5", "api6", "api7", "api8"] as const) {
+          for (const srv of ["api1", "api2", "api3", "api5", "api6", "api7", "api8", "api9"] as const) {
             send(`[Sync] Starting ${srv}...`);
             const result = await syncProvider(srv);
             send(`[Sync] ${srv} done: ${result.countries} countries, ${result.services} services in ${result.durationMs}ms`);

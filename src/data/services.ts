@@ -1,5 +1,5 @@
 export interface OTPServer {
-  id: "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "unified";
+  id: "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "unified";
   name: string;
   icon: string;
   color: string;
@@ -78,6 +78,14 @@ export const servers: OTPServer[] = [
     icon: "\u263F",
     color: "from-slate-400 to-zinc-500",
     description: "Server stabil, lokal IDR",
+    status: "online",
+  },
+  {
+    id: "api9",
+    name: "Uranus",
+    icon: "\uD83C\uDF0C",
+    color: "from-cyan-400 to-sky-600",
+    description: "Server harga final, lokal IDR",
     status: "online",
   },
 ];

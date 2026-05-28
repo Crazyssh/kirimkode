@@ -3,8 +3,8 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { getNegara } from "@/lib/otp";
 
-type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8";
-const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8"];
+type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9";
+const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9"];
 
 interface CountryRow {
   id: number;
@@ -26,7 +26,7 @@ export const GET = withApiAuth(async (req) => {
 
   if (!server || !VALID_SERVERS.includes(server)) {
     return apiError(
-      "Invalid server (api1, api2, api3, api4, api5, api6, api7, or api8)",
+      "Invalid server (api1, api2, api3, api4, api5, api6, api7, api8, or api9)",
       400,
       "INVALID_SERVER"
     );

@@ -60,11 +60,11 @@ async function getApi4Entry(negara: number, layanan: string): Promise<{
  * Note: api7 (Mars V2) share PriceRule dengan api1 (Mars) karena format country ID
  * sama (JasaOTP-style) dan rule kita match by serviceCode+countryId tanpa server.
  */
-async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8", negara: number, layanan: string): Promise<number> {
-  // api3 & api6: harga sudah final (USD→IDR), skip applyPricing
+async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8" | "api9", negara: number, layanan: string): Promise<number> {
+  // api3, api6, api9: harga sudah final (USD→IDR atau langsung IDR), skip applyPricing
   // api1/api2/api5/api7/api8: harga raw dari provider, apply admin pricing rules
   // api8 (Mercury) tambah flat markup +Rp 115 di atas Earth's pricing
-  const skipPricing = server === "api3" || server === "api6";
+  const skipPricing = server === "api3" || server === "api6" || server === "api9";
 
   // Coba ambil dari database dulu (synced by cron)
   const country = await db.providerCountry.findUnique({
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
       api4FixedPrice = entry.fixedPrice;
     } else {
       // Harga WAJIB dari server, bukan dari client
-      orderPrice = await getServerPrice(server as "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8", Number(negara), layanan);
+      orderPrice = await getServerPrice(server as "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8" | "api9", Number(negara), layanan);
     }
 
     // Step 1: Pre-check user balance + status (quick DB read, no transaction needed)
@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
 
     // Step 2: Call provider API (bisa lambat, HARUS di luar transaction)
     // Bulk order: tanpa timeout, nunggu sampai server respon
-    const data = await createOrder(server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8", Number(negara), layanan, operator, {
+    const data = await createOrder(server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9", Number(negara), layanan, operator, {
       noTimeout: isBulk,
       maxPriceUsd: api4MaxPriceUsd,
       fixedPrice: api4FixedPrice,

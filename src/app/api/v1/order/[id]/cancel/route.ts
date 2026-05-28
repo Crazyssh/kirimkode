@@ -3,6 +3,7 @@ import { apiMessage, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { cancelOrder } from "@/lib/otp";
 import { findOrderByAnyId } from "@/lib/order-lookup";
+import { getCancelMinMs } from "@/lib/pricing";
 
 export const POST = withApiAuthParams(async (_req, user, params) => {
   const { id } = params;
@@ -20,12 +21,11 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
   }
   const order = lookup.order;
 
-  // Cancel rule per server:
+  // Cancel rule per server (centralized di lib/pricing.ts):
   //   api5 (Earth), api7 (Mars V2), api8 (Mercury): 2 menit 30 detik
+  //   api9 (Uranus): 10 detik
   //   default: 3 menit
-  const cancelMinMs = (order.server === "api5" || order.server === "api7" || order.server === "api8")
-    ? 2.5 * 60 * 1000
-    : 3 * 60 * 1000;
+  const cancelMinMs = getCancelMinMs(order.server);
   const cancelMinSec = cancelMinMs / 1000;
   const diffMs = Date.now() - new Date(order.createdAt).getTime();
   if (diffMs < cancelMinMs) {
@@ -42,7 +42,7 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
   let providerWarning: string | undefined;
   try {
     await cancelOrder(
-      order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8",
+      order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9",
       order.orderId
     );
   } catch (e) {

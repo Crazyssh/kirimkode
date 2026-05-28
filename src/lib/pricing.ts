@@ -134,3 +134,24 @@ export const DEFAULT_ORDER_TIMEOUT_MS = 20 * 60 * 1000; // 20 menit
 export function getOrderTimeoutMs(serverId: string): number {
   return SERVER_TIMEOUT_MS[serverId] ?? DEFAULT_ORDER_TIMEOUT_MS;
 }
+
+/**
+ * Berapa lama (ms) user harus menunggu sebelum tombol "Cancel" aktif setelah order dibuat.
+ * Default 3 menit (provider butuh waktu untuk delivery SMS pertama).
+ *
+ * Override:
+ *   - api5 (Earth), api7 (Mars V2), api8 (Mercury): 2 menit 30 detik
+ *   - api9 (Uranus): 10 detik (provider sangat cepat respond)
+ */
+const SERVER_CANCEL_MIN_MS: Record<string, number> = {
+  api5: 2.5 * 60 * 1000,
+  api7: 2.5 * 60 * 1000,
+  api8: 2.5 * 60 * 1000,
+  api9: 10 * 1000,
+};
+
+export const DEFAULT_CANCEL_MIN_MS = 3 * 60 * 1000;
+
+export function getCancelMinMs(serverId: string): number {
+  return SERVER_CANCEL_MIN_MS[serverId] ?? DEFAULT_CANCEL_MIN_MS;
+}

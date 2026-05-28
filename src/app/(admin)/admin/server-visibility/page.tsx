@@ -21,6 +21,7 @@ const ALL_SERVERS = [
   { id: "api6", name: "Venus (Beta)", icon: "🪐", description: "5sim.net global (BETA)" },
   { id: "api7", name: "Mars V2", icon: "🔴", description: "Happy Pixel API (Mars terbaru)" },
   { id: "api8", name: "Mercury", icon: "☿️", description: "Clowatch API v2 (markup +Rp 115 dari Earth)" },
+  { id: "api9", name: "Uranus", icon: "🌌", description: "Clowatch API v3 (harga final, cancel 10 detik)" },
 ];
 
 const ALL_UNIFIED_PROVIDERS = [
@@ -29,6 +30,7 @@ const ALL_UNIFIED_PROVIDERS = [
   { id: "api3", name: "Saturn (api3)", description: "HeroSMS V1" },
   { id: "api5", name: "Earth (api5)", description: "Clowatch API v1" },
   { id: "api8", name: "Mercury (api8)", description: "Clowatch API v2 (markup +Rp 115)" },
+  { id: "api9", name: "Uranus (api9)", description: "Clowatch API v3 (harga final)" },
 ];
 
 export default function ServerVisibilityPage() {

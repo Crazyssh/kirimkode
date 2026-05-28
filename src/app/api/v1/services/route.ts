@@ -3,9 +3,9 @@ import { apiSuccess, apiError } from "@/lib/api-response";
 import { getLayanan } from "@/lib/otp";
 import { applyPricing, applyServerExtraMarkup } from "@/lib/pricing";
 
-type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8";
-const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8"];
-const FINAL_PRICE_SERVERS = new Set<PublicServer>(["api3", "api4", "api6"]);
+type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9";
+const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9"];
+const FINAL_PRICE_SERVERS = new Set<PublicServer>(["api3", "api4", "api6", "api9"]);
 
 export const GET = withApiAuth(async (req) => {
   const server = (req.nextUrl.searchParams.get("server") || "api1") as PublicServer;
@@ -13,7 +13,7 @@ export const GET = withApiAuth(async (req) => {
 
   if (!VALID_SERVERS.includes(server)) {
     return apiError(
-      "Invalid server (api1, api2, api3, api4, api5, api6, api7, or api8)",
+      "Invalid server (api1, api2, api3, api4, api5, api6, api7, api8, or api9)",
       400,
       "INVALID_SERVER"
     );
