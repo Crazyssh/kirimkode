@@ -181,12 +181,18 @@ export async function getLayanan(negara: number) {
   const negaraKey = String(negara);
   const serviceData: Record<string, { harga: number; stok: number; layanan: string }> = {};
 
+  // Bersihkan nama dari operator suffix supaya UI tampil clean.
+  // Contoh: "Whatsapp (virtual53)" → "Whatsapp"
+  const cleanName = (name: string): string => {
+    return name.replace(/\s*\([^)]*\)\s*$/g, "").trim();
+  };
+
   for (const svc of list) {
     if (!svc.code || typeof svc.priceIdr !== "number") continue;
     serviceData[svc.code] = {
       harga: svc.priceIdr,
       stok: typeof svc.stock === "number" ? svc.stock : 0,
-      layanan: svc.name || svc.code,
+      layanan: cleanName(svc.name || svc.code),
     };
   }
 
