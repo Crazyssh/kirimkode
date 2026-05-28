@@ -5,10 +5,10 @@ import { db } from "@/lib/db";
 import { getUnifiedLayanan } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -93,8 +93,8 @@ export async function GET(req: NextRequest) {
       const serviceData: Record<string, { harga: number; stok: number; layanan: string }> = {};
 
       for (const svc of services) {
-        // api3, api6, api9: harga sudah final (USD→IDR + markup atau langsung IDR), skip applyPricing
-        const skipPricing = server === "api3" || server === "api6" || server === "api9";
+        // api3, api6, api9, api10: harga sudah final (USD→IDR + markup atau langsung IDR), skip applyPricing
+        const skipPricing = server === "api3" || server === "api6" || server === "api9" || server === "api10";
         let customPrice: number;
         if (skipPricing) {
           customPrice = svc.price;
@@ -133,9 +133,9 @@ export async function GET(req: NextRequest) {
       serviceData = data.data[negaraKey];
     }
 
-    if (serviceData && server !== "api3" && server !== "api6" && server !== "api9") {
+    if (serviceData && server !== "api3" && server !== "api6" && server !== "api9" && server !== "api10") {
       // api1/api2/api5/api7/api8: apply pricing + flat extra markup (api8)
-      // api3/api6/api9: harga sudah final dari adapter, skip
+      // api3/api6/api9/api10: harga sudah final dari adapter, skip
       for (const [code, info] of Object.entries(serviceData)) {
         if (info && typeof info === "object" && "harga" in info) {
           const rawPrice = info.harga;

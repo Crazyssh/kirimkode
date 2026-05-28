@@ -197,7 +197,7 @@ export async function GET(req: NextRequest) {
                     // kalau SSE upstream sempat putus)
                     if (order.server && order.orderId) {
                         try {
-                            const data = await checkSms(order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9", order.orderId);
+                            const data = await checkSms(order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10", order.orderId);
                             const otp = extractOtp(data as Record<string, unknown>);
 
                             // Cuma push kalau OTP genuinely baru (beda dari code lama di DB

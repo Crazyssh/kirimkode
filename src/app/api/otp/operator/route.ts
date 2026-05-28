@@ -4,10 +4,10 @@ import { db } from "@/lib/db";
 import { getUnifiedOperator } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10", "unified"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -41,6 +41,11 @@ export async function GET(req: NextRequest) {
 
     // api9 (Uranus): sama dengan Earth, tidak ada operator selection
     if (server === "api9") {
+      return NextResponse.json({ data: { [String(negaraId)]: ["any"] } });
+    }
+
+    // api10 (Eris): sama dengan Earth, tidak ada operator selection
+    if (server === "api10") {
       return NextResponse.json({ data: { [String(negaraId)]: ["any"] } });
     }
 

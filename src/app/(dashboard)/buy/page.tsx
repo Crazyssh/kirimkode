@@ -1287,10 +1287,10 @@ export default function BuyPage() {
                                 const orderAge = Date.now() - new Date(o.date).getTime();
                                 // Cancel rule per server:
                                 //   api5 (Earth), api7 (Mars V2), api8 (Mercury): 2 menit 30 detik
-                                //   api9 (Uranus): 2 menit
+                                //   api9 (Uranus), api10 (Eris): 2 menit
                                 //   default: 3 menit
                                 const cancelMinMs =
-                                  o.server === "api9"
+                                  (o.server === "api9" || o.server === "api10")
                                     ? 2 * 60 * 1000
                                     : (o.server === "api5" || o.server === "api7" || o.server === "api8")
                                       ? 2.5 * 60 * 1000

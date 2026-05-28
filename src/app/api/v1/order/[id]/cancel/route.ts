@@ -42,7 +42,7 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
   let providerWarning: string | undefined;
   try {
     await cancelOrder(
-      order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9",
+      order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10",
       order.orderId
     );
   } catch (e) {

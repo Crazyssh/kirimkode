@@ -140,6 +140,7 @@ sudo -u postgres psql -d kirimkode < /root/kirimkode-backup-XXX.sql
 | `api7` | Mars V2 | Happy Pixel | - | Apply pricing rule (share rule dengan Mars/api1) |
 | `api8` | Mercury | Clowatch v2 | api.clowatch.com/api/v2 | Apply pricing rule + flat markup +Rp 115 |
 | `api9` | Uranus | Clowatch v3 | api.clowatch.com/api/v3 | **Final price** (skip pricing rule) |
+| `api10` | Eris | Clowatch v4 | api.clowatch.com/api/v4 | **Final price** (skip pricing rule) |
 | `unified` | Bimasakti | Aggregator | (gabungan api1+api2+api3+api5+api8) | Per-provider pricing |
 
 ### Cancel rule per server
@@ -147,7 +148,7 @@ sudo -u postgres psql -d kirimkode < /root/kirimkode-backup-XXX.sql
 | Server | Cancel min |
 |--------|-----------|
 | api5 (Earth), api7 (Mars V2), api8 (Mercury) | 2 menit 30 detik |
-| api9 (Uranus) | 2 menit |
+| api9 (Uranus), api10 (Eris) | 2 menit |
 | Lainnya | 3 menit (default) |
 
 ### Timeout nomor (umur max order)
@@ -188,13 +189,15 @@ JASAOTP_API2_URL="https://api.jasaotp.id/v2"
 # HeroSMS (api3, api4)
 HEROSMS_API_KEY="..."
 
-# Clowatch (api5 Earth, api8 Mercury, api9 Uranus)
+# Clowatch (api5 Earth, api8 Mercury, api9 Uranus, api10 Eris)
 PROVIDER5_API_KEY="..."
 PROVIDER5_API_URL="https://api.clowatch.com/api/v1"
 PROVIDER8_API_KEY="..."  # boleh fallback ke PROVIDER5_API_KEY
 PROVIDER8_API_URL="https://api.clowatch.com/api/v2"
 PROVIDER9_API_KEY="..."  # boleh fallback ke PROVIDER5_API_KEY
 PROVIDER9_API_URL="https://api.clowatch.com/api/v3"
+PROVIDER10_API_KEY="..." # boleh fallback ke PROVIDER5_API_KEY
+PROVIDER10_API_URL="https://api.clowatch.com/api/v4"
 
 # 5sim (api6 Venus)
 PROVIDER6_API_KEY="..."
@@ -438,7 +441,7 @@ Berguna setelah update visibilitas server / pricing / fitur baru.
 - **Naming server baru**: Pakai nama planet (Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune)
 - **Pricing rule sharing**: Mars V2 (api7) share PriceRule dengan Mars (api1) by serviceCode+countryId
 - **Mercury (api8)** share rule dengan Earth (api5) + flat markup
-- **Final price providers**: api3 (Saturn), api6 (Venus), api9 (Uranus) — skip applyPricing
+- **Final price providers**: api3 (Saturn), api6 (Venus), api9 (Uranus), api10 (Eris) — skip applyPricing
 
 ---
 

@@ -12,7 +12,7 @@ import { applyPricing, applyServerExtraMarkup } from "@/lib/pricing";
 import { getUnifiedProviders } from "@/lib/site-settings";
 
 // Provider yang harganya sudah final (USD→IDR + markup, atau langsung IDR) — skip applyPricing
-const FINAL_PRICE_PROVIDERS = new Set(["api3", "api6", "api9"]);
+const FINAL_PRICE_PROVIDERS = new Set(["api3", "api6", "api9", "api10"]);
 
 // Server display names
 const SERVER_NAMES: Record<string, { name: string; icon: string }> = {
@@ -24,6 +24,7 @@ const SERVER_NAMES: Record<string, { name: string; icon: string }> = {
   api7: { name: "Mars V2", icon: "🔴" },
   api8: { name: "Mercury", icon: "☿️" },
   api9: { name: "Uranus", icon: "🌌" },
+  api10: { name: "Eris", icon: "✨" },
 };
 
 // ---------- Types ----------

@@ -5,6 +5,7 @@ import * as provider6 from "@/lib/provider6";
 import * as provider7 from "@/lib/provider7";
 import * as provider8 from "@/lib/provider8";
 import * as provider9 from "@/lib/provider9";
+import * as provider10 from "@/lib/provider10";
 
 const API_URLS = {
   api1: process.env.JASAOTP_API1_URL || "https://api.jasaotp.id/v1",
@@ -13,7 +14,7 @@ const API_URLS = {
 
 const API_KEY = process.env.JASAOTP_API_KEY || "";
 
-export type ServerId = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "unified";
+export type ServerId = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified";
 
 type JasaOtpServerId = "api1" | "api2";
 
@@ -149,6 +150,7 @@ export async function getBalance(server: ServerId) {
   if (server === "api7") return provider7.getBalance();
   if (server === "api8") return provider8.getBalance();
   if (server === "api9") return provider9.getBalance();
+  if (server === "api10") return provider10.getBalance();
   return fetchApi(server, "balance.php", { api_key: API_KEY });
 }
 
@@ -161,6 +163,7 @@ export async function getNegara(server: ServerId) {
   if (server === "api7") return provider7.getNegara();
   if (server === "api8") return provider8.getNegara();
   if (server === "api9") return provider9.getNegara();
+  if (server === "api10") return provider10.getNegara();
   return fetchApi(server, "negara.php");
 }
 
@@ -173,6 +176,7 @@ export async function getOperator(server: ServerId, negara: number) {
   if (server === "api7") return provider7.getOperator(negara);
   if (server === "api8") return provider8.getOperator(negara);
   if (server === "api9") return provider9.getOperator(negara);
+  if (server === "api10") return provider10.getOperator(negara);
   return fetchApi(server, "operator.php", { negara: String(negara) });
 }
 
@@ -185,6 +189,7 @@ export async function getLayanan(server: ServerId, negara: number) {
   if (server === "api7") return provider7.getLayanan(negara);
   if (server === "api8") return provider8.getLayanan(negara);
   if (server === "api9") return provider9.getLayanan(negara);
+  if (server === "api10") return provider10.getLayanan(negara);
   return fetchApi(server, "layanan.php", { negara: String(negara) });
 }
 
@@ -210,6 +215,7 @@ export async function createOrder(
   if (server === "api7") return provider7.createOrder(negara, layanan, operator);
   if (server === "api8") return provider8.createOrder(negara, layanan, operator);
   if (server === "api9") return provider9.createOrder(negara, layanan, operator);
+  if (server === "api10") return provider10.createOrder(negara, layanan, operator);
   return fetchApi(server, "order.php", {
     api_key: API_KEY,
     negara: String(negara),
@@ -227,6 +233,7 @@ export async function checkSms(server: ServerId, orderId: number) {
   if (server === "api7") return provider7.checkSms(orderId);
   if (server === "api8") return provider8.checkSms(orderId);
   if (server === "api9") return provider9.checkSms(orderId);
+  if (server === "api10") return provider10.checkSms(orderId);
   return fetchApi(server, "sms.php", {
     api_key: API_KEY,
     id: String(orderId),
@@ -251,6 +258,7 @@ export async function cancelOrder(server: ServerId, orderId: number) {
   if (server === "api7") return provider7.cancelOrder(orderId);
   if (server === "api8") return provider8.cancelOrder(orderId);
   if (server === "api9") return provider9.cancelOrder(orderId);
+  if (server === "api10") return provider10.cancelOrder(orderId);
   return fetchApi(server, "cancel.php", {
     api_key: API_KEY,
     id: String(orderId),
