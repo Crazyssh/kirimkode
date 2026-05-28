@@ -92,54 +92,9 @@ export async function GET(req: NextRequest) {
       const negaraKey = String(negaraId);
       const serviceData: Record<string, { harga: number; stok: number; layanan: string }> = {};
 
-      // Khusus api9 (Uranus): provider expose banyak varian operator dengan nama
-      // sama (mis. "Whatsapp" dengan code wa, wa#virtual53, wa#virtual58).
-      // Group by nama, pilih varian termurah dengan stok > 0, sum total stok.
-      if (server === "api9") {
-        const grouped = new Map<
-          string,
-          { bestCode: string; bestPrice: number; totalStock: number; layanan: string }
-        >();
-
-        for (const svc of services) {
-          if (svc.stock <= 0) continue;
-          const key = svc.name.toLowerCase();
-          const existing = grouped.get(key);
-          if (existing) {
-            existing.totalStock += svc.stock;
-            if (svc.price < existing.bestPrice) {
-              existing.bestPrice = svc.price;
-              existing.bestCode = svc.code;
-            }
-          } else {
-            grouped.set(key, {
-              bestCode: svc.code,
-              bestPrice: svc.price,
-              totalStock: svc.stock,
-              layanan: svc.name,
-            });
-          }
-        }
-
-        for (const info of grouped.values()) {
-          serviceData[info.bestCode] = {
-            harga: info.bestPrice,
-            stok: info.totalStock,
-            layanan: info.layanan,
-          };
-        }
-
-        return NextResponse.json({ [negaraKey]: serviceData }, {
-          headers: {
-            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=180",
-          },
-        });
-      }
-
       for (const svc of services) {
-        // api3, api6: harga sudah final (USD→IDR + markup), skip applyPricing
-        // (api9 sudah di-handle di blok atas dan return early)
-        const skipPricing = server === "api3" || server === "api6";
+        // api3, api6, api9: harga sudah final (USD→IDR + markup atau langsung IDR), skip applyPricing
+        const skipPricing = server === "api3" || server === "api6" || server === "api9";
         let customPrice: number;
         if (skipPricing) {
           customPrice = svc.price;
