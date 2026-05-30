@@ -11,6 +11,8 @@ import {
   CheckCircle,
   Save,
   Info,
+  Activity,
+  RefreshCw,
 } from "lucide-react";
 
 const ALL_SERVERS = [
@@ -43,6 +45,41 @@ export default function ServerVisibilityPage() {
 
   const [visibleServers, setVisibleServers] = useState<string[]>([]);
   const [unifiedProviders, setUnifiedProviders] = useState<string[]>([]);
+
+  interface ClowatchHealth {
+    serverId: string;
+    status: "healthy" | "unhealthy";
+    failCount: number;
+    lastCheckAt: number;
+    lastSuccessAt: number;
+    lastError: string | null;
+    autoManaged: boolean;
+  }
+  const [healthList, setHealthList] = useState<ClowatchHealth[]>([]);
+  const [healthLoading, setHealthLoading] = useState(true);
+  const [forcingId, setForcingId] = useState<string | null>(null);
+  const [togglingAutoId, setTogglingAutoId] = useState<string | null>(null);
+
+  const fetchHealth = async () => {
+    try {
+      const res = await fetch("/api/admin/clowatch-health");
+      const data = await res.json();
+      if (data?.data?.servers) {
+        setHealthList(data.data.servers);
+      }
+    } catch {
+      // silent
+    } finally {
+      setHealthLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHealth();
+    // Auto-refresh tiap 30 detik
+    const t = setInterval(fetchHealth, 30_000);
+    return () => clearInterval(t);
+  }, []);
 
   // Auto-clear feedback
   useEffect(() => {
@@ -252,6 +289,180 @@ export default function ServerVisibilityPage() {
             <p>
               <strong>Catatan Neptune:</strong> Stock & negara/layanan Neptune diatur di menu <a href="/admin/api4-stock" className="text-primary underline">Neptune Stock</a>. Halaman ini cuma toggle visibility tampilan.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Clowatch Health Auto-Check */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Activity className="w-4 h-4 text-primary" />
+            Health Auto-Check (Clowatch)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted">
+            Server Clowatch (Earth, Mercury, Uranus, Eris) di-cek otomatis dengan
+            test order WA → TG Indonesia. Healthy → tampil di /buy. Unhealthy
+            (2× fail berturut-turut) → auto-hide dari /buy. Ulangi cek tiap 10
+            menit (healthy) atau 30 detik (unhealthy).
+          </p>
+
+          {healthLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-muted" />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {healthList.map((h) => {
+                const meta = ALL_SERVERS.find((s) => s.id === h.serverId);
+                const lastCheck = h.lastCheckAt
+                  ? new Date(h.lastCheckAt).toLocaleString("id-ID", {
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "-";
+                const lastSuccess = h.lastSuccessAt
+                  ? new Date(h.lastSuccessAt).toLocaleString("id-ID", {
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "-";
+
+                return (
+                  <div
+                    key={h.serverId}
+                    className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 rounded-xl border border-border bg-background/50"
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <span className="text-xl">{meta?.icon ?? "⚪"}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold">{meta?.name ?? h.serverId}</span>
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                              h.status === "healthy"
+                                ? "bg-success/15 text-success border border-success/30"
+                                : "bg-error/15 text-error border border-error/30"
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                h.status === "healthy" ? "bg-success" : "bg-error"
+                              }`}
+                            />
+                            {h.status === "healthy" ? "HEALTHY" : "UNHEALTHY"}
+                          </span>
+                          {!h.autoManaged && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted/20 text-muted border border-border">
+                              MANUAL
+                            </span>
+                          )}
+                          {h.failCount > 0 && h.status === "healthy" && (
+                            <span className="text-[10px] text-warning">
+                              fail: {h.failCount}/2
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-muted mt-0.5 truncate">
+                          Last check: <span className="font-[family-name:var(--font-jetbrains-mono)]">{lastCheck}</span>
+                          {h.status === "healthy" && (
+                            <> · Last success: <span className="font-[family-name:var(--font-jetbrains-mono)]">{lastSuccess}</span></>
+                          )}
+                        </div>
+                        {h.lastError && h.status === "unhealthy" && (
+                          <div className="text-[11px] text-error mt-0.5 truncate" title={h.lastError}>
+                            Error: {h.lastError}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-stretch sm:self-auto">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={forcingId === h.serverId}
+                        onClick={async () => {
+                          setForcingId(h.serverId);
+                          try {
+                            await fetch("/api/admin/clowatch-health", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                action: "forceCheck",
+                                serverId: h.serverId,
+                              }),
+                            });
+                            await fetchHealth();
+                          } catch {
+                            // silent
+                          } finally {
+                            setForcingId(null);
+                          }
+                        }}
+                        title="Run health check sekarang"
+                      >
+                        {forcingId === h.serverId ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        )}
+                      </Button>
+                      <Button
+                        variant={h.autoManaged ? "primary" : "secondary"}
+                        size="sm"
+                        disabled={togglingAutoId === h.serverId}
+                        onClick={async () => {
+                          setTogglingAutoId(h.serverId);
+                          try {
+                            await fetch("/api/admin/clowatch-health", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                action: "toggleAuto",
+                                serverId: h.serverId,
+                                enabled: !h.autoManaged,
+                              }),
+                            });
+                            await fetchHealth();
+                          } catch {
+                            // silent
+                          } finally {
+                            setTogglingAutoId(null);
+                          }
+                        }}
+                        className="min-w-[80px]"
+                        title="Toggle auto-manage"
+                      >
+                        {togglingAutoId === h.serverId ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <>Auto: {h.autoManaged ? "ON" : "OFF"}</>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex items-start gap-2 p-2 rounded-lg bg-muted/10 text-xs text-muted">
+            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <div className="space-y-0.5">
+              <p>
+                <strong>Auto ON</strong>: status auto-determine via cron tiap 30 detik. Unhealthy → auto-hide dari /buy.
+              </p>
+              <p>
+                <strong>Auto OFF</strong>: skip cron, admin manual atur via toggle visibility di atas.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

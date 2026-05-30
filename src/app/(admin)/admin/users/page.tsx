@@ -18,6 +18,9 @@ import {
   Ban,
   CheckCircle,
   ArrowUpDown,
+  Key,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 interface UserItem {
@@ -56,6 +59,8 @@ export default function AdminUsersPage() {
   const [editStatus, setEditStatus] = useState("active");
   const [editBanReason, setEditBanReason] = useState("");
   const [editPremiumChecker, setEditPremiumChecker] = useState(false);
+  const [editNewPassword, setEditNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState("");
 
@@ -92,29 +97,45 @@ export default function AdminUsersPage() {
     setEditStatus(user.status);
     setEditBanReason(user.banReason || "");
     setEditPremiumChecker(user.premiumChecker);
+    setEditNewPassword("");
+    setShowNewPassword(false);
     setEditError("");
   };
 
   const handleSave = async () => {
     if (!editUser) return;
+
+    // Validasi password (kalau diisi)
+    if (editNewPassword.length > 0 && editNewPassword.length < 8) {
+      setEditError("Password baru minimal 8 karakter");
+      return;
+    }
+
     setSaving(true);
     setEditError("");
 
     try {
+      const payload: Record<string, unknown> = {
+        balance: editBalance,
+        role: editRole,
+        status: editStatus,
+        banReason: editStatus === "banned" ? editBanReason : null,
+        premiumChecker: editPremiumChecker,
+      };
+      // Hanya kirim newPassword kalau benar-benar diisi
+      if (editNewPassword.length > 0) {
+        payload.newPassword = editNewPassword;
+      }
+
       const res = await fetch(`/api/admin/users/${editUser.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          balance: editBalance,
-          role: editRole,
-          status: editStatus,
-          banReason: editStatus === "banned" ? editBanReason : null,
-          premiumChecker: editPremiumChecker,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
         setEditUser(null);
+        setEditNewPassword("");
         fetchUsers(pagination.page);
       } else {
         const data = await res.json();
@@ -372,6 +393,43 @@ export default function AdminUsersPage() {
                 )}
               </button>
               <p className="text-[11px] text-muted mt-1">Aktifkan untuk lihat detail TG (last seen, tanggal daftar, dll)</p>
+            </div>
+
+            {/* Reset Password (admin) */}
+            <div>
+              <label className="text-sm text-muted mb-1.5 flex items-center gap-1.5">
+                <Key className="w-3.5 h-3.5" />
+                Reset Password
+                <span className="text-[10px] text-muted/70 font-normal">(opsional)</span>
+              </label>
+              <div className="relative">
+                <Input
+                  type={showNewPassword ? "text" : "password"}
+                  value={editNewPassword}
+                  onChange={(e) => setEditNewPassword(e.target.value)}
+                  placeholder="Kosongkan kalau tidak ingin ubah"
+                  className="pr-10 font-[family-name:var(--font-jetbrains-mono)]"
+                  autoComplete="new-password"
+                  minLength={8}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                  aria-label={showNewPassword ? "Sembunyikan password" : "Tampilkan password"}
+                >
+                  {showNewPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              <p className="text-[11px] text-warning mt-1">
+                ⚠️ Min 8 karakter. User akan tetap login di session aktifnya.
+                Beritahu user secara aman; jangan kirim via channel publik.
+              </p>
             </div>
 
             {/* Actions */}

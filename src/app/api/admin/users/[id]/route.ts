@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { logAction } from "@/lib/audit";
+import bcrypt from "bcryptjs";
 
 export async function GET(
   _req: NextRequest,
@@ -101,13 +103,14 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { balance, role, name, status, banReason, premiumChecker } = body as {
+    const { balance, role, name, status, banReason, premiumChecker, newPassword } = body as {
       balance?: number;
       role?: string;
       name?: string;
       status?: string;
       banReason?: string;
       premiumChecker?: boolean;
+      newPassword?: string;
     };
 
     // Proteksi: admin tidak boleh demote/ban diri sendiri
@@ -169,6 +172,25 @@ export async function PATCH(
       data.premiumChecker = premiumChecker;
     }
 
+    // Reset password oleh admin (opsional). Kalau diisi, hash dgn bcrypt + audit log.
+    let passwordChanged = false;
+    if (typeof newPassword === "string" && newPassword.length > 0) {
+      if (newPassword.length < 8) {
+        return NextResponse.json(
+          { error: "Password minimal 8 karakter" },
+          { status: 400 }
+        );
+      }
+      if (newPassword.length > 200) {
+        return NextResponse.json(
+          { error: "Password terlalu panjang" },
+          { status: 400 }
+        );
+      }
+      data.password = await bcrypt.hash(newPassword, 12);
+      passwordChanged = true;
+    }
+
     if (Object.keys(data).length === 0) {
       return NextResponse.json(
         { error: "No valid fields to update" },
@@ -194,6 +216,21 @@ export async function PATCH(
         updatedAt: true,
       },
     });
+
+    // Audit log untuk reset password — TIDAK simpan password plaintext
+    if (passwordChanged && adminUser?.id) {
+      logAction(
+        adminUser.id,
+        "admin_reset_password",
+        JSON.stringify({
+          targetUserId: id,
+          targetEmail: updatedUser.email,
+        })
+      );
+      console.log(
+        `[Admin] Password reset by ${adminUser.id} for user ${updatedUser.email}`
+      );
+    }
 
     return NextResponse.json({ data: updatedUser });
   } catch (err) {

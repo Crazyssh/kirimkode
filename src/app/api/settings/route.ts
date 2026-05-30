@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getVisibleServers } from "@/lib/site-settings";
+import { getEffectiveVisibleServers } from "@/lib/site-settings";
 
 // Hanya key ini yang boleh diakses publik
 const PUBLIC_KEYS = ["wa_number", "deposit_enabled", "visible_servers"] as const;
@@ -15,9 +15,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Key tidak valid" }, { status: 400 });
   }
 
-  // visible_servers: return parsed array (bukan raw JSON string)
+  // visible_servers: apply auto-hide untuk Clowatch yang unhealthy
   if (key === "visible_servers") {
-    const list = await getVisibleServers();
+    const list = await getEffectiveVisibleServers();
     return NextResponse.json({ data: { key, value: list } });
   }
 

@@ -227,6 +227,7 @@ Trigger via crontab di VPS:
 | 2 menit | `/api/cron/deposits` | Polling status pembayaran |
 | 1 jam | `/api/cron/sync` | Sync negara/layanan dari semua provider |
 | 3 menit | `/api/cron/health` | Cek health server provider |
+| 30 detik | `/api/cron/clowatch-health` | Auto health check Clowatch (api5/api8/api9/api10) — test order WA→TG, hide otomatis kalau unhealthy |
 
 Auth: `Authorization: Bearer $CRON_SECRET`
 
