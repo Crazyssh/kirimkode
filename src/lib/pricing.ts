@@ -105,6 +105,63 @@ export function invalidatePriceCache() {
 }
 
 /**
+ * Pricing khusus Eris (api10) — pakai rule TERPISAH dengan namespace prefix "eris:".
+ * Tidak ikut rule global yang dipakai server lain.
+ *
+ * Lookup priority: "eris:<code>" + countryId > "eris:<code>" + 0 > "eris:*" + 0
+ *
+ * Kalau TIDAK ada rule Eris sama sekali → pakai harga provider apa adanya (final),
+ * BUKAN default tiered pricing (beda dari applyPricing global).
+ */
+export const ERIS_RULE_PREFIX = "eris:";
+
+export async function applyErisPricing(
+  basePrice: number,
+  serviceCode: string,
+  countryId: number
+): Promise<{ price: number; hasRule: boolean }> {
+  const rules = await getRules();
+  const prefixed = `${ERIS_RULE_PREFIX}${serviceCode}`;
+
+  const exactMatch = rules.find(
+    (r) => r.serviceCode === prefixed && r.countryId === countryId
+  );
+  const serviceMatch = rules.find(
+    (r) => r.serviceCode === prefixed && r.countryId === 0
+  );
+  const globalMatch = rules.find(
+    (r) => r.serviceCode === `${ERIS_RULE_PREFIX}*` && r.countryId === 0
+  );
+
+  const rule = exactMatch || serviceMatch || globalMatch;
+
+  // Tidak ada rule Eris → pakai harga provider langsung (final)
+  if (!rule) {
+    return { price: basePrice, hasRule: false };
+  }
+
+  let price: number;
+  switch (rule.priceType) {
+    case "fixed":
+      price = rule.value;
+      break;
+    case "multiply":
+      price = Math.ceil((basePrice * rule.value) / 100);
+      break;
+    case "markup":
+      price = basePrice + rule.value;
+      break;
+    case "floor":
+      if (basePrice < rule.value) { price = basePrice; break; }
+      price = Math.floor(basePrice / rule.value) * rule.value;
+      break;
+    default:
+      price = basePrice;
+  }
+  return { price, hasRule: true };
+}
+
+/**
  * Flat extra markup per-server (IDR) — diterapkan SETELAH applyPricing.
  * Berguna kalau satu provider (misal Planet) mau di-mark up flat di atas
  * harga server lain (misal Earth) yang share PriceRule.

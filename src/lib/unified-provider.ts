@@ -8,11 +8,12 @@
  */
 
 import { db } from "@/lib/db";
-import { applyPricing, applyServerExtraMarkup } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup, applyErisPricing } from "@/lib/pricing";
 import { getUnifiedProviders } from "@/lib/site-settings";
 
 // Provider yang harganya sudah final (USD→IDR + markup, atau langsung IDR) — skip applyPricing
-const FINAL_PRICE_PROVIDERS = new Set(["api3", "api6", "api9", "api10"]);
+// api10 (Eris) TIDAK di sini — pakai pricing rule terpisah (applyErisPricing)
+const FINAL_PRICE_PROVIDERS = new Set(["api3", "api6", "api9"]);
 
 // Server display names
 const SERVER_NAMES: Record<string, { name: string; icon: string }> = {
@@ -174,14 +175,17 @@ export async function getUnifiedLayanan(
   for (const svc of allServices) {
     if (svc.stock <= 0) continue; // skip stok kosong
 
-    const skipPricing = FINAL_PRICE_PROVIDERS.has(svc.serverId);
-    const rawPrice = svc.price;
-    const pricingResult = skipPricing
-      ? { price: rawPrice, hasRule: false }
-      : await applyPricing(rawPrice, svc.code, mappings.find(m => m.serverId === svc.serverId)?.externalId || 0);
-    const displayPrice = skipPricing
-      ? pricingResult.price
-      : applyServerExtraMarkup(pricingResult.price, svc.serverId);
+    const extId = mappings.find(m => m.serverId === svc.serverId)?.externalId || 0;
+    let displayPrice: number;
+    if (svc.serverId === "api10") {
+      // Eris: pricing rule terpisah namespace "eris:"
+      displayPrice = (await applyErisPricing(svc.price, svc.code, extId)).price;
+    } else if (FINAL_PRICE_PROVIDERS.has(svc.serverId)) {
+      displayPrice = svc.price;
+    } else {
+      const ruled = await applyPricing(svc.price, svc.code, extId);
+      displayPrice = applyServerExtraMarkup(ruled.price, svc.serverId);
+    }
 
     const groupKey = svc.name.trim().toLowerCase();
     const existing = serviceMap.get(groupKey);
@@ -341,13 +345,16 @@ export async function getServiceProviders(
     );
     if (!mapping) continue;
 
-    const skipPricing = FINAL_PRICE_PROVIDERS.has(serverId);
-    const pricingResult = skipPricing
-      ? { price: cheapest.rawPrice, hasRule: false }
-      : await applyPricing(cheapest.rawPrice, cheapest.code, mapping.externalId);
-    const displayPrice = skipPricing
-      ? pricingResult.price
-      : applyServerExtraMarkup(pricingResult.price, serverId);
+    let displayPrice: number;
+    if (serverId === "api10") {
+      // Eris: pricing rule terpisah namespace "eris:"
+      displayPrice = (await applyErisPricing(cheapest.rawPrice, cheapest.code, mapping.externalId)).price;
+    } else if (FINAL_PRICE_PROVIDERS.has(serverId)) {
+      displayPrice = cheapest.rawPrice;
+    } else {
+      const ruled = await applyPricing(cheapest.rawPrice, cheapest.code, mapping.externalId);
+      displayPrice = applyServerExtraMarkup(ruled.price, serverId);
+    }
 
     const serverInfo = SERVER_NAMES[serverId] || { name: serverId, icon: "⚪" };
 

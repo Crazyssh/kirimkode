@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLayanan } from "@/lib/otp";
-import { applyPricing, applyServerExtraMarkup } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup, applyErisPricing } from "@/lib/pricing";
 import { db } from "@/lib/db";
 import { getUnifiedLayanan } from "@/lib/unified-provider";
 
@@ -93,10 +93,15 @@ export async function GET(req: NextRequest) {
       const serviceData: Record<string, { harga: number; stok: number; layanan: string }> = {};
 
       for (const svc of services) {
-        // api3, api6, api9, api10: harga sudah final (USD→IDR + markup atau langsung IDR), skip applyPricing
-        const skipPricing = server === "api3" || server === "api6" || server === "api9" || server === "api10";
+        // api3, api6, api9: harga sudah final (USD→IDR + markup atau langsung IDR), skip applyPricing
+        const skipPricing = server === "api3" || server === "api6" || server === "api9";
         let customPrice: number;
-        if (skipPricing) {
+        if (server === "api10") {
+          // api10 (Eris): pricing rule TERPISAH (namespace "eris:"), tidak ikut rule global.
+          // Kalau belum ada rule Eris → harga provider apa adanya.
+          const result = await applyErisPricing(svc.price, svc.code, negaraId);
+          customPrice = result.price;
+        } else if (skipPricing) {
           customPrice = svc.price;
         } else {
           // api1/api2/api5/api7/api8: apply pricing rules (admin markup)
@@ -133,9 +138,17 @@ export async function GET(req: NextRequest) {
       serviceData = data.data[negaraKey];
     }
 
-    if (serviceData && server !== "api3" && server !== "api6" && server !== "api9" && server !== "api10") {
+    if (serviceData && server === "api10") {
+      // api10 (Eris): pricing rule terpisah (namespace "eris:")
+      for (const [code, info] of Object.entries(serviceData)) {
+        if (info && typeof info === "object" && "harga" in info) {
+          const result = await applyErisPricing(info.harga, code, negaraId);
+          info.harga = result.price;
+        }
+      }
+    } else if (serviceData && server !== "api3" && server !== "api6" && server !== "api9") {
       // api1/api2/api5/api7/api8: apply pricing + flat extra markup (api8)
-      // api3/api6/api9/api10: harga sudah final dari adapter, skip
+      // api3/api6/api9: harga sudah final dari adapter, skip
       for (const [code, info] of Object.entries(serviceData)) {
         if (info && typeof info === "object" && "harga" in info) {
           const rawPrice = info.harga;

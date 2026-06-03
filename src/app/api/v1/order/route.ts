@@ -2,13 +2,13 @@ import { withApiAuth } from "@/lib/api-auth";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
-import { applyPricing, applyServerExtraMarkup, getOrderTimeoutMs } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup, applyErisPricing, getOrderTimeoutMs } from "@/lib/pricing";
 
 type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10";
 const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10"];
 
 // Provider yang harganya sudah final (USD→IDR + markup di adapter, atau langsung IDR) — skip applyPricing.
-const FINAL_PRICE_SERVERS = new Set<PublicServer>(["api3", "api4", "api6", "api9", "api10"]);
+const FINAL_PRICE_SERVERS = new Set<PublicServer>(["api3", "api4", "api6", "api9"]);
 
 /**
  * Ambil harga dari server provider + apply pricing rules untuk api1/api2 saja.
@@ -30,8 +30,14 @@ async function getServerPrice(
   }
 
   if (FINAL_PRICE_SERVERS.has(server)) {
-    // api3/api4 sudah USD→IDR + markup, gak perlu applyPricing lagi
+    // api3/api4/api6/api9 sudah USD→IDR + markup, gak perlu applyPricing lagi
     return serviceInfo.harga;
+  }
+
+  // api10 (Eris): pricing rule terpisah namespace "eris:"
+  if (server === "api10") {
+    const result = await applyErisPricing(serviceInfo.harga, service, country);
+    return result.price;
   }
 
   const result = await applyPricing(serviceInfo.harga, service, country);

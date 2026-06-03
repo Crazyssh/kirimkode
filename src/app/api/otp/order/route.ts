@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
-import { applyPricing, applyServerExtraMarkup } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup, applyErisPricing } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { otpOrderSchema, validateBody } from "@/lib/validations";
@@ -61,10 +61,12 @@ async function getApi4Entry(negara: number, layanan: string): Promise<{
  * sama (JasaOTP-style) dan rule kita match by serviceCode+countryId tanpa server.
  */
 async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10", negara: number, layanan: string): Promise<number> {
-  // api3, api6, api9, api10: harga sudah final (USD→IDR atau langsung IDR), skip applyPricing
+  // api3, api6, api9: harga sudah final (USD→IDR atau langsung IDR), skip applyPricing
   // api1/api2/api5/api7/api8: harga raw dari provider, apply admin pricing rules
   // api8 (Mercury) tambah flat markup +Rp 115 di atas Earth's pricing
-  const skipPricing = server === "api3" || server === "api6" || server === "api9" || server === "api10";
+  // api10 (Eris): pricing rule TERPISAH namespace "eris:" (applyErisPricing)
+  const skipPricing = server === "api3" || server === "api6" || server === "api9";
+  const isEris = server === "api10";
 
   // Coba ambil dari database dulu (synced by cron)
   const country = await db.providerCountry.findUnique({
@@ -90,6 +92,10 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6"
     });
 
     if (service) {
+      if (isEris) {
+        const result = await applyErisPricing(service.price, layanan, negara);
+        return result.price;
+      }
       if (skipPricing) return service.price;
       const result = await applyPricing(service.price, layanan, negara);
       return applyServerExtraMarkup(result.price, server);
@@ -108,6 +114,10 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6"
     throw new Error("Layanan tidak ditemukan atau harga tidak tersedia");
   }
 
+  if (isEris) {
+    const result = await applyErisPricing(serviceInfo.harga, layanan, negara);
+    return result.price;
+  }
   if (skipPricing) return serviceInfo.harga;
 
   const result = await applyPricing(serviceInfo.harga, layanan, negara);

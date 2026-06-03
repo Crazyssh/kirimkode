@@ -229,12 +229,20 @@ export default function PricingPage() {
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
 
+  // Eris (api10) pakai pricing rule TERPISAH dengan prefix "eris:" supaya tidak
+  // bentrok dengan rule server lain. Helper ini compute serviceCode efektif.
+  const ruleCodeFor = (code: string) =>
+    selectedServer === "api10" ? `eris:${code}` : code;
+
   // Find rule for service+country
   const getRuleFor = (serviceCode: string, countryId: number): PriceRule | undefined => {
-    return rules.find((r) => r.serviceCode === serviceCode && r.countryId === countryId);
+    const rc = ruleCodeFor(serviceCode);
+    return rules.find((r) => r.serviceCode === rc && r.countryId === countryId);
   };
 
   const getGlobalRuleFor = (countryId: number): PriceRule | undefined => {
+    // Eris tidak ikut global rule "*" — return undefined biar gak kecampur
+    if (selectedServer === "api10") return undefined;
     return rules.find((r) => r.serviceCode === "*" && r.countryId === countryId)
       || rules.find((r) => r.serviceCode === "*" && r.countryId === 0);
   };
@@ -279,7 +287,7 @@ export default function PricingPage() {
       const res = await fetch("/api/admin/pricing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serviceCode: code, countryId, priceType: type, value: val }),
+        body: JSON.stringify({ serviceCode: ruleCodeFor(code), countryId, priceType: type, value: val }),
       });
       if (res.ok) {
         setSuccess(`${code.toUpperCase()} tersimpan`);
@@ -518,6 +526,7 @@ export default function PricingPage() {
                   { id: "api5", name: "Earth (Beta)", icon: "🌍" },
                   { id: "api6", name: "Venus (Beta)", icon: "🪐" },
                   { id: "api7", name: "Mars V2", icon: "🔴" },
+                  { id: "api10", name: "Eris", icon: "✨" },
                 ].map((s) => (
                   <button
                     key={s.id}
@@ -555,7 +564,7 @@ export default function PricingPage() {
               </div>
               {globalServiceSearch && (
                 <p className="text-[10px] text-muted mt-1.5">Min. 2 karakter. Cari di semua negara server {
-                  ({api1:"Mars",api2:"Jupiter",api3:"Saturn",api4:"Neptune",api5:"Earth (Beta)",api6:"Venus (Beta)",api7:"Mars V2"} as Record<string,string>)[selectedServer] || selectedServer
+                  ({api1:"Mars",api2:"Jupiter",api3:"Saturn",api4:"Neptune",api5:"Earth (Beta)",api6:"Venus (Beta)",api7:"Mars V2",api10:"Eris"} as Record<string,string>)[selectedServer] || selectedServer
                 }.</p>
               )}
             </CardContent>
