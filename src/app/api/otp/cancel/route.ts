@@ -26,14 +26,32 @@ export async function POST(req: NextRequest) {
 
     const { server, id } = validated.data;
 
-    // Cancel on JasaOTP (jangan block refund kalau JasaOTP error)
-    let jasaotpError = "";
+    // Server Clowatch: cancel HARUS sukses di provider dulu. Kalau gagal,
+    // JANGAN cancel/refund di web — biar order tetap jalan & user bisa coba lagi.
+    // (Mencegah kasus: web cancel + refund, tapi Clowatch masih jalan → rugi.)
+    const CLOWATCH_SERVERS = ["api5", "api8", "api9", "api10"];
+    const isClowatch = CLOWATCH_SERVERS.includes(server);
+
+    // Cancel on provider
+    let providerError = "";
     try {
       await cancelOrder(server, Number(id));
     } catch (e) {
-      jasaotpError = (e as Error).message || "Unknown error";
-      console.warn(`[Cancel] JasaOTP cancel error for order ${id}: ${jasaotpError}`);
-      // Lanjut proses refund — JasaOTP mungkin sudah cancel sebelumnya
+      providerError = (e as Error).message || "Unknown error";
+      console.warn(`[Cancel] Provider cancel error for order ${id} (${server}): ${providerError}`);
+
+      // Clowatch: provider cancel gagal → STOP, jangan refund di web.
+      if (isClowatch) {
+        return NextResponse.json(
+          {
+            error: providerError.includes("tunggu") || providerError.includes("TOO_EARLY")
+              ? providerError
+              : "Gagal membatalkan di provider. Order masih aktif, coba lagi sebentar.",
+          },
+          { status: 400 }
+        );
+      }
+      // Server non-Clowatch: lanjut refund — provider mungkin sudah cancel sebelumnya
     }
 
     // Refund balance and update order status atomically
@@ -83,12 +101,12 @@ export async function POST(req: NextRequest) {
       console.warn(`[Cancel] Order ${id} not found or already cancelled for user ${userId}`);
     }
 
-    logAction(userId, "cancel", JSON.stringify({ orderId: id, server, jasaotpError }));
+    logAction(userId, "cancel", JSON.stringify({ orderId: id, server, providerError }));
 
     return NextResponse.json({
       success: true,
       message: "Pesanan dibatalkan, saldo dikembalikan",
-      ...(jasaotpError ? { warning: jasaotpError } : {}),
+      ...(providerError ? { warning: providerError } : {}),
     });
   } catch (error) {
     console.error("[Cancel] Error:", error);
