@@ -197,15 +197,15 @@ export function getOrderTimeoutMs(serverId: string): number {
  * Default 3 menit (provider butuh waktu untuk delivery SMS pertama).
  *
  * Override:
- *   - api5 (Earth), api7 (Mars V2), api8 (Mercury): 2 menit 30 detik
- *   - api9 (Uranus), api10 (Eris): 2 menit
+ *   - api7 (Mars V2): 2 menit 30 detik
+ *   - Clowatch (api5 Earth, api8 Mercury, api9 Uranus, api10 Eris): 3 menit
  */
 const SERVER_CANCEL_MIN_MS: Record<string, number> = {
-  api5: 2.5 * 60 * 1000,
+  api5: 3 * 60 * 1000,
   api7: 2.5 * 60 * 1000,
-  api8: 2.5 * 60 * 1000,
-  api9: 2 * 60 * 1000,
-  api10: 2 * 60 * 1000,
+  api8: 3 * 60 * 1000,
+  api9: 3 * 60 * 1000,
+  api10: 3 * 60 * 1000,
 };
 
 export const DEFAULT_CANCEL_MIN_MS = 3 * 60 * 1000;
