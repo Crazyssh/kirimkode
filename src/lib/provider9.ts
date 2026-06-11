@@ -58,10 +58,11 @@ interface FetchOptions {
   query?: Record<string, string>;
   skipCache?: boolean;
   ttlMs?: number;
+  noTimeout?: boolean; // true = tunggu sampai provider respon (untuk order)
 }
 
 async function fetchProvider(path: string, options: FetchOptions = {}): Promise<unknown> {
-  const { method = "GET", body, query, skipCache = false, ttlMs } = options;
+  const { method = "GET", body, query, skipCache = false, ttlMs, noTimeout = false } = options;
 
   const url = new URL(`${BASE_URL}${path}`);
   if (query) {
@@ -79,7 +80,9 @@ async function fetchProvider(path: string, options: FetchOptions = {}): Promise<
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  // Order (noTimeout): tunggu sampai Clowatch respon, tanpa batas waktu.
+  // Call lain: timeout 30 detik supaya koneksi nyangkut gak numpuk.
+  const timeout = noTimeout ? null : setTimeout(() => controller.abort(), 30000);
 
   try {
     const headers: Record<string, string> = {
@@ -118,7 +121,7 @@ async function fetchProvider(path: string, options: FetchOptions = {}): Promise<
 
     return data;
   } finally {
-    clearTimeout(timeout);
+    if (timeout) clearTimeout(timeout);
   }
 }
 
@@ -209,6 +212,7 @@ export async function createOrder(negara: number, layanan: string, _operator: st
     method: "POST",
     body: { countryId: negara, service: layanan },
     skipCache: true,
+    noTimeout: true,
   })) as { data?: OrderResponse };
 
   const orderObj = raw?.data;
