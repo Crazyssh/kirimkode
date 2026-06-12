@@ -12,6 +12,11 @@ const BAYARGG_API_KEY = process.env.BAYARGG_API_KEY || "";
 const BAYARGG_QRIS_STRING = process.env.BAYARGG_QRIS_STRING || "";
 const BAYARGG_WEBHOOK_SECRET = process.env.BAYARGG_WEBHOOK_SECRET || "";
 
+// Checkout URL yang dikirim ke BAYAR.GG (wajib, HTTPS). Default ke checkout
+// bawaan BAYAR.GG. Bisa override via env kalau pakai custom checkout URL.
+const BAYARGG_CHECKOUT_URL =
+  process.env.BAYARGG_CHECKOUT_URL || "https://www.bayar.gg/pay";
+
 // Method preferensi: qris_bayar_gg (per-merchant mID, tanpa kode unik) →
 // fallback ke "qris" (QRIS Admin) kalau provider belum approve grant.
 // Bisa override via env BAYARGG_PAYMENT_METHOD.
@@ -46,6 +51,7 @@ export interface BayarGGCreatePaymentResponse {
   success: boolean;
   payment: BayarGGPaymentData;
   payment_url: string;
+  payment_qris_string?: string; // qris_string dari response (dynamic, untuk Livin/BRI/GoPay)
   qris_converter?: boolean;
   message?: string;
 }
@@ -105,17 +111,22 @@ export async function createPayment(
     body: JSON.stringify({
       ...rest,
       payment_method: payment_method || BAYARGG_PAYMENT_METHOD,
+      payment_url: BAYARGG_CHECKOUT_URL, // wajib per docs BAYAR.GG (HTTPS checkout URL)
     }),
   });
 
   // Normalize: docs return "data", legacy v2 return "payment". Handle keduanya.
   const payment = (raw.data || raw.payment || raw) as BayarGGPaymentData;
   const paymentUrl = (raw.payment_url || raw.pay_url || (payment as unknown as Record<string, unknown>).payment_url || "") as string;
+  // qris_string dynamic dari response (Livin/BRI/GoPay merchant)
+  const dataObj = (raw.data || raw) as Record<string, unknown>;
+  const qrisString = (dataObj.qris_string || (payment as unknown as Record<string, unknown>).qris_string || "") as string;
 
   return {
     success: raw.success as boolean,
     payment,
     payment_url: paymentUrl,
+    payment_qris_string: qrisString || undefined,
     qris_converter: raw.qris_converter as boolean | undefined,
     message: raw.message as string | undefined,
   };

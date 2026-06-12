@@ -75,7 +75,7 @@ export async function GET() {
       fee: {
         flat: 0,
         percent: 0.5,
-        display: "+ 0.5%",
+        display: "0.5% + kode unik 1-99",
       },
     });
   }
