@@ -29,9 +29,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ data: { [String(negaraId)]: ["any"] } });
     }
 
-    // api5 (Earth): provider tidak support operator selection
+    // api5 (Earth): Clowatch v1 support operator selection via /operators
     if (server === "api5") {
-      return NextResponse.json({ data: { [String(negaraId)]: ["any"] } });
+      const data = await getOperator(server, negaraId);
+      return NextResponse.json(data);
     }
 
     // api8 (Mercury): sama dengan Earth, tidak ada operator selection

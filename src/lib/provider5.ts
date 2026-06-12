@@ -213,26 +213,49 @@ export async function getLayanan(negara: number) {
 }
 
 /**
- * Operators — provider tidak support operator selection.
- * Return default "any".
+ * Operators — Clowatch v1 support operator selection via GET /operators?country=<id>.
+ * Response: { data: ["any", "telkomsel", "indosat", "axis"], total }
+ * "any" = auto-pilih operator oleh provider.
+ *
+ * Kalau gagal/empty → fallback ke ["any"].
  */
 export async function getOperator(negara: number) {
-  return { data: { [String(negara)]: ["any"] } };
+  try {
+    const raw = (await fetchProvider("/operators", {
+      query: { country: String(negara) },
+      ttlMs: 600000, // 10 menit
+    })) as { data?: string[] };
+
+    const list = Array.isArray(raw?.data) ? raw.data.filter((o) => typeof o === "string") : [];
+    const ops = list.length > 0 ? list : ["any"];
+    // Pastikan "any" selalu ada & di urutan pertama
+    const withAny = ops.includes("any") ? ops : ["any", ...ops];
+    return { data: { [String(negara)]: withAny } };
+  } catch {
+    return { data: { [String(negara)]: ["any"] } };
+  }
 }
 
 /**
  * Create order.
- * API: POST /order body { countryId, service }
+ * API: POST /order body { countryId, service, operator? }
  * Response: { data: { orderId, number, ... } }
+ *
+ * operator: "any" (default) = auto-pilih oleh provider. Selain itu kirim operator
+ * spesifik (telkomsel/indosat/axis/dll).
  *
  * Catatan: orderId di response bisa string. Internal schema Order.orderId Int —
  * parse ke number, validasi fits Int32, kalau tidak throw.
  */
-export async function createOrder(negara: number, layanan: string, _operator: string) {
-  void _operator; // not used by Mars API
+export async function createOrder(negara: number, layanan: string, operator: string) {
+  const body: Record<string, unknown> = { countryId: negara, service: layanan };
+  // Kirim operator hanya kalau spesifik (bukan "any" / kosong)
+  if (operator && operator !== "any") {
+    body.operator = operator;
+  }
   const raw = (await fetchProvider("/order", {
     method: "POST",
-    body: { countryId: negara, service: layanan },
+    body,
     skipCache: true,
     noTimeout: true,
   })) as { data?: OrderResponse };

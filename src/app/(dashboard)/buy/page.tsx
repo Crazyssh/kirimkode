@@ -847,8 +847,8 @@ export default function BuyPage() {
             </CardContent>
           </Card>
 
-          {/* Provider Dropdown - shown for api1/Mars & api7/Mars V2 (not unified mode) */}
-          {(selectedServer.id === "api1" || selectedServer.id === "api7") && (
+          {/* Provider Dropdown - shown for api1/Mars, api7/Mars V2, api5/Earth (not unified mode) */}
+          {(selectedServer.id === "api1" || selectedServer.id === "api7" || selectedServer.id === "api5") && (
             <Card className="relative z-15" style={{ overflow: "visible" }}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
