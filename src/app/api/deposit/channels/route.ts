@@ -25,6 +25,25 @@ export async function GET() {
   const bayargLivinEnabled = settingMap.bayargg_livin_enabled === "true"; // default OFF, harus di-enable admin
   const manualQrisEnabled = settingMap.manual_qris_enabled === "true";
 
+  // BAYAR.GG QRIS Livin (Mandiri Merchant) — toggle terpisah.
+  // Kalau aktif, tampil PALING ATAS (channel utama). Label ke user cukup "QRIS".
+  if (bayargLivinEnabled && process.env.BAYARGG_API_KEY) {
+    channels.push({
+      code: "bayargg_livin",
+      name: "QRIS",
+      type: "qris",
+      type_label: "QRIS",
+      icon: null,
+      description: "Bayar via QRIS - Semua e-wallet & mobile banking",
+      gateway: "bayargg",
+      fee: {
+        flat: 0,
+        percent: 0.5,
+        display: "0.5% + kode unik 1-99",
+      },
+    });
+  }
+
   // Paymenku QRIS
   if (paymenkuEnabled && process.env.PAYMENKU_API_KEY) {
     channels.push({
@@ -57,25 +76,6 @@ export async function GET() {
         flat: 0,
         percent: 2.1,
         display: "+ 2.1%",
-      },
-    });
-  }
-
-  // BAYAR.GG QRIS Livin (Mandiri Merchant) — toggle terpisah.
-  // Label ke user cukup "QRIS" (Livin disembunyikan).
-  if (bayargLivinEnabled && process.env.BAYARGG_API_KEY) {
-    channels.push({
-      code: "bayargg_livin",
-      name: "QRIS",
-      type: "qris",
-      type_label: "QRIS",
-      icon: null,
-      description: "Bayar via QRIS - Semua e-wallet & mobile banking",
-      gateway: "bayargg",
-      fee: {
-        flat: 0,
-        percent: 0.5,
-        display: "0.5% + kode unik 1-99",
       },
     });
   }
