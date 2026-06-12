@@ -292,14 +292,12 @@ export async function POST(req: NextRequest) {
 
     const isLivin = bayarggMethod === "qris_livin";
 
-    // Livin: user bayar net + fee 0.5% (kode unik 1-99 ditambah BAYAR.GG).
-    // amount yang dikirim ke BAYAR.GG = net + fee 0.5%. Saldo dikredit = net (amount asli).
-    // BAYAR GG biasa: tanpa fee kita (fee 2.1% ditanggung di sisi BAYAR.GG).
-    const livinFee = isLivin ? Math.ceil(amount * 0.005) : 0;
-    const grossAmount = amount + livinFee; // nominal dikirim ke BAYAR.GG
-
+    // PENTING: fee 0.5% + kode unik untuk qris_livin di-handle BAYAR.GG SENDIRI
+    // (lihat dashboard BAYAR.GG → profit/fee percent). Kita kirim nominal NET (amount),
+    // BAYAR.GG yang tambah fee 0.5% + kode unik di final_amount. JANGAN tambah fee
+    // sendiri di sini — itu bikin double charge (fee kena 2x).
     const result = await bayarggCreatePayment({
-      amount: grossAmount,
+      amount,
       description,
       customer_name: user.name || "KirimKode User",
       customer_email: user.email,
@@ -316,14 +314,18 @@ export async function POST(req: NextRequest) {
 
     const referenceId = `BGG-${user.id}-${Date.now()}`;
 
+    // final_amount dari BAYAR.GG = amount + fee BAYAR.GG (0.5% Livin) + kode unik.
+    // Simpan untuk catatan, tapi saldo yang dikredit tetap = amount (net).
+    const finalAmt = result.payment.final_amount || result.payment.amount || amount;
+
     await db.deposit.create({
       data: {
         userId: user.id,
         trxId: result.payment.invoice_id,
         referenceId,
         amount, // NET — yang dikredit ke user
-        fee: livinFee,
-        totalPaid: grossAmount, // GROSS yang dikirim ke BAYAR.GG (untuk matching webhook)
+        fee: Math.max(0, finalAmt - amount), // selisih = fee BAYAR.GG + kode unik (info saja)
+        totalPaid: finalAmt, // total yang user bayar (untuk matching/info)
         channelCode: bgChannelCode,
         channelName: bgChannelName,
         gateway: "bayargg",
@@ -333,7 +335,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    logAction(user.id, "deposit", JSON.stringify({ trxId: result.payment.invoice_id, amount, fee: livinFee, gateway: "bayargg", method: bayarggMethod || "qris_bayar_gg" }));
+    logAction(user.id, "deposit", JSON.stringify({ trxId: result.payment.invoice_id, amount, gateway: "bayargg", method: bayarggMethod || "qris_bayar_gg" }));
 
     if (user.email) {
       sendDepositPendingEmail(user.email, {
