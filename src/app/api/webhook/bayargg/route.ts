@@ -101,14 +101,19 @@ export async function POST(req: NextRequest) {
       verifiedPaidAt = verified.paid_at || null;
     }
 
-    // Cocokkan amount (skip jika 0 = data tidak lengkap)
-    if (verifiedAmount !== 0 && verifiedAmount !== deposit.amount) {
-      console.error(`[BAYAR.GG Webhook] Amount mismatch: verified=${verifiedAmount}, DB=${deposit.amount}`);
+    // Cocokkan amount (skip jika 0 = data tidak lengkap).
+    // verifiedAmount dari BAYAR.GG = nominal yang dikirim saat create (gross).
+    // Untuk Livin, gross = amount + fee 0.5% (tersimpan di totalPaid). Untuk channel lain,
+    // gross = amount. Bandingkan ke nilai yang sesuai supaya gak false-mismatch.
+    const expectedGross = deposit.totalPaid && deposit.totalPaid > 0 ? deposit.totalPaid : deposit.amount;
+    if (verifiedAmount !== 0 && verifiedAmount !== expectedGross && verifiedAmount !== deposit.amount) {
+      console.error(`[BAYAR.GG Webhook] Amount mismatch: verified=${verifiedAmount}, expectedGross=${expectedGross}, net=${deposit.amount}`);
       return NextResponse.json({ status: "mismatch" });
     }
 
     if (verifiedStatus === "paid") {
-      // Fee 2.1% dipotong di sisi BAYAR GG, saldo yang masuk = deposit.amount (nominal asli)
+      // Saldo yang dikredit = deposit.amount (NET). Fee 0.5% (Livin) / 2.1% (BAYAR GG)
+      // sudah ditanggung user di gross — user tetap dapat saldo sesuai nominal net.
       const creditAmount = deposit.amount;
 
       const processed = await db.$transaction(async (tx) => {
@@ -117,9 +122,7 @@ export async function POST(req: NextRequest) {
           data: {
             status: "paid",
             paidAt: verifiedPaidAt ? new Date(verifiedPaidAt) : new Date(),
-            fee: 0,
-            amount: creditAmount,
-            totalPaid: creditAmount,
+            // fee & totalPaid sudah di-set saat create (Livin) — jangan timpa jadi 0.
           },
         });
 

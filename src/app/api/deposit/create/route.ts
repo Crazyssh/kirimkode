@@ -290,8 +290,16 @@ export async function POST(req: NextRequest) {
     // === BAYAR.GG (default) ===
     const description = bayarggDescription(user.id, amount);
 
+    const isLivin = bayarggMethod === "qris_livin";
+
+    // Livin: user bayar net + fee 0.5% (kode unik 1-99 ditambah BAYAR.GG).
+    // amount yang dikirim ke BAYAR.GG = net + fee 0.5%. Saldo dikredit = net (amount asli).
+    // BAYAR GG biasa: tanpa fee kita (fee 2.1% ditanggung di sisi BAYAR.GG).
+    const livinFee = isLivin ? Math.ceil(amount * 0.005) : 0;
+    const grossAmount = amount + livinFee; // nominal dikirim ke BAYAR.GG
+
     const result = await bayarggCreatePayment({
-      amount,
+      amount: grossAmount,
       description,
       customer_name: user.name || "KirimKode User",
       customer_email: user.email,
@@ -302,7 +310,6 @@ export async function POST(req: NextRequest) {
       payment_method: bayarggMethod, // undefined = default qris_bayar_gg; "qris_livin" = Livin Mandiri
     });
 
-    const isLivin = bayarggMethod === "qris_livin";
     const bgChannelCode = isLivin ? "bayargg_livin" : "bayargg_qris";
     // channelName: admin tetap bisa bedakan via "(Livin)", user lihat "QRIS" saja di UI.
     const bgChannelName = isLivin ? "QRIS (Livin)" : "QRIS (BAYAR GG)";
@@ -314,8 +321,9 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         trxId: result.payment.invoice_id,
         referenceId,
-        amount,
-        fee: 0,
+        amount, // NET — yang dikredit ke user
+        fee: livinFee,
+        totalPaid: grossAmount, // GROSS yang dikirim ke BAYAR.GG (untuk matching webhook)
         channelCode: bgChannelCode,
         channelName: bgChannelName,
         gateway: "bayargg",
@@ -325,7 +333,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    logAction(user.id, "deposit", JSON.stringify({ trxId: result.payment.invoice_id, amount, gateway: "bayargg", method: bayarggMethod || "qris_bayar_gg" }));
+    logAction(user.id, "deposit", JSON.stringify({ trxId: result.payment.invoice_id, amount, fee: livinFee, gateway: "bayargg", method: bayarggMethod || "qris_bayar_gg" }));
 
     if (user.email) {
       sendDepositPendingEmail(user.email, {

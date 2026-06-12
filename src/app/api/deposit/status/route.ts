@@ -102,10 +102,8 @@ export async function GET(req: NextRequest) {
           where: { trxId: orderId, status: "pending" },
           data: {
             status: "paid",
-            fee: 0,
-            amount: creditAmount,
-            totalPaid: creditAmount,
             paidAt: paidAt ? new Date(paidAt) : new Date(),
+            // fee & totalPaid sudah di-set saat create — jangan di-timpa (Livin punya fee 0.5%)
           },
         });
 
