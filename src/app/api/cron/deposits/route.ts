@@ -112,7 +112,10 @@ export async function GET(req: NextRequest) {
                 }
 
                 if (result.status === "paid") {
-                    // Fee 2.1% dipotong di sisi BAYAR GG, saldo yang masuk = deposit.amount
+                    // Saldo yang dikredit = deposit.amount (NET yang user input saat create).
+                    // JANGAN overwrite amount/fee/totalPaid — itu sudah di-set benar saat create
+                    // (Livin: amount=net, fee=0.5%, totalPaid=gross). Overwrite bisa bikin
+                    // nilai salah (mis. ke-floor jadi kelipatan ribuan).
                     const creditAmount = deposit.amount;
 
                     const processed = await db.$transaction(async (tx) => {
@@ -121,9 +124,6 @@ export async function GET(req: NextRequest) {
                             data: {
                                 status: "paid",
                                 paidAt: result.paid_at ? new Date(result.paid_at) : new Date(),
-                                fee: 0,
-                                amount: creditAmount,
-                                totalPaid: creditAmount,
                             },
                         });
 
