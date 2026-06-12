@@ -11,7 +11,7 @@
  */
 
 const BASE_URL =
-  process.env.PROVIDER10_API_URL || "https://api4.clowatch.com/api/v4";
+  process.env.PROVIDER10_API_URL || "https://api.clowatch.com/api/v4";
 const API_KEY =
   process.env.PROVIDER10_API_KEY || process.env.PROVIDER5_API_KEY || "";
 
