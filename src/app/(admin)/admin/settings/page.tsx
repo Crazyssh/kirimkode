@@ -15,6 +15,8 @@ export default function AdminSettingsPage() {
   const [togglingPaymenku, setTogglingPaymenku] = useState(false);
   const [bayargGEnabled, setBayargGEnabled] = useState(true);
   const [togglingBayargG, setTogglingBayargG] = useState(false);
+  const [bayargLivinEnabled, setBayargLivinEnabled] = useState(false);
+  const [togglingBayargLivin, setTogglingBayargLivin] = useState(false);
   const [manualQrisEnabled, setManualQrisEnabled] = useState(false);
   const [togglingManualQris, setTogglingManualQris] = useState(false);
   const [telegramUsername, setTelegramUsername] = useState("");
@@ -39,6 +41,7 @@ export default function AdminSettingsPage() {
         setDepositEnabled(json.data?.deposit_enabled !== "false");
         setPaymenkuEnabled(json.data?.paymenku_enabled !== "false");
         setBayargGEnabled(json.data?.bayargg_enabled !== "false");
+        setBayargLivinEnabled(json.data?.bayargg_livin_enabled === "true");
         setManualQrisEnabled(json.data?.manual_qris_enabled === "true");
         const tg = json.data?.admin_telegram_username ?? "";
         setTelegramUsername(tg);
@@ -374,6 +377,84 @@ export default function AdminSettingsPage() {
               >
                 {bayargGEnabled ? "✅ BAYAR GG AKTIF — Fee 2.1%" : "⛔ BAYAR GG NONAKTIF"}
               </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* BAYAR GG QRIS Livin Toggle (admin only — user lihat sebagai "QRIS") */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CreditCard className="h-4 w-4 text-emerald-500" />
+            Gateway: QRIS Livin (Mandiri)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Memuat...
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Status QRIS Livin</p>
+                  <p className="text-xs text-muted-foreground">
+                    {bayargLivinEnabled
+                      ? "Aktif. QRIS Livin Merchant Mandiri (fee 0.5% + kode unik). Di halaman deposit tampil sebagai \"QRIS\" biasa."
+                      : "Nonaktif. Channel ini tidak muncul di halaman deposit."}
+                  </p>
+                </div>
+                <Button
+                  variant={bayargLivinEnabled ? "primary" : "secondary"}
+                  size="sm"
+                  disabled={togglingBayargLivin}
+                  onClick={async () => {
+                    setTogglingBayargLivin(true);
+                    try {
+                      const newValue = !bayargLivinEnabled;
+                      const res = await fetch("/api/admin/settings", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          key: "bayargg_livin_enabled",
+                          value: String(newValue),
+                        }),
+                      });
+                      if (res.ok) setBayargLivinEnabled(newValue);
+                    } catch {
+                      // silent
+                    } finally {
+                      setTogglingBayargLivin(false);
+                    }
+                  }}
+                  className="min-w-[80px]"
+                >
+                  {togglingBayargLivin ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : bayargLivinEnabled ? (
+                    "ON"
+                  ) : (
+                    "OFF"
+                  )}
+                </Button>
+              </div>
+              <div
+                className={`rounded-md px-3 py-2 text-sm ${
+                  bayargLivinEnabled
+                    ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                    : "bg-muted/50 text-muted-foreground border border-border"
+                }`}
+              >
+                {bayargLivinEnabled ? "✅ QRIS Livin AKTIF — Fee 0.5% + kode unik" : "⛔ QRIS Livin NONAKTIF"}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Catatan: butuh langganan aktif + akun Livin Merchant terhubung di BAYAR.GG.
+                Kalau dua channel BAYAR.GG aktif bersamaan, user akan lihat dua opsi &quot;QRIS&quot;.
+                Saran: aktifkan salah satu saja.
+              </p>
             </>
           )}
         </CardContent>

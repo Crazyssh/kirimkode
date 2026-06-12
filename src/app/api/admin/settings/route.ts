@@ -8,6 +8,7 @@ const ALLOWED_KEYS = [
   "manual_qris_enabled",
   "paymenku_enabled",
   "bayargg_enabled",
+  "bayargg_livin_enabled",
   "admin_telegram_username",
   "force_refresh_at",
 ] as const;
@@ -58,12 +59,13 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ success: true, data: { key, value: clean } });
   }
 
-  // Validasi khusus deposit_enabled & manual_qris_enabled & paymenku_enabled & bayargg_enabled (hanya "true" atau "false")
+  // Validasi khusus deposit_enabled & manual_qris_enabled & paymenku_enabled & bayargg_enabled & bayargg_livin_enabled (hanya "true" atau "false")
   if (
     key === "deposit_enabled" ||
     key === "manual_qris_enabled" ||
     key === "paymenku_enabled" ||
-    key === "bayargg_enabled"
+    key === "bayargg_enabled" ||
+    key === "bayargg_livin_enabled"
   ) {
     if (value !== "true" && value !== "false") {
       return NextResponse.json({ error: "Value harus 'true' atau 'false'" }, { status: 400 });

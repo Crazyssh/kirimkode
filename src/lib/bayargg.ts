@@ -29,6 +29,7 @@ export interface BayarGGCreatePaymentParams {
   callback_url?: string;
   redirect_url?: string;
   use_qris_converter?: boolean;
+  payment_method?: string; // override default (mis. "qris_livin")
 }
 
 export interface BayarGGPaymentData {
@@ -98,11 +99,12 @@ async function bayarRequest<T>(
 export async function createPayment(
   params: BayarGGCreatePaymentParams
 ): Promise<BayarGGCreatePaymentResponse> {
+  const { payment_method, ...rest } = params;
   const raw = await bayarRequest<Record<string, unknown>>("/create-payment.php", {
     method: "POST",
     body: JSON.stringify({
-      ...params,
-      payment_method: BAYARGG_PAYMENT_METHOD,
+      ...rest,
+      payment_method: payment_method || BAYARGG_PAYMENT_METHOD,
     }),
   });
 

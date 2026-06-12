@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
 
     // Map channel_code → gateway internal
     let gateway: "paymenku" | "manual_qris" | "bayargg";
+    let bayarggMethod: string | undefined; // override payment_method untuk BAYAR.GG
     if (channel_code === "QRIS") {
       gateway = "paymenku";
     } else if (channel_code === "manual_qris") {
@@ -55,6 +56,9 @@ export async function POST(req: NextRequest) {
     } else if (channel_code === "bayargg_qris" || channel_code === "bayargg_gopay_qris") {
       // bayargg_gopay_qris di-keep sebagai alias backward compat
       gateway = "bayargg";
+    } else if (channel_code === "bayargg_livin") {
+      gateway = "bayargg";
+      bayarggMethod = "qris_livin";
     } else {
       return NextResponse.json(
         { error: "Channel pembayaran tidak dikenal." },
@@ -66,7 +70,7 @@ export async function POST(req: NextRequest) {
     const gatewaySettings = await db.siteSetting.findMany({
       where: {
         key: {
-          in: ["paymenku_enabled", "bayargg_enabled", "manual_qris_enabled"],
+          in: ["paymenku_enabled", "bayargg_enabled", "bayargg_livin_enabled", "manual_qris_enabled"],
         },
       },
     });
@@ -79,11 +83,22 @@ export async function POST(req: NextRequest) {
         { status: 403 }
       );
     }
-    if (gateway === "bayargg" && settingMap.bayargg_enabled === "false") {
-      return NextResponse.json(
-        { error: "Pembayaran BAYAR GG sedang dinonaktifkan. Pilih channel lain." },
-        { status: 403 }
-      );
+    // BAYAR.GG: channel qris biasa pakai toggle bayargg_enabled,
+    // channel Livin pakai toggle bayargg_livin_enabled (default OFF).
+    if (gateway === "bayargg") {
+      if (bayarggMethod === "qris_livin") {
+        if (settingMap.bayargg_livin_enabled !== "true") {
+          return NextResponse.json(
+            { error: "QRIS Livin sedang dinonaktifkan. Pilih channel lain." },
+            { status: 403 }
+          );
+        }
+      } else if (settingMap.bayargg_enabled === "false") {
+        return NextResponse.json(
+          { error: "Pembayaran BAYAR GG sedang dinonaktifkan. Pilih channel lain." },
+          { status: 403 }
+        );
+      }
     }
     if (gateway === "manual_qris" && settingMap.manual_qris_enabled !== "true") {
       return NextResponse.json(
@@ -284,7 +299,13 @@ export async function POST(req: NextRequest) {
       callback_url: `${appUrl}/api/webhook/bayargg`,
       redirect_url: `${appUrl}/deposit?status=success`,
       use_qris_converter: true,
+      payment_method: bayarggMethod, // undefined = default qris_bayar_gg; "qris_livin" = Livin Mandiri
     });
+
+    const isLivin = bayarggMethod === "qris_livin";
+    const bgChannelCode = isLivin ? "bayargg_livin" : "bayargg_qris";
+    // channelName: admin tetap bisa bedakan via "(Livin)", user lihat "QRIS" saja di UI.
+    const bgChannelName = isLivin ? "QRIS (Livin)" : "QRIS (BAYAR GG)";
 
     const referenceId = `BGG-${user.id}-${Date.now()}`;
 
@@ -295,8 +316,8 @@ export async function POST(req: NextRequest) {
         referenceId,
         amount,
         fee: 0,
-        channelCode: "bayargg_qris",
-        channelName: "QRIS (BAYAR GG)",
+        channelCode: bgChannelCode,
+        channelName: bgChannelName,
         gateway: "bayargg",
         status: "pending",
         payUrl: result.payment_url,
@@ -304,14 +325,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    logAction(user.id, "deposit", JSON.stringify({ trxId: result.payment.invoice_id, amount, gateway: "bayargg" }));
+    logAction(user.id, "deposit", JSON.stringify({ trxId: result.payment.invoice_id, amount, gateway: "bayargg", method: bayarggMethod || "qris_bayar_gg" }));
 
     if (user.email) {
       sendDepositPendingEmail(user.email, {
         name: user.name || "User",
         amount,
         trxId: result.payment.invoice_id,
-        channelName: "QRIS (BAYAR GG)",
+        channelName: bgChannelName,
         payUrl: result.payment_url,
       }).catch((e) => console.error("[Mail] Email deposit pending error:", e));
     }

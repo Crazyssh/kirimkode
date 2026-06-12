@@ -14,7 +14,7 @@ export async function GET() {
 
   // Ambil semua toggle sekali
   const settings = await db.siteSetting.findMany({
-    where: { key: { in: ["paymenku_enabled", "bayargg_enabled", "manual_qris_enabled"] } },
+    where: { key: { in: ["paymenku_enabled", "bayargg_enabled", "bayargg_livin_enabled", "manual_qris_enabled"] } },
   });
   const settingMap: Record<string, string> = {};
   for (const s of settings) settingMap[s.key] = s.value;
@@ -22,6 +22,7 @@ export async function GET() {
   // Default: kalau setting tidak ada, gateway aktif (selama env tersedia).
   const paymenkuEnabled = settingMap.paymenku_enabled !== "false";
   const bayargGEnabled = settingMap.bayargg_enabled !== "false";
+  const bayargLivinEnabled = settingMap.bayargg_livin_enabled === "true"; // default OFF, harus di-enable admin
   const manualQrisEnabled = settingMap.manual_qris_enabled === "true";
 
   // Paymenku QRIS
@@ -56,6 +57,25 @@ export async function GET() {
         flat: 0,
         percent: 2.1,
         display: "+ 2.1%",
+      },
+    });
+  }
+
+  // BAYAR.GG QRIS Livin (Mandiri Merchant) — toggle terpisah.
+  // Label ke user cukup "QRIS" (Livin disembunyikan).
+  if (bayargLivinEnabled && process.env.BAYARGG_API_KEY) {
+    channels.push({
+      code: "bayargg_livin",
+      name: "QRIS",
+      type: "qris",
+      type_label: "QRIS",
+      icon: null,
+      description: "Bayar via QRIS - Semua e-wallet & mobile banking",
+      gateway: "bayargg",
+      fee: {
+        flat: 0,
+        percent: 0.5,
+        display: "+ 0.5%",
       },
     });
   }
