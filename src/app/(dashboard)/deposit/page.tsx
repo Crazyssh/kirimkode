@@ -356,18 +356,18 @@ export default function DepositPage() {
         }
 
         // BAYAR.GG / Manual QRIS → tampil QR inline di web
+        // Kalau QR gak tersedia (mis. Livin → render di checkout BAYAR.GG),
+        // redirect penuh ke payment_url BAYAR.GG.
+        const qrUrl = data.data.payment_info?.qr_url;
+        const payUrl = data.data.payment_info?.checkout_url || data.data.pay_url;
+        if (!qrUrl && payUrl) {
+          window.location.href = payUrl;
+          return;
+        }
+
         setDepositResult(data.data);
         setPaymentStatus("pending");
         setStep("payment");
-
-        // Auto buka tab baru kalau QR gak tersedia (fallback bayargg)
-        const qrUrl = data.data.payment_info?.qr_url;
-        if (!qrUrl) {
-          const payUrl = data.data.payment_info?.checkout_url || data.data.pay_url;
-          if (payUrl) {
-            window.open(payUrl, "_blank");
-          }
-        }
       } else {
         setError(data.error || "Gagal membuat deposit");
       }

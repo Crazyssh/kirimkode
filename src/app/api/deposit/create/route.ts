@@ -346,24 +346,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate QR inline HANYA untuk qris_bayar_gg (pakai BAYARGG_QRIS_STRING merchant kita).
-    // Untuk qris_livin: QRIS berasal dari akun Livin Merchant (beda string), JANGAN pakai
-    // BAYARGG_QRIS_STRING — itu QR merchant salah. BAYAR.GG render QR Livin di checkout page
-    // (use_qris_converter aktif), jadi pakai qris_string dari response atau arahkan ke payment_url.
+    // Untuk qris_livin: JANGAN generate QR sendiri. QR Livin + kode unik di-render di
+    // checkout page BAYAR.GG (payment_url) supaya nominal & kode unik sinkron dengan
+    // yang mereka track. Web kita redirect user ke payment_url.
     let qrImageUrl: string | null = null;
-    if (isLivin) {
-      // Coba render QR dari qris_string response (sudah dynamic dari Livin Merchant)
-      const livinQris = result.payment_qris_string;
-      if (livinQris) {
-        try {
-          const finalAmount = result.payment.final_amount || result.payment.amount;
-          const qrisResult = await convertCustomQris(livinQris, finalAmount);
-          qrImageUrl = qrisResult.data.qr_image_url;
-          console.log(`[BAYAR.GG Livin] QRIS ready dari Livin Merchant: ${qrImageUrl}`);
-        } catch (e) {
-          console.warn("[BAYAR.GG Livin] convert qris_string gagal, fallback ke checkout URL:", e);
-        }
-      }
-    } else {
+    if (!isLivin) {
       try {
         const finalAmount = result.payment.final_amount || result.payment.amount;
         const qrisResult = await convertQris(finalAmount);
