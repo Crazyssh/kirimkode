@@ -273,9 +273,12 @@ export async function cancelOrder(orderId: number) {
       method: "POST",
       skipCache: true,
       noTimeout: true,
-    })) as { ok?: boolean };
+    })) as { ok?: boolean; error?: string };
 
-    if (raw?.ok === true) return { success: true };
+    // ok === false eksplisit → gagal. Selain itu (ok true / 200 tanpa ok) → sukses.
+    if (raw?.ok === false) {
+      throw new Error(raw.error || "Provider menolak cancel");
+    }
     return { success: true };
   } catch (err) {
     if (err instanceof Provider10Error) {

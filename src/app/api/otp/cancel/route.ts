@@ -26,13 +26,44 @@ export async function POST(req: NextRequest) {
 
     const { server, id } = validated.data;
 
-    // Server Clowatch: cancel HARUS sukses di provider dulu. Kalau gagal,
-    // JANGAN cancel/refund di web — biar order tetap jalan & user bisa coba lagi.
-    // (Mencegah kasus: web cancel + refund, tapi Clowatch masih jalan → rugi.)
     const CLOWATCH_SERVERS = ["api5", "api8", "api9", "api10"];
     const isClowatch = CLOWATCH_SERVERS.includes(server);
 
-    // Cancel on provider
+    // STEP 1: Ambil order dari DB DULU (sebelum cancel ke provider).
+    // Penting: kalau order sudah dapat OTP, JANGAN cancel — user udah dapat value.
+    const order = await db.order.findFirst({
+      where: {
+        orderId: Number(id),
+        server,
+        userId,
+        status: "waiting",
+      },
+    });
+
+    if (!order) {
+      // Order tidak ditemukan / sudah diproses (cancelled/success/timeout)
+      console.warn(`[Cancel] Order ${id} not found or already processed for user ${userId}`);
+      return NextResponse.json(
+        { error: "Order tidak ditemukan atau sudah diproses." },
+        { status: 404 }
+      );
+    }
+
+    // Resend mode guard: order sudah pernah dapat OTP → JANGAN refund/cancel ke provider.
+    // Balikin status ke "success" (user sudah dapat value). Cegah double-dip.
+    if (order.code) {
+      await db.order.updateMany({
+        where: { id: order.id, userId, status: "waiting" },
+        data: { status: "success" },
+      });
+      console.log(`[Cancel] Skip cancel for order ${id}: already had OTP — restored to success`);
+      return NextResponse.json({
+        success: false,
+        error: "Order sudah menerima OTP, tidak bisa dibatalkan.",
+      }, { status: 400 });
+    }
+
+    // STEP 2: Cancel di provider.
     let providerError = "";
     try {
       await cancelOrder(server, Number(id));
@@ -41,6 +72,7 @@ export async function POST(req: NextRequest) {
       console.warn(`[Cancel] Provider cancel error for order ${id} (${server}): ${providerError}`);
 
       // Clowatch: provider cancel gagal → STOP, jangan refund di web.
+      // (Mencegah: web cancel + refund, tapi Clowatch masih jalan → rugi.)
       if (isClowatch) {
         return NextResponse.json(
           {
@@ -54,54 +86,32 @@ export async function POST(req: NextRequest) {
       // Server non-Clowatch: lanjut refund — provider mungkin sudah cancel sebelumnya
     }
 
-    // Refund balance and update order status atomically
-    const order = await db.order.findFirst({
-      where: {
-        orderId: Number(id),
-        server,
-        userId,
-        status: "waiting",
-      },
+    // STEP 3: Refund balance + update status atomically.
+    const refunded = await db.$transaction(async (tx) => {
+      const updated = await tx.order.updateMany({
+        where: { id: order.id, userId, status: "waiting" },
+        data: { status: "cancelled" },
+      });
+
+      if (updated.count === 0) return false;
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { balance: { increment: order.price } },
+      });
+
+      return true;
     });
 
-    if (order) {
-      // Resend mode guard: kalau order udah pernah dapet OTP (code ada),
-      // user udah dapet value — JANGAN refund. Balikin status ke "success".
-      // Ini cegah double-dip dari fitur resend SMS (Neptune).
-      if (order.code) {
-        await db.order.updateMany({
-          where: { id: order.id, userId, status: "waiting" },
-          data: { status: "success" },
-        });
-        console.log(`[Cancel] Skip refund for order ${id}: already had OTP (resend mode) — restored to success`);
-      } else {
-        const refunded = await db.$transaction(async (tx) => {
-          const updated = await tx.order.updateMany({
-            where: { id: order.id, userId, status: "waiting" },
-            data: { status: "cancelled" },
-          });
-
-          if (updated.count === 0) return false;
-
-          await tx.user.update({
-            where: { id: userId },
-            data: { balance: { increment: order.price } },
-          });
-
-          return true;
-        });
-
-        if (refunded) {
-          console.log(`[Cancel] Refunded Rp ${order.price} for order ${id} to user ${userId}`);
-        } else {
-          console.warn(`[Cancel] Skip refund for order ${id}: already processed`);
-        }
-      }
+    if (refunded) {
+      console.log(`[Cancel] Refunded Rp ${order.price} for order ${id} to user ${userId}`);
     } else {
-      console.warn(`[Cancel] Order ${id} not found or already cancelled for user ${userId}`);
+      // Edge case: order keburu berubah status di request lain (race).
+      // Provider sudah ke-cancel tapi refund gak jalan → log buat audit manual.
+      console.warn(`[Cancel] Order ${id} cancelled di provider tapi refund skip (race condition / already processed)`);
     }
 
-    logAction(userId, "cancel", JSON.stringify({ orderId: id, server, providerError }));
+    logAction(userId, "cancel", JSON.stringify({ orderId: id, server, providerError, refunded }));
 
     return NextResponse.json({
       success: true,

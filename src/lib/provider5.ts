@@ -343,10 +343,12 @@ export async function cancelOrder(orderId: number) {
       method: "POST",
       skipCache: true,
       noTimeout: true,
-    })) as { ok?: boolean };
+    })) as { ok?: boolean; error?: string };
 
-    if (raw?.ok === true) return { success: true };
-    return { success: true }; // 200 dianggap sukses
+    if (raw?.ok === false) {
+      throw new Error(raw.error || "Provider menolak cancel");
+    }
+    return { success: true };
   } catch (err) {
     if (err instanceof Provider5Error) {
       if (err.code === "TOO_EARLY") {
