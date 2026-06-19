@@ -125,7 +125,7 @@ export async function applyErisPricing(
 
 export const MERCURY_RULE_PREFIX = "mercury:";
 
-// Default markup Mercury kalau admin belum set rule khusus (+Rp 115 di atas harga provider).
+// Default markup Mercury kalau admin belum set rule khusus (+Rp 115 di atas harga Earth).
 const MERCURY_DEFAULT_MARKUP = 115;
 
 export async function applyMercuryPricing(
@@ -134,11 +134,12 @@ export async function applyMercuryPricing(
   countryId: number
 ): Promise<{ price: number; hasRule: boolean }> {
   const result = await applyPrefixedPricing(MERCURY_RULE_PREFIX, basePrice, serviceCode, countryId);
-  // Kalau admin sudah set rule → ikut rule. Kalau belum → default +Rp 115.
-  if (!result.hasRule) {
-    return { price: basePrice + MERCURY_DEFAULT_MARKUP, hasRule: false };
-  }
-  return result;
+  // Kalau admin sudah set rule mercury: → ikut rule itu.
+  if (result.hasRule) return result;
+
+  // Belum ada rule Mercury → default = harga Earth (applyPricing rule global) + Rp 115.
+  const earthPrice = await applyPricing(basePrice, serviceCode, countryId);
+  return { price: earthPrice.price + MERCURY_DEFAULT_MARKUP, hasRule: false };
 }
 
 /**
