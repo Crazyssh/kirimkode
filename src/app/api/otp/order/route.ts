@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
-import { applyPricing, applyServerExtraMarkup, applyErisPricing } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup, applyErisPricing, applyMercuryPricing } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { otpOrderSchema, validateBody } from "@/lib/validations";
@@ -67,6 +67,7 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6"
   // api10 (Eris): pricing rule TERPISAH namespace "eris:" (applyErisPricing)
   const skipPricing = server === "api3" || server === "api6" || server === "api9";
   const isEris = server === "api10";
+  const isMercury = server === "api8";
 
   // Coba ambil dari database dulu (synced by cron)
   const country = await db.providerCountry.findUnique({
@@ -96,6 +97,10 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6"
         const result = await applyErisPricing(service.price, layanan, negara);
         return result.price;
       }
+      if (isMercury) {
+        const result = await applyMercuryPricing(service.price, layanan, negara);
+        return result.price;
+      }
       if (skipPricing) return service.price;
       const result = await applyPricing(service.price, layanan, negara);
       return applyServerExtraMarkup(result.price, server);
@@ -116,6 +121,10 @@ async function getServerPrice(server: "api1" | "api2" | "api3" | "api5" | "api6"
 
   if (isEris) {
     const result = await applyErisPricing(serviceInfo.harga, layanan, negara);
+    return result.price;
+  }
+  if (isMercury) {
+    const result = await applyMercuryPricing(serviceInfo.harga, layanan, negara);
     return result.price;
   }
   if (skipPricing) return serviceInfo.harga;

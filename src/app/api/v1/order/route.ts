@@ -2,7 +2,7 @@ import { withApiAuth } from "@/lib/api-auth";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
-import { applyPricing, applyServerExtraMarkup, applyErisPricing, getOrderTimeoutMs } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup, applyErisPricing, applyMercuryPricing, getOrderTimeoutMs } from "@/lib/pricing";
 
 type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10";
 const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10"];
@@ -37,6 +37,12 @@ async function getServerPrice(
   // api10 (Eris): pricing rule terpisah namespace "eris:"
   if (server === "api10") {
     const result = await applyErisPricing(serviceInfo.harga, service, country);
+    return result.price;
+  }
+
+  // api8 (Mercury): pricing rule terpisah namespace "mercury:"
+  if (server === "api8") {
+    const result = await applyMercuryPricing(serviceInfo.harga, service, country);
     return result.price;
   }
 

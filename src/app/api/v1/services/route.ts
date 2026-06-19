@@ -1,7 +1,7 @@
 import { withApiAuth } from "@/lib/api-auth";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { getLayanan } from "@/lib/otp";
-import { applyPricing, applyServerExtraMarkup, applyErisPricing } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup, applyErisPricing, applyMercuryPricing } from "@/lib/pricing";
 
 type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10";
 const VALID_SERVERS: readonly PublicServer[] = ["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10"];
@@ -41,6 +41,8 @@ export const GET = withApiAuth(async (req) => {
           let finalPrice: number;
           if (server === "api10") {
             finalPrice = (await applyErisPricing(item.harga, code, negara)).price;
+          } else if (server === "api8") {
+            finalPrice = (await applyMercuryPricing(item.harga, code, negara)).price;
           } else if (isFinal) {
             finalPrice = item.harga;
           } else {

@@ -229,10 +229,13 @@ export default function PricingPage() {
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   const formatRp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
 
-  // Eris (api10) pakai pricing rule TERPISAH dengan prefix "eris:" supaya tidak
-  // bentrok dengan rule server lain. Helper ini compute serviceCode efektif.
-  const ruleCodeFor = (code: string) =>
-    selectedServer === "api10" ? `eris:${code}` : code;
+  // Eris (api10) & Mercury (api8) pakai pricing rule TERPISAH dengan prefix supaya
+  // tidak bentrok dengan rule server lain. Helper ini compute serviceCode efektif.
+  const ruleCodeFor = (code: string) => {
+    if (selectedServer === "api10") return `eris:${code}`;
+    if (selectedServer === "api8") return `mercury:${code}`;
+    return code;
+  };
 
   // Find rule for service+country
   const getRuleFor = (serviceCode: string, countryId: number): PriceRule | undefined => {
@@ -241,8 +244,8 @@ export default function PricingPage() {
   };
 
   const getGlobalRuleFor = (countryId: number): PriceRule | undefined => {
-    // Eris tidak ikut global rule "*" — return undefined biar gak kecampur
-    if (selectedServer === "api10") return undefined;
+    // Eris & Mercury tidak ikut global rule "*" — return undefined biar gak kecampur
+    if (selectedServer === "api10" || selectedServer === "api8") return undefined;
     return rules.find((r) => r.serviceCode === "*" && r.countryId === countryId)
       || rules.find((r) => r.serviceCode === "*" && r.countryId === 0);
   };
@@ -526,6 +529,7 @@ export default function PricingPage() {
                   { id: "api5", name: "Earth (Beta)", icon: "🌍" },
                   { id: "api6", name: "Venus (Beta)", icon: "🪐" },
                   { id: "api7", name: "Mars V2", icon: "🔴" },
+                  { id: "api8", name: "Mercury", icon: "☿️" },
                   { id: "api10", name: "Eris", icon: "✨" },
                 ].map((s) => (
                   <button
@@ -564,7 +568,7 @@ export default function PricingPage() {
               </div>
               {globalServiceSearch && (
                 <p className="text-[10px] text-muted mt-1.5">Min. 2 karakter. Cari di semua negara server {
-                  ({api1:"Mars",api2:"Jupiter",api3:"Saturn",api4:"Neptune",api5:"Earth (Beta)",api6:"Venus (Beta)",api7:"Mars V2",api10:"Eris"} as Record<string,string>)[selectedServer] || selectedServer
+                  ({api1:"Mars",api2:"Jupiter",api3:"Saturn",api4:"Neptune",api5:"Earth (Beta)",api6:"Venus (Beta)",api7:"Mars V2",api8:"Mercury",api10:"Eris"} as Record<string,string>)[selectedServer] || selectedServer
                 }.</p>
               )}
             </CardContent>

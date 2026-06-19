@@ -120,8 +120,35 @@ export async function applyErisPricing(
   serviceCode: string,
   countryId: number
 ): Promise<{ price: number; hasRule: boolean }> {
+  return applyPrefixedPricing(ERIS_RULE_PREFIX, basePrice, serviceCode, countryId);
+}
+
+export const MERCURY_RULE_PREFIX = "mercury:";
+
+export async function applyMercuryPricing(
+  basePrice: number,
+  serviceCode: string,
+  countryId: number
+): Promise<{ price: number; hasRule: boolean }> {
+  return applyPrefixedPricing(MERCURY_RULE_PREFIX, basePrice, serviceCode, countryId);
+}
+
+/**
+ * Generic pricing dengan namespace prefix (mis. "eris:", "mercury:").
+ * Rule terpisah dari rule global server lain.
+ *
+ * Lookup priority: "<prefix><code>" + countryId > "<prefix><code>" + 0 > "<prefix>*" + 0
+ *
+ * Kalau TIDAK ada rule → pakai harga provider apa adanya (final), BUKAN default tiered.
+ */
+async function applyPrefixedPricing(
+  prefix: string,
+  basePrice: number,
+  serviceCode: string,
+  countryId: number
+): Promise<{ price: number; hasRule: boolean }> {
   const rules = await getRules();
-  const prefixed = `${ERIS_RULE_PREFIX}${serviceCode}`;
+  const prefixed = `${prefix}${serviceCode}`;
 
   const exactMatch = rules.find(
     (r) => r.serviceCode === prefixed && r.countryId === countryId
@@ -130,12 +157,11 @@ export async function applyErisPricing(
     (r) => r.serviceCode === prefixed && r.countryId === 0
   );
   const globalMatch = rules.find(
-    (r) => r.serviceCode === `${ERIS_RULE_PREFIX}*` && r.countryId === 0
+    (r) => r.serviceCode === `${prefix}*` && r.countryId === 0
   );
 
   const rule = exactMatch || serviceMatch || globalMatch;
 
-  // Tidak ada rule Eris → pakai harga provider langsung (final)
   if (!rule) {
     return { price: basePrice, hasRule: false };
   }
@@ -163,12 +189,10 @@ export async function applyErisPricing(
 
 /**
  * Flat extra markup per-server (IDR) — diterapkan SETELAH applyPricing.
- * Berguna kalau satu provider (misal Planet) mau di-mark up flat di atas
- * harga server lain (misal Earth) yang share PriceRule.
+ * Saat ini kosong: Mercury (api8) sudah pindah ke pricing rule sendiri
+ * (applyMercuryPricing). Disisakan untuk kemudahan kalau butuh flat markup lagi.
  */
-const SERVER_EXTRA_MARKUP_IDR: Record<string, number> = {
-  api8: 115, // Mercury — +Rp 115 di atas harga Earth (api5)
-};
+const SERVER_EXTRA_MARKUP_IDR: Record<string, number> = {};
 
 export function applyServerExtraMarkup(price: number, serverId: string): number {
   const extra = SERVER_EXTRA_MARKUP_IDR[serverId] || 0;

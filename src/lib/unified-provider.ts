@@ -8,7 +8,7 @@
  */
 
 import { db } from "@/lib/db";
-import { applyPricing, applyServerExtraMarkup, applyErisPricing } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup, applyErisPricing, applyMercuryPricing } from "@/lib/pricing";
 import { getUnifiedProviders } from "@/lib/site-settings";
 
 // Provider yang harganya sudah final (USD→IDR + markup, atau langsung IDR) — skip applyPricing
@@ -180,6 +180,9 @@ export async function getUnifiedLayanan(
     if (svc.serverId === "api10") {
       // Eris: pricing rule terpisah namespace "eris:"
       displayPrice = (await applyErisPricing(svc.price, svc.code, extId)).price;
+    } else if (svc.serverId === "api8") {
+      // Mercury: pricing rule terpisah namespace "mercury:"
+      displayPrice = (await applyMercuryPricing(svc.price, svc.code, extId)).price;
     } else if (FINAL_PRICE_PROVIDERS.has(svc.serverId)) {
       displayPrice = svc.price;
     } else {
@@ -349,6 +352,9 @@ export async function getServiceProviders(
     if (serverId === "api10") {
       // Eris: pricing rule terpisah namespace "eris:"
       displayPrice = (await applyErisPricing(cheapest.rawPrice, cheapest.code, mapping.externalId)).price;
+    } else if (serverId === "api8") {
+      // Mercury: pricing rule terpisah namespace "mercury:"
+      displayPrice = (await applyMercuryPricing(cheapest.rawPrice, cheapest.code, mapping.externalId)).price;
     } else if (FINAL_PRICE_PROVIDERS.has(serverId)) {
       displayPrice = cheapest.rawPrice;
     } else {

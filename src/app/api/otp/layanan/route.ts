@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getLayanan } from "@/lib/otp";
-import { applyPricing, applyServerExtraMarkup, applyErisPricing } from "@/lib/pricing";
+import { applyPricing, applyServerExtraMarkup, applyErisPricing, applyMercuryPricing } from "@/lib/pricing";
 import { db } from "@/lib/db";
 import { getUnifiedLayanan } from "@/lib/unified-provider";
 
@@ -98,15 +98,17 @@ export async function GET(req: NextRequest) {
         let customPrice: number;
         if (server === "api10") {
           // api10 (Eris): pricing rule TERPISAH (namespace "eris:"), tidak ikut rule global.
-          // Kalau belum ada rule Eris → harga provider apa adanya.
           const result = await applyErisPricing(svc.price, svc.code, negaraId);
+          customPrice = result.price;
+        } else if (server === "api8") {
+          // api8 (Mercury): pricing rule TERPISAH (namespace "mercury:"), tidak ikut rule global.
+          const result = await applyMercuryPricing(svc.price, svc.code, negaraId);
           customPrice = result.price;
         } else if (skipPricing) {
           customPrice = svc.price;
         } else {
-          // api1/api2/api5/api7/api8: apply pricing rules (admin markup)
+          // api1/api2/api5/api7: apply pricing rules (admin markup)
           // api7 (Mars V2) share PriceRule dengan api1 (Mars) karena rule match by serviceCode+countryId
-          // api8 (Mercury) share PriceRule dengan api5 (Earth) + flat extra markup
           const result = await applyPricing(svc.price, svc.code, negaraId);
           customPrice = applyServerExtraMarkup(result.price, server);
         }
@@ -146,8 +148,16 @@ export async function GET(req: NextRequest) {
           info.harga = result.price;
         }
       }
+    } else if (serviceData && server === "api8") {
+      // api8 (Mercury): pricing rule terpisah (namespace "mercury:")
+      for (const [code, info] of Object.entries(serviceData)) {
+        if (info && typeof info === "object" && "harga" in info) {
+          const result = await applyMercuryPricing(info.harga, code, negaraId);
+          info.harga = result.price;
+        }
+      }
     } else if (serviceData && server !== "api3" && server !== "api6" && server !== "api9") {
-      // api1/api2/api5/api7/api8: apply pricing + flat extra markup (api8)
+      // api1/api2/api5/api7: apply pricing
       // api3/api6/api9: harga sudah final dari adapter, skip
       for (const [code, info] of Object.entries(serviceData)) {
         if (info && typeof info === "object" && "harga" in info) {
