@@ -6,6 +6,7 @@ import { applyPricing, applyServerExtraMarkup, applyErisPricing, applyMercuryPri
 import { logAction } from "@/lib/audit";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { otpOrderSchema, validateBody } from "@/lib/validations";
+import { getEffectiveVisibleServers, getUnifiedProviders } from "@/lib/site-settings";
 
 /**
  * Ambil entry api4 dari DB — manual stock by admin.
@@ -155,6 +156,25 @@ export async function POST(req: NextRequest) {
 
     const { server, negara, layanan, operator, serviceName, countryName } = validated.data;
     const isBulk = body.bulk === true;
+
+    // === Validasi server visibility (anti-bypass) ===
+    // User TIDAK boleh order ke server yang di-hide admin, walau kirim param langsung.
+    // Server boleh kalau: (a) visible di /buy, ATAU (b) ikut Bimasakti (unified providers)
+    // — karena order via Bimasakti memang pakai serverId provider asli.
+    const [visibleServers, unifiedProviders] = await Promise.all([
+      getEffectiveVisibleServers(),
+      getUnifiedProviders(),
+    ]);
+    const unifiedVisible = visibleServers.includes("unified");
+    const allowed =
+      visibleServers.includes(server) ||
+      (unifiedVisible && unifiedProviders.includes(server));
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Server tidak tersedia. Silakan pilih server lain." },
+        { status: 403 }
+      );
+    }
 
     // Untuk api4: ambil entry dari DB (price + maxPriceUsd + stock + serviceId)
     // Untuk api1/api2/api3: ambil harga dari server (DB atau API)

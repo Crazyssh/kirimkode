@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1080" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="45%" stop-color="#162033"/>
+      <stop offset="100%" stop-color="#0B1120"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#00C853"/>
+    </linearGradient>
+    <linearGradient id="pill" x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#00E676"/>
+      <stop offset="100%" stop-color="#00C853"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="40" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+
+  <rect width="1080" height="1080" fill="url(#bg)"/>
+
+  <!-- subtle grid -->
+  <g opacity="0.04" stroke="#00E676" stroke-width="1">
+    <line x1="0" y1="180" x2="1080" y2="180"/><line x1="0" y1="360" x2="1080" y2="360"/>
+    <line x1="0" y1="540" x2="1080" y2="540"/><line x1="0" y1="720" x2="1080" y2="720"/>
+    <line x1="0" y1="900" x2="1080" y2="900"/>
+    <line x1="180" y1="0" x2="180" y2="1080"/><line x1="360" y1="0" x2="360" y2="1080"/>
+    <line x1="540" y1="0" x2="540" y2="1080"/><line x1="720" y1="0" x2="720" y2="1080"/>
+    <line x1="900" y1="0" x2="900" y2="1080"/>
+  </g>
+
+  <!-- glow -->
+  <circle cx="540" cy="300" r="150" fill="#00E676" opacity="0.10" filter="url(#glow)"/>
+
+  <!-- icon -->
+  <rect x="440" y="150" width="200" height="200" rx="44" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+  <polygon points="540,181 495,259 535,259 540,319 585,234 545,234" fill="url(#bolt)"/>
+  <circle cx="540" cy="243" r="7" fill="#1E293B"/>
+  <polygon points="536,249 540,263 544,249" fill="#1E293B"/>
+
+  <!-- brand -->
+  <text x="540" y="430" text-anchor="middle" font-family="'Space Grotesk','Segoe UI',sans-serif" font-size="62" font-weight="700" letter-spacing="-2">
+    <tspan fill="#E2E8F0">Kirim</tspan><tspan fill="#00E676">Kode</tspan>
+  </text>
+
+  <!-- headline -->
+  <text x="540" y="560" text-anchor="middle" font-family="'Space Grotesk','Segoe UI',sans-serif" font-size="92" font-weight="700" fill="#FFFFFF" letter-spacing="-3">NOKOS MURAH</text>
+  <text x="540" y="660" text-anchor="middle" font-family="'Space Grotesk','Segoe UI',sans-serif" font-size="92" font-weight="700" fill="#00E676" letter-spacing="-3">MULAI Rp1.000</text>
+
+  <!-- sub -->
+  <text x="540" y="730" text-anchor="middle" font-family="'Inter','Segoe UI',sans-serif" font-size="34" fill="#94A3B8">WhatsApp · Telegram · Shopee · DANA · 100+ layanan</text>
+
+  <!-- feature pills -->
+  <g font-family="'Inter','Segoe UI',sans-serif" font-size="28" font-weight="600">
+    <rect x="150" y="790" width="360" height="64" rx="32" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+    <text x="330" y="831" text-anchor="middle" fill="#E2E8F0">⚡ OTP Masuk Cepat</text>
+    <rect x="570" y="790" width="360" height="64" rx="32" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+    <text x="750" y="831" text-anchor="middle" fill="#E2E8F0">↩ Auto Refund</text>
+    <rect x="260" y="874" width="560" height="64" rx="32" fill="#1E293B" stroke="#334155" stroke-width="1"/>
+    <text x="540" y="915" text-anchor="middle" fill="#E2E8F0">💳 Bayar QRIS · Semua e-wallet &amp; bank</text>
+  </g>
+
+  <!-- CTA -->
+  <rect x="340" y="975" width="400" height="72" rx="36" fill="url(#pill)"/>
+  <text x="540" y="1022" text-anchor="middle" font-family="'Space Grotesk','Segoe UI',sans-serif" font-size="34" font-weight="700" fill="#0B1120">kirimkode.com</text>
+</svg>
