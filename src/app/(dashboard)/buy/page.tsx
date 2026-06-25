@@ -570,56 +570,61 @@ export default function BuyPage() {
       bulk: true,
     };
 
-    // PARALLEL: tembak 5 order bareng. Saldo aman karena backend pakai
-    // atomic conditional decrement (where balance >= harga).
-    const results = await Promise.allSettled(
-      Array.from({ length: count }, () =>
-        fetch("/api/otp/order", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }).then((r) => r.json())
-      )
-    );
-
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i];
-      if (r.status === "fulfilled" && r.value?.success && r.value?.data) {
-        successCount++;
-        if (r.value.data.id) orderIds.push(r.value.data.id);
-        toast.success(`Order ${i + 1}/${count} berhasil`, {
-          description: `Nomor: ${r.value.data.number || "..."}`,
-        });
-      } else {
-        failCount++;
-        const errMsg =
-          r.status === "fulfilled"
-            ? (r.value?.message || r.value?.error || "Gagal")
-            : "Koneksi error, coba lagi.";
-        toast.error(`Order ${i + 1}/${count} gagal`, { description: errMsg });
-      }
-    }
-
-    // Trigger checker untuk semua order yang berhasil (non-blocking)
-    for (const id of orderIds) {
-      fetch("/api/otp/check-number", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: id }),
-      }).catch(() => { });
-    }
-
-    fetchUser();
-
-    // Pastikan order baru kelihatan: reset ke page 1 + filter "all".
-    // Refresh beberapa kali (langsung + delay) karena check-number update DB async.
-    if (successCount > 0) {
+    // PARALLEL: tembak 5 order bareng. Tiap order yang selesai LANGSUNG muncul
+    // (gak nunggu yang lain). Saldo aman karena backend atomic conditional decrement.
+    if (count > 0) {
       setHistoryFilter("all");
       setHistoryPage(1);
     }
+
+    const tasks = Array.from({ length: count }, (_, i) =>
+      fetch("/api/otp/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.success && data?.data) {
+            successCount++;
+            if (data.data.id) {
+              orderIds.push(data.data.id);
+              // Trigger checker WA/TG (non-blocking)
+              fetch("/api/otp/check-number", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ orderId: data.data.id }),
+              }).catch(() => {});
+            }
+            toast.success(`Order ${i + 1}/${count} berhasil`, {
+              description: `Nomor: ${data.data.number || "..."}`,
+            });
+          } else {
+            failCount++;
+            toast.error(`Order ${i + 1}/${count} gagal`, {
+              description: data?.message || data?.error || "Gagal",
+            });
+          }
+        })
+        .catch(() => {
+          failCount++;
+          toast.error(`Order ${i + 1}/${count} gagal`, {
+            description: "Koneksi error, coba lagi.",
+          });
+        })
+        .finally(() => {
+          // Tiap order kelar → langsung refresh supaya nomornya muncul seketika
+          fetchUser();
+          fetchHistory(1, true);
+        })
+    );
+
+    await Promise.allSettled(tasks);
+
+    // Refresh final + delay untuk pastikan hasil checker (WA/TG) ke-update
     await fetchHistory(1);
-    setTimeout(() => fetchHistory(1, true), 1200);
-    setTimeout(() => fetchHistory(1, true), 3000);
+    setTimeout(() => fetchHistory(1, true), 1500);
+    setTimeout(() => fetchHistory(1, true), 3500);
 
     setBulkOrdering(false);
 
