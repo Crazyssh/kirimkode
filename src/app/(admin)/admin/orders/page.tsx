@@ -23,6 +23,7 @@ import { toast } from "sonner";
 
 interface OrderItem {
   id: string;
+  orderId: number;
   service: string;
   country: string;
   number: string;
@@ -244,7 +245,7 @@ export default function AdminOrdersPage() {
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
               <Input
-                placeholder="Cari layanan, nomor, nama, atau email..."
+                placeholder="Cari ID order, layanan, nomor, nama, atau email..."
                 className="pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -314,6 +315,7 @@ export default function AdminOrdersPage() {
                         </td>
                         <td className="py-3 font-[family-name:var(--font-jetbrains-mono)] text-xs">
                           {order.number}
+                          <div className="text-[10px] text-muted/70">ID: {order.orderId}</div>
                         </td>
                         <td className="py-3">
                           {order.code ? (

@@ -20,12 +20,18 @@ export async function GET(req: NextRequest) {
     }
 
     if (search) {
-      where.OR = [
+      const or: Record<string, unknown>[] = [
         { serviceName: { contains: search, mode: "insensitive" } },
         { number: { contains: search } },
         { user: { email: { contains: search, mode: "insensitive" } } },
         { user: { name: { contains: search, mode: "insensitive" } } },
       ];
+      // Kalau search berupa angka, cocokkan juga ke orderId (ID order provider)
+      const asNum = Number(search.trim());
+      if (Number.isInteger(asNum) && asNum > 0 && asNum <= 2_147_483_647) {
+        or.push({ orderId: asNum });
+      }
+      where.OR = or;
     }
 
     const [orders, total] = await Promise.all([
@@ -44,6 +50,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       data: orders.map((o) => ({
         id: o.id,
+        orderId: o.orderId,
         service: o.serviceName,
         country: o.country,
         number: o.number,
