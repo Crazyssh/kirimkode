@@ -232,6 +232,36 @@ export async function createOrder(negara: number, layanan: string, _operator: st
   return { order_id: orderIdNum, number };
 }
 
+/**
+ * List riwayat order milik API key (untuk reconciliation orphan).
+ * API: GET /orders?status=&limit=&page=
+ */
+export async function listOrders(
+  status = "pending",
+  limit = 100,
+  page = 1
+): Promise<Array<{ orderId: number; number: string; status: string; createdAt: number | null }>> {
+  const raw = (await fetchProvider("/orders", {
+    query: { status, limit: String(limit), page: String(page) },
+    skipCache: true,
+  })) as { data?: Array<{ orderId?: string | number; number?: string; status?: string; createdAt?: number }> };
+
+  const list = Array.isArray(raw?.data) ? raw.data : [];
+  const out: Array<{ orderId: number; number: string; status: string; createdAt: number | null }> = [];
+  for (const o of list) {
+    if (o.orderId == null) continue;
+    const idNum = typeof o.orderId === "number" ? o.orderId : Number(String(o.orderId).replace(/\D/g, ""));
+    if (!Number.isFinite(idNum) || idNum <= 0) continue;
+    out.push({
+      orderId: idNum,
+      number: o.number ? String(o.number) : "",
+      status: o.status || "",
+      createdAt: typeof o.createdAt === "number" ? o.createdAt : null,
+    });
+  }
+  return out;
+}
+
 export async function checkSms(orderId: number) {
   let raw: { data?: { status?: string; otp?: string | null } };
   try {

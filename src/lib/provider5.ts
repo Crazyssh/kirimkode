@@ -285,6 +285,41 @@ export async function createOrder(negara: number, layanan: string, operator: str
 }
 
 /**
+ * List riwayat order milik API key.
+ * API: GET /orders?status=&limit=&page=
+ * Response: { data: [{ orderId, number, service, status, otp, createdAt }], total, page, limit }
+ *
+ * Dipakai untuk reconciliation orphan: order yang ada di provider tapi tidak
+ * ada record di DB kita → di-cancel oleh cron supaya nomor & stock balik.
+ * createdAt = unix detik.
+ */
+export async function listOrders(
+  status = "pending",
+  limit = 100,
+  page = 1
+): Promise<Array<{ orderId: number; number: string; status: string; createdAt: number | null }>> {
+  const raw = (await fetchProvider("/orders", {
+    query: { status, limit: String(limit), page: String(page) },
+    skipCache: true,
+  })) as { data?: Array<{ orderId?: string | number; number?: string; status?: string; createdAt?: number }> };
+
+  const list = Array.isArray(raw?.data) ? raw.data : [];
+  const out: Array<{ orderId: number; number: string; status: string; createdAt: number | null }> = [];
+  for (const o of list) {
+    if (o.orderId == null) continue;
+    const idNum = typeof o.orderId === "number" ? o.orderId : Number(String(o.orderId).replace(/\D/g, ""));
+    if (!Number.isFinite(idNum) || idNum <= 0) continue;
+    out.push({
+      orderId: idNum,
+      number: o.number ? String(o.number) : "",
+      status: o.status || "",
+      createdAt: typeof o.createdAt === "number" ? o.createdAt : null,
+    });
+  }
+  return out;
+}
+
+/**
  * Check OTP / status.
  * API: GET /order/:id
  * Response: { data: { orderId, number, status, otp, ... } }
