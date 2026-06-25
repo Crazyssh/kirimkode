@@ -264,19 +264,3 @@ export async function cancelOrder(server: ServerId, orderId: number) {
     id: String(orderId),
   }, { skipRetry: true, skipCache: true });
 }
-
-/**
- * List order pending milik API key — HANYA Clowatch (api5/8/9/10).
- * Dipakai cron reconcile untuk deteksi orphan number (ada di provider, tidak
- * ada record di DB kita). Provider non-Clowatch throw "LIST_NOT_SUPPORTED".
- */
-export async function listProviderOrders(
-  server: ServerId,
-  status = "pending"
-): Promise<Array<{ orderId: number; number: string; status: string; createdAt: number | null }>> {
-  if (server === "api5") return provider5.listOrders(status);
-  if (server === "api8") return provider8.listOrders(status);
-  if (server === "api9") return provider9.listOrders(status);
-  if (server === "api10") return provider10.listOrders(status);
-  throw new Error("LIST_NOT_SUPPORTED");
-}
