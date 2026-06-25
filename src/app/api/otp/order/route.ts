@@ -238,18 +238,20 @@ export async function POST(req: NextRequest) {
       orderPrice = await getServerPrice(server as "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10", Number(negara), layanan);
     }
 
-    // Step 1: Pre-check status + RESERVE saldo (atomic) SEBELUM createOrder.
-    // Reserve-first cegah orphan number di provider: kalau saldo gak cukup,
-    // createOrder gak akan dipanggil. Untuk order parallel (5x), atomic decrement
-    // memastikan cuma sejumlah yang saldonya cukup yang lanjut.
+    // === ALUR CHARGE-AFTER: dapat nomor DULU, baru potong saldo ===
+    // Pre-check status user
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { status: true },
+      select: { status: true, balance: true },
     });
     if (!user) throw new Error("User not found");
     if (user.status === "banned") throw new Error("ACCOUNT_BANNED");
 
-    // api4: cek + decrement stock dulu (race-safe) sebelum reserve saldo
+    // Pre-check saldo (cek kasar dulu sebelum panggil provider — hemat call provider
+    // kalau jelas-jelas saldo gak cukup). Potong final tetap atomic setelah dapat nomor.
+    if (user.balance < orderPrice) throw new Error("INSUFFICIENT_BALANCE");
+
+    // api4: cek + decrement stock dulu (race-safe) sebelum panggil provider.
     if (api4ServiceId) {
       const stockUpdate = await db.providerService.updateMany({
         where: { id: api4ServiceId, stock: { gt: 0 } },
@@ -258,23 +260,8 @@ export async function POST(req: NextRequest) {
       if (stockUpdate.count === 0) throw new Error("STOK_HABIS");
     }
 
-    // Reserve saldo (atomic conditional decrement)
-    const reserve = await db.user.updateMany({
-      where: { id: userId, balance: { gte: orderPrice } },
-      data: { balance: { decrement: orderPrice } },
-    });
-    if (reserve.count === 0) {
-      // Saldo gak cukup → balikin stock api4 yang sudah di-decrement
-      if (api4ServiceId) {
-        await db.providerService.updateMany({
-          where: { id: api4ServiceId },
-          data: { stock: { increment: 1 } },
-        }).catch(() => {});
-      }
-      throw new Error("INSUFFICIENT_BALANCE");
-    }
-
-    // Step 2: Call provider API. Kalau GAGAL → refund saldo + restore stock (rollback reserve).
+    // Step 1: Call provider API untuk dapat nomor. Kalau GAGAL → restore stock api4.
+    // Saldo BELUM dipotong di tahap ini.
     let data;
     try {
       data = await createOrder(server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10", Number(negara), layanan, operator, {
@@ -283,8 +270,6 @@ export async function POST(req: NextRequest) {
         fixedPrice: api4FixedPrice,
       });
     } catch (providerErr) {
-      // Provider gagal bikin order → kembalikan saldo + stock yang sudah di-reserve
-      await refundBalance(userId, orderPrice, `provider createOrder gagal (${server})`);
       if (api4ServiceId) await restoreApi4Stock(api4ServiceId);
       throw providerErr;
     }
@@ -293,14 +278,35 @@ export async function POST(req: NextRequest) {
     const number = data?.number ?? data?.data?.number ?? "";
 
     if (!orderId || !number) {
-      // Provider return invalid → refund reserve
-      await refundBalance(userId, orderPrice, `provider respons invalid (${server})`);
       if (api4ServiceId) await restoreApi4Stock(api4ServiceId);
       throw new Error(data?.message || "Gagal membuat pesanan, respons tidak valid");
     }
 
-    // Step 3: Simpan order record. Saldo & stock SUDAH di-reserve di Step 1.
-    // Kalau create gagal → refund + (provider) cancel order biar gak orphan.
+    // Step 2: Sudah dapat nomor → POTONG saldo sekarang (atomic conditional).
+    // Atomic `WHERE balance >= price` mencegah saldo minus saat order parallel:
+    // walau 5 request dapat nomor bareng, cuma yang saldonya cukup yang ter-charge.
+    const charge = await db.user.updateMany({
+      where: { id: userId, balance: { gte: orderPrice } },
+      data: { balance: { decrement: orderPrice } },
+    });
+    if (charge.count === 0) {
+      // Saldo gak cukup (keduluan order lain) → batalkan nomor di provider + restore stock.
+      // User TIDAK kena charge karena potong saldo gagal.
+      try {
+        const { cancelOrder } = await import("@/lib/otp");
+        await cancelOrder(
+          server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10",
+          Number(orderId)
+        );
+      } catch (cancelErr) {
+        console.error(`[Order] Saldo kurang setelah dapat nomor, tapi gagal cancel ${orderId} (${server}):`, (cancelErr as Error).message);
+      }
+      if (api4ServiceId) await restoreApi4Stock(api4ServiceId);
+      throw new Error("INSUFFICIENT_BALANCE");
+    }
+
+    // Step 3: Simpan order record. Saldo SUDAH dipotong di Step 2.
+    // Kalau create gagal → refund saldo + restore stock + cancel di provider biar gak orphan.
     let result;
     try {
       const order = await db.order.create({
@@ -321,7 +327,7 @@ export async function POST(req: NextRequest) {
       });
       result = { orderId, number: String(number), order };
     } catch (txErr) {
-      // Gagal simpan order → refund saldo + restore stock + cancel di provider
+      // Gagal simpan order → refund saldo (yg sudah dipotong) + restore stock + cancel di provider
       await refundBalance(userId, orderPrice, `gagal simpan order record (${server}, orderId=${orderId})`);
       if (api4ServiceId) await restoreApi4Stock(api4ServiceId);
       try {
