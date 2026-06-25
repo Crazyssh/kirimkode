@@ -558,45 +558,46 @@ export default function BuyPage() {
 
     const orderIds: string[] = [];
 
-    for (let i = 0; i < count; i++) {
-      try {
-        const res = await fetch("/api/otp/order", {
+    // Payload sama untuk semua order
+    const payload = {
+      server: isUnified && selectedProvider ? selectedProvider.serverId : selectedServer.id,
+      negara: isUnified && selectedProvider ? selectedProvider.negaraId : selectedNegara.id_negara,
+      layanan: isUnified && selectedProvider?.actualCode ? selectedProvider.actualCode : service.code,
+      operator: selectedOperator,
+      serviceName: service.name,
+      countryName: selectedNegara.nama_negara,
+      price: isUnified && selectedProvider ? selectedProvider.price : service.price,
+      bulk: true,
+    };
+
+    // PARALLEL: tembak 5 order bareng. Saldo aman karena backend pakai
+    // atomic conditional decrement (where balance >= harga).
+    const results = await Promise.allSettled(
+      Array.from({ length: count }, () =>
+        fetch("/api/otp/order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            server: isUnified && selectedProvider ? selectedProvider.serverId : selectedServer.id,
-            negara: isUnified && selectedProvider ? selectedProvider.negaraId : selectedNegara.id_negara,
-            layanan: isUnified && selectedProvider?.actualCode ? selectedProvider.actualCode : service.code,
-            operator: selectedOperator,
-            serviceName: service.name,
-            countryName: selectedNegara.nama_negara,
-            price: isUnified && selectedProvider ? selectedProvider.price : service.price,
-            bulk: true,
-          }),
-        });
-        const data = await res.json();
-        if (data.success && data.data) {
-          successCount++;
-          if (data.data.id) orderIds.push(data.data.id);
-          toast.success(`Order ${i + 1}/${count} berhasil`, {
-            description: `Nomor: ${data.data.number || "..."}`,
-          });
-        } else {
-          failCount++;
-          const errMsg = data.message || data.error || "Gagal";
-          toast.error(`Order ${i + 1}/${count} gagal`, {
-            description: errMsg,
-          });
-        }
-      } catch {
-        failCount++;
-        toast.error(`Order ${i + 1}/${count} gagal`, {
-          description: "Koneksi error, coba lagi.",
-        });
-      }
+          body: JSON.stringify(payload),
+        }).then((r) => r.json())
+      )
+    );
 
-      // Refresh history setiap order selesai
-      fetchHistory(1, true);
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (r.status === "fulfilled" && r.value?.success && r.value?.data) {
+        successCount++;
+        if (r.value.data.id) orderIds.push(r.value.data.id);
+        toast.success(`Order ${i + 1}/${count} berhasil`, {
+          description: `Nomor: ${r.value.data.number || "..."}`,
+        });
+      } else {
+        failCount++;
+        const errMsg =
+          r.status === "fulfilled"
+            ? (r.value?.message || r.value?.error || "Gagal")
+            : "Koneksi error, coba lagi.";
+        toast.error(`Order ${i + 1}/${count} gagal`, { description: errMsg });
+      }
     }
 
     // Trigger checker untuk semua order yang berhasil (non-blocking)

@@ -221,20 +221,17 @@ export async function POST(req: NextRequest) {
 
     // Step 3: Atomic deduct + save order (cepat, hanya DB operations)
     const result = await db.$transaction(async (tx) => {
-      // Re-check balance di dalam transaction (race condition protection)
-      const freshUser = await tx.user.findUnique({
-        where: { id: userId },
-        select: { balance: true },
-      });
-
-      if (!freshUser || freshUser.balance < orderPrice) {
-        throw new Error("INSUFFICIENT_BALANCE");
-      }
-
-      await tx.user.update({
-        where: { id: userId },
+      // Atomic conditional decrement — race-safe untuk order parallel (5x).
+      // updateMany dengan where balance >= harga: cuma 1 yang berhasil kalau
+      // saldo pas-pasan, sisanya count=0 → throw INSUFFICIENT_BALANCE.
+      const balanceUpdate = await tx.user.updateMany({
+        where: { id: userId, balance: { gte: orderPrice } },
         data: { balance: { decrement: orderPrice } },
       });
+
+      if (balanceUpdate.count === 0) {
+        throw new Error("INSUFFICIENT_BALANCE");
+      }
 
       // api4: decrement stock manual entry (race-safe pakai update conditional)
       if (api4ServiceId) {
