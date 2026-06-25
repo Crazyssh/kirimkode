@@ -111,7 +111,15 @@ export async function POST(req: NextRequest) {
       console.warn(`[Cancel] Order ${id} cancelled di provider tapi refund skip (race condition / already processed)`);
     }
 
-    logAction(userId, "cancel", JSON.stringify({ orderId: id, server, providerError, refunded }));
+    logAction(userId, "cancel", JSON.stringify({
+      orderId: id,
+      server,
+      service: order.serviceName,
+      country: order.country,
+      price: order.price,
+      providerError,
+      refunded,
+    }));
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -184,6 +184,21 @@ export default function AuditLogPage() {
                   <tbody className="text-xs sm:text-sm">
                     {logs.map((log) => {
                       const actionInfo = actionLabels[log.action] || { label: log.action, variant: "default" as const };
+                      // Parse detail JSON jadi ringkasan terbaca (price/country/service/refund)
+                      let detailNode: ReactNode = log.detail || "—";
+                      if (log.detail) {
+                        try {
+                          const d = JSON.parse(log.detail) as Record<string, unknown>;
+                          const parts: string[] = [];
+                          if (d.service) parts.push(String(d.service));
+                          if (d.country) parts.push(String(d.country));
+                          if (typeof d.price === "number") parts.push("Rp " + d.price.toLocaleString("id-ID"));
+                          if (d.orderId) parts.push("#" + String(d.orderId));
+                          if (typeof d.refunded === "boolean") parts.push(d.refunded ? "✓ refund" : "✗ refund gagal");
+                          if (d.providerError) parts.push("err: " + String(d.providerError).slice(0, 40));
+                          if (parts.length) detailNode = parts.join(" · ");
+                        } catch { /* bukan JSON, tampilkan apa adanya */ }
+                      }
                       return (
                         <tr key={log.id} className="border-b border-border/50 hover:bg-surface/30">
                           <td className="py-2 sm:py-3 text-muted whitespace-nowrap">
@@ -196,8 +211,8 @@ export default function AuditLogPage() {
                           <td className="py-2 sm:py-3">
                             <Badge variant={actionInfo.variant}>{actionInfo.label}</Badge>
                           </td>
-                          <td className="py-2 sm:py-3 text-muted text-xs max-w-[200px] truncate hidden md:table-cell">
-                            {log.detail || "—"}
+                          <td className="py-2 sm:py-3 text-muted text-xs max-w-[260px] truncate hidden md:table-cell" title={log.detail || ""}>
+                            {detailNode}
                           </td>
                           <td className="py-2 sm:py-3 text-muted font-[family-name:var(--font-jetbrains-mono)] text-xs hidden lg:table-cell">
                             {log.ip || "—"}

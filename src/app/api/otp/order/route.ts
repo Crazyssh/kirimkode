@@ -336,7 +336,13 @@ export async function POST(req: NextRequest) {
       throw txErr;
     }
 
-    logAction(session.user.id, "order", JSON.stringify({ orderId: result.orderId, service: layanan, server }));
+    logAction(session.user.id, "order", JSON.stringify({
+      orderId: result.orderId,
+      server,
+      service: serviceName || layanan,
+      country: countryName || String(negara),
+      price: orderPrice,
+    }));
 
     return NextResponse.json({
       success: true,
