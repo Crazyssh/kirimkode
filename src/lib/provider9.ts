@@ -66,6 +66,19 @@ function isAlreadyCancelled(msg?: string): boolean {
   return /sudah dibatalkan|already cancel|already.?cancelled|sudah di-cancel|telah dibatalkan/i.test(msg);
 }
 
+/**
+ * Bersihkan OTP dari Clowatch. Provider kadang kirim format kotor seperti
+ * "276217\n276217" (newline + duplikat) atau OTP di dalam teks SMS panjang.
+ * Ambil urutan 4-8 digit pertama. Return null kalau gak ada.
+ */
+function cleanOtp(raw: unknown): string | null {
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  const match = s.match(/\d{4,8}/);
+  return match ? match[0] : null;
+}
+
 async function fetchProvider(path: string, options: FetchOptions = {}): Promise<unknown> {
   const { method = "GET", body, query, skipCache = false, ttlMs, noTimeout = false } = options;
 
@@ -258,7 +271,7 @@ export async function checkSms(orderId: number) {
 
   const obj = raw?.data ?? {};
   const status = (obj.status || "").trim();
-  const otp = obj.otp || null;
+  const otp = cleanOtp(obj.otp);
 
   if (otp) return { otp, status: "success" };
 
