@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollText, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ScrollText, Loader2, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 
 interface AuditEntry {
   id: string;
@@ -33,12 +33,22 @@ export default function AuditLogPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [filter, setFilter] = useState("all");
+  const [emailSearch, setEmailSearch] = useState("");
+  // debounced value yang dipakai untuk query
+  const [emailQuery, setEmailQuery] = useState("");
+
+  // Debounce input email 400ms biar gak query tiap ketik
+  useEffect(() => {
+    const t = setTimeout(() => setEmailQuery(emailSearch.trim()), 400);
+    return () => clearTimeout(t);
+  }, [emailSearch]);
 
   const fetchLogs = useCallback(async (p = 1) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(p), limit: "20" });
       if (filter !== "all") params.set("action", filter);
+      if (emailQuery) params.set("email", emailQuery);
       const res = await fetch(`/api/admin/audit-log?${params}`);
       if (res.ok) {
         const json = await res.json();
@@ -49,7 +59,7 @@ export default function AuditLogPage() {
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
-  }, [filter]);
+  }, [filter, emailQuery]);
 
   useEffect(() => { fetchLogs(1); }, [fetchLogs]);
 
@@ -83,6 +93,25 @@ export default function AuditLogPage() {
                 </button>
               ))}
             </div>
+          </div>
+          {/* Search by email */}
+          <div className="relative mt-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+            <input
+              type="text"
+              value={emailSearch}
+              onChange={(e) => setEmailSearch(e.target.value)}
+              placeholder="Cari berdasarkan email user..."
+              className="w-full pl-9 pr-9 py-2 rounded-lg bg-surface border border-border text-sm focus:outline-none focus:border-primary"
+            />
+            {emailSearch && (
+              <button
+                onClick={() => setEmailSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </CardHeader>
         <CardContent>

@@ -10,10 +10,15 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(100, Math.max(1, Number(req.nextUrl.searchParams.get("limit")) || 20));
   const action = req.nextUrl.searchParams.get("action");
   const userId = req.nextUrl.searchParams.get("userId");
+  const email = req.nextUrl.searchParams.get("email")?.trim();
 
   const where: Record<string, unknown> = {};
   if (action && action !== "all") where.action = action;
   if (userId) where.userId = userId;
+  // Cari berdasarkan email user (partial, case-insensitive)
+  if (email) {
+    where.user = { email: { contains: email, mode: "insensitive" } };
+  }
 
   try {
     const [logs, total] = await Promise.all([
