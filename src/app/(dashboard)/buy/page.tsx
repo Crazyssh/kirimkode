@@ -574,6 +574,23 @@ export default function BuyPage() {
 
   const handleBulkBuy = async (service: DisplayService, count = 5) => {
     if (!selectedNegara) return;
+
+    const unitPrice = isUnified && selectedProvider ? selectedProvider.price : service.price;
+
+    // Cap jumlah order berdasarkan saldo: kalau saldo cuma cukup 3, kirim 3 aja
+    // walau user klik 5x. Cegah request sia-sia + orphan number di provider.
+    const balance = user?.balance ?? 0;
+    const affordable = unitPrice > 0 ? Math.floor(balance / unitPrice) : 0;
+    const actualCount = Math.min(count, affordable);
+
+    if (actualCount === 0) {
+      setError("Saldo tidak cukup. Silakan deposit terlebih dahulu.");
+      return;
+    }
+    if (actualCount < count) {
+      toast.info(`Saldo cukup untuk ${actualCount} order (dari ${count} diminta).`);
+    }
+
     setBulkOrdering(true);
     setError(null);
     let successCount = 0;
@@ -589,18 +606,18 @@ export default function BuyPage() {
       operator: selectedOperator,
       serviceName: service.name,
       countryName: selectedNegara.nama_negara,
-      price: isUnified && selectedProvider ? selectedProvider.price : service.price,
+      price: unitPrice,
       bulk: true,
     };
 
-    // PARALLEL: tembak 5 order bareng. Tiap order yang selesai LANGSUNG muncul
-    // (gak nunggu yang lain). Saldo aman karena backend atomic conditional decrement.
-    if (count > 0) {
+    // PARALLEL: tembak sebanyak actualCount order bareng. Tiap order yang selesai
+    // LANGSUNG muncul. Saldo aman karena backend reserve saldo sebelum createOrder.
+    if (actualCount > 0) {
       setHistoryFilter("all");
       setHistoryPage(1);
     }
 
-    const tasks = Array.from({ length: count }, (_, i) =>
+    const tasks = Array.from({ length: actualCount }, (_, i) =>
       fetch("/api/otp/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -641,19 +658,19 @@ export default function BuyPage() {
               };
               return [optimistic, ...prev];
             });
-            toast.success(`Order ${i + 1}/${count} berhasil`, {
+            toast.success(`Order ${i + 1}/${actualCount} berhasil`, {
               description: `Nomor: ${d.number || "..."}`,
             });
           } else {
             failCount++;
-            toast.error(`Order ${i + 1}/${count} gagal`, {
+            toast.error(`Order ${i + 1}/${actualCount} gagal`, {
               description: data?.message || data?.error || "Gagal",
             });
           }
         })
         .catch(() => {
           failCount++;
-          toast.error(`Order ${i + 1}/${count} gagal`, {
+          toast.error(`Order ${i + 1}/${actualCount} gagal`, {
             description: "Koneksi error, coba lagi.",
           });
         })
@@ -685,7 +702,7 @@ export default function BuyPage() {
     if (failCount > 0 && successCount > 0) {
       toast.info(`Selesai: ${successCount} berhasil, ${failCount} gagal`);
     } else if (failCount > 0 && successCount === 0) {
-      setError(`Semua ${count} order gagal.`);
+      setError(`Semua ${actualCount} order gagal.`);
     }
   };
 
