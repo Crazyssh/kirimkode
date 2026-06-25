@@ -610,7 +610,17 @@ export default function BuyPage() {
     }
 
     fetchUser();
-    fetchHistory(1);
+
+    // Pastikan order baru kelihatan: reset ke page 1 + filter "all".
+    // Refresh beberapa kali (langsung + delay) karena check-number update DB async.
+    if (successCount > 0) {
+      setHistoryFilter("all");
+      setHistoryPage(1);
+    }
+    await fetchHistory(1);
+    setTimeout(() => fetchHistory(1, true), 1200);
+    setTimeout(() => fetchHistory(1, true), 3000);
+
     setBulkOrdering(false);
 
     if (successCount > 0 && typeof window !== "undefined" && window.gtag) {
