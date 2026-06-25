@@ -277,7 +277,6 @@ export async function cancelOrder(orderId: number) {
     const raw = (await fetchProvider(`/order/${orderId}/cancel`, {
       method: "POST",
       skipCache: true,
-      noTimeout: true,
     })) as { ok?: boolean; error?: string };
 
     // ok === false eksplisit → gagal. Selain itu (ok true / 200 tanpa ok) → sukses.
