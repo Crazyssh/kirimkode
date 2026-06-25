@@ -76,8 +76,12 @@ async function fetchApi(
     const controller = new AbortController();
     // noTimeout: nunggu sampai server respon (untuk bulk order)
     // skipCache (order/sms): 20s, read endpoints: 15s
+    // noTimeout (bulk order): batas atas 90s — jangan unlimited (cegah request
+    // gantung saat worker recycle = saldo kepotong tapi order gak tercatat).
     let timeout: ReturnType<typeof setTimeout> | null = null;
-    if (!options?.noTimeout) {
+    if (options?.noTimeout) {
+      timeout = setTimeout(() => controller.abort(), 90000);
+    } else {
       const timeoutMs = options?.skipCache ? 20000 : 15000;
       timeout = setTimeout(() => controller.abort(), timeoutMs);
     }

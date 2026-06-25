@@ -59,6 +59,7 @@ interface FetchOptions {
   skipCache?: boolean;
   ttlMs?: number;
   noTimeout?: boolean; // true = tunggu sampai provider respon (untuk order)
+  timeoutMs?: number; // override timeout (ms). Untuk order: batas atas, jangan unlimited.
 }
 
 function isAlreadyCancelled(msg?: string): boolean {
@@ -80,7 +81,7 @@ function cleanOtp(raw: unknown): string | null {
 }
 
 async function fetchProvider(path: string, options: FetchOptions = {}): Promise<unknown> {
-  const { method = "GET", body, query, skipCache = false, ttlMs, noTimeout = false } = options;
+  const { method = "GET", body, query, skipCache = false, ttlMs, noTimeout = false, timeoutMs } = options;
 
   const url = new URL(`${BASE_URL}${path}`);
   if (query) {
@@ -98,9 +99,8 @@ async function fetchProvider(path: string, options: FetchOptions = {}): Promise<
   }
 
   const controller = new AbortController();
-  // Order (noTimeout): tunggu sampai Clowatch respon, tanpa batas waktu.
-  // Call lain: timeout 30 detik supaya koneksi nyangkut gak numpuk.
-  const timeout = noTimeout ? null : setTimeout(() => controller.abort(), 30000);
+  const effTimeout = noTimeout ? (timeoutMs ?? null) : (timeoutMs ?? 30000);
+  const timeout = effTimeout ? setTimeout(() => controller.abort(), effTimeout) : null;
 
   try {
     const headers: Record<string, string> = {
@@ -230,7 +230,7 @@ export async function createOrder(negara: number, layanan: string, _operator: st
     method: "POST",
     body: { countryId: negara, service: layanan },
     skipCache: true,
-    noTimeout: true,
+    timeoutMs: 90000,
   })) as { data?: OrderResponse };
 
   const orderObj = raw?.data;
