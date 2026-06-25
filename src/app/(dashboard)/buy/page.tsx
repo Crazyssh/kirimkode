@@ -577,19 +577,17 @@ export default function BuyPage() {
 
     const unitPrice = isUnified && selectedProvider ? selectedProvider.price : service.price;
 
-    // Cap jumlah order berdasarkan saldo: kalau saldo cuma cukup 3, kirim 3 aja
-    // walau user klik 5x. Cegah request sia-sia + orphan number di provider.
+    // All-or-nothing: kalau saldo gak cukup untuk SEMUA (count) order, tolak.
+    // Gak bikin partial — biar jelas ke user "saldo kurang".
     const balance = user?.balance ?? 0;
-    const affordable = unitPrice > 0 ? Math.floor(balance / unitPrice) : 0;
-    const actualCount = Math.min(count, affordable);
-
-    if (actualCount === 0) {
-      setError("Saldo tidak cukup. Silakan deposit terlebih dahulu.");
+    const totalPrice = unitPrice * count;
+    if (balance < totalPrice) {
+      const kurang = totalPrice - balance;
+      setError(`Saldo tidak cukup untuk ${count} order. Butuh ${formatRupiah(totalPrice)}, saldo kamu ${formatRupiah(balance)} (kurang ${formatRupiah(kurang)}).`);
+      toast.error(`Saldo kurang ${formatRupiah(kurang)} untuk beli ${count}x`);
       return;
     }
-    if (actualCount < count) {
-      toast.info(`Saldo cukup untuk ${actualCount} order (dari ${count} diminta).`);
-    }
+    const actualCount = count;
 
     setBulkOrdering(true);
     setError(null);
