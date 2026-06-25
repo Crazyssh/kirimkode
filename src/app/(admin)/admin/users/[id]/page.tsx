@@ -136,12 +136,18 @@ export default function UserDetailPage() {
             <CardTitle className="text-base">Statistik</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {[
                 { label: "Saldo", value: formatRupiah(user.balance), icon: Wallet, color: "text-primary" },
                 { label: "Total Order", value: String(user._count.orders), icon: ShoppingCart, color: "text-primary" },
                 { label: "Total Deposit", value: formatRupiah(user.stats.totalDeposited), icon: CreditCard, color: "text-success" },
                 { label: "Total Belanja", value: formatRupiah(user.stats.totalSpent), icon: ShoppingCart, color: "text-accent" },
+                {
+                  label: "Selisih (Depo − Belanja)",
+                  value: formatRupiah(user.stats.totalDeposited - user.stats.totalSpent),
+                  icon: Wallet,
+                  color: "text-muted",
+                },
               ].map((s) => (
                 <div key={s.label} className="p-3 rounded-xl bg-background/50 text-center">
                   <s.icon className={`w-5 h-5 ${s.color} mx-auto mb-1`} />
