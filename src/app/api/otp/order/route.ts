@@ -9,6 +9,50 @@ import { otpOrderSchema, validateBody } from "@/lib/validations";
 import { getEffectiveVisibleServers, getUnifiedProviders } from "@/lib/site-settings";
 
 /**
+ * Refund saldo (rollback reserve) dengan retry + log jelas.
+ *
+ * PENTING: jangan pernah pakai .catch(() => {}) untuk refund — kalau gagal silent,
+ * saldo user kepotong tapi gak balik = hilang tanpa jejak. Helper ini retry 3x,
+ * dan kalau tetap gagal, log CRITICAL biar bisa refund manual.
+ */
+async function refundBalance(userId: string, amount: number, reason: string): Promise<boolean> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await db.user.update({
+        where: { id: userId },
+        data: { balance: { increment: amount } },
+      });
+      return true;
+    } catch (err) {
+      console.error(`[Order] Refund gagal (attempt ${attempt}/3) user=${userId} amount=${amount} reason=${reason}:`, (err as Error).message);
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 300 * attempt));
+    }
+  }
+  // Semua attempt gagal — log CRITICAL untuk refund manual
+  console.error(`[Order] CRITICAL REFUND_LOST: user=${userId} amount=${amount} reason=${reason} — SALDO HILANG, REFUND MANUAL DIPERLUKAN`);
+  return false;
+}
+
+/**
+ * Restore stock api4 (+1) dengan retry. Best-effort, tapi log kalau gagal.
+ */
+async function restoreApi4Stock(serviceId: string): Promise<void> {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await db.providerService.updateMany({
+        where: { id: serviceId },
+        data: { stock: { increment: 1 } },
+      });
+      return;
+    } catch (err) {
+      console.error(`[Order] Restore stock gagal (attempt ${attempt}/3) service=${serviceId}:`, (err as Error).message);
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 300 * attempt));
+    }
+  }
+  console.error(`[Order] CRITICAL STOCK_LOST: service=${serviceId} — stock tidak ter-restore`);
+}
+
+/**
  * Ambil entry api4 dari DB — manual stock by admin.
  * Throws "STOK_HABIS" kalau stock = 0, "LAYANAN_NOT_FOUND" kalau gak ada.
  */
@@ -240,16 +284,8 @@ export async function POST(req: NextRequest) {
       });
     } catch (providerErr) {
       // Provider gagal bikin order → kembalikan saldo + stock yang sudah di-reserve
-      await db.user.update({
-        where: { id: userId },
-        data: { balance: { increment: orderPrice } },
-      }).catch(() => {});
-      if (api4ServiceId) {
-        await db.providerService.updateMany({
-          where: { id: api4ServiceId },
-          data: { stock: { increment: 1 } },
-        }).catch(() => {});
-      }
+      await refundBalance(userId, orderPrice, `provider createOrder gagal (${server})`);
+      if (api4ServiceId) await restoreApi4Stock(api4ServiceId);
       throw providerErr;
     }
 
@@ -258,16 +294,8 @@ export async function POST(req: NextRequest) {
 
     if (!orderId || !number) {
       // Provider return invalid → refund reserve
-      await db.user.update({
-        where: { id: userId },
-        data: { balance: { increment: orderPrice } },
-      }).catch(() => {});
-      if (api4ServiceId) {
-        await db.providerService.updateMany({
-          where: { id: api4ServiceId },
-          data: { stock: { increment: 1 } },
-        }).catch(() => {});
-      }
+      await refundBalance(userId, orderPrice, `provider respons invalid (${server})`);
+      if (api4ServiceId) await restoreApi4Stock(api4ServiceId);
       throw new Error(data?.message || "Gagal membuat pesanan, respons tidak valid");
     }
 
@@ -294,16 +322,8 @@ export async function POST(req: NextRequest) {
       result = { orderId, number: String(number), order };
     } catch (txErr) {
       // Gagal simpan order → refund saldo + restore stock + cancel di provider
-      await db.user.update({
-        where: { id: userId },
-        data: { balance: { increment: orderPrice } },
-      }).catch(() => {});
-      if (api4ServiceId) {
-        await db.providerService.updateMany({
-          where: { id: api4ServiceId },
-          data: { stock: { increment: 1 } },
-        }).catch(() => {});
-      }
+      await refundBalance(userId, orderPrice, `gagal simpan order record (${server}, orderId=${orderId})`);
+      if (api4ServiceId) await restoreApi4Stock(api4ServiceId);
       try {
         const { cancelOrder } = await import("@/lib/otp");
         await cancelOrder(

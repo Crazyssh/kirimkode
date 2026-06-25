@@ -61,6 +61,16 @@ interface FetchOptions {
   noTimeout?: boolean; // true = tunggu sampai provider respon (untuk order)
 }
 
+/**
+ * Deteksi pesan provider "sudah dibatalkan sebelumnya" / "already cancelled".
+ * Cancel yang kena ini = idempotent success (nomor sudah lepas), JANGAN treat
+ * sebagai error — supaya cancel route lanjut refund saldo user.
+ */
+function isAlreadyCancelled(msg?: string): boolean {
+  if (!msg) return false;
+  return /sudah dibatalkan|already cancel|already.?cancelled|sudah di-cancel|telah dibatalkan/i.test(msg);
+}
+
 async function fetchProvider(path: string, options: FetchOptions = {}): Promise<unknown> {
   const { method = "GET", body, query, skipCache = false, ttlMs, noTimeout = false } = options;
 
@@ -381,6 +391,8 @@ export async function cancelOrder(orderId: number) {
     })) as { ok?: boolean; error?: string };
 
     if (raw?.ok === false) {
+      // "Sudah dibatalkan sebelumnya" = cancel berhasil (idempotent) → success.
+      if (isAlreadyCancelled(raw.error)) return { success: true };
       throw new Error(raw.error || "Provider menolak cancel");
     }
     return { success: true };
@@ -394,7 +406,11 @@ export async function cancelOrder(orderId: number) {
         // Order sudah hilang di provider — anggap sudah cancelled
         return { success: true };
       }
+      // Provider balikin "sudah dibatalkan" sebagai error → idempotent success.
+      if (isAlreadyCancelled(err.message)) return { success: true };
     }
+    // Error message biasa (Error) yang menandakan sudah cancelled → success.
+    if (err instanceof Error && isAlreadyCancelled(err.message)) return { success: true };
     throw err;
   }
 }

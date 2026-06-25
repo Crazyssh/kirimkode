@@ -61,6 +61,11 @@ interface FetchOptions {
   noTimeout?: boolean; // true = tunggu sampai provider respon (untuk order)
 }
 
+function isAlreadyCancelled(msg?: string): boolean {
+  if (!msg) return false;
+  return /sudah dibatalkan|already cancel|already.?cancelled|sudah di-cancel|telah dibatalkan/i.test(msg);
+}
+
 async function fetchProvider(path: string, options: FetchOptions = {}): Promise<unknown> {
   const { method = "GET", body, query, skipCache = false, ttlMs, noTimeout = false } = options;
 
@@ -307,6 +312,7 @@ export async function cancelOrder(orderId: number) {
 
     // ok === false eksplisit → gagal. Selain itu (ok true / 200 tanpa ok) → sukses.
     if (raw?.ok === false) {
+      if (isAlreadyCancelled(raw.error)) return { success: true };
       throw new Error(raw.error || "Provider menolak cancel");
     }
     return { success: true };
@@ -319,7 +325,9 @@ export async function cancelOrder(orderId: number) {
       if (err.status === 404) {
         return { success: true };
       }
+      if (isAlreadyCancelled(err.message)) return { success: true };
     }
+    if (err instanceof Error && isAlreadyCancelled(err.message)) return { success: true };
     throw err;
   }
 }
