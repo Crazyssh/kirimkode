@@ -24,6 +24,7 @@ import {
   Settings,
   Package,
   Eye,
+  Scale,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -40,6 +41,7 @@ const menuItems = [
   { href: "/admin/blog", label: "Blog", icon: FileText },
   { href: "/admin/broadcast", label: "Broadcast", icon: Megaphone },
   { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText },
+  { href: "/admin/reconcile", label: "Rekonsiliasi Saldo", icon: Scale },
   { href: "/admin/checker", label: "Checker", icon: SearchCheck },
   { href: "/admin/server", label: "Server", icon: Server },
   { href: "/admin/settings", label: "Pengaturan", icon: Settings },
