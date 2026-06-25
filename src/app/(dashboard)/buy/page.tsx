@@ -510,7 +510,30 @@ export default function BuyPage() {
       const data = await res.json();
 
       if (data.success && data.data) {
+        const d = data.data;
         fetchUser();
+        // OPTIMISTIC: inject nomor langsung ke riwayat (muncul instan).
+        setHistoryFilter("all");
+        setHistoryPage(1);
+        setHistoryOrders((prev) => {
+          if (prev.some((o) => o.id === d.id)) return prev;
+          const optimistic: HistoryOrder = {
+            id: d.id,
+            service: service.name,
+            country: selectedNegara!.nama_negara,
+            number: String(d.number || ""),
+            code: null,
+            status: "waiting",
+            price: isUnified && selectedProvider ? selectedProvider.price : service.price,
+            date: new Date().toISOString(),
+            server: isUnified && selectedProvider ? selectedProvider.serverId : selectedServer.id,
+            orderId: d.order_id,
+            waCheck: null,
+            checkedAt: null,
+            resendAt: null,
+          };
+          return [optimistic, ...prev];
+        });
         fetchHistory(1);
         // Auto-check nomor di WA/TG (non-blocking)
         if (data.data.id) {
@@ -587,17 +610,39 @@ export default function BuyPage() {
         .then((data) => {
           if (data?.success && data?.data) {
             successCount++;
-            if (data.data.id) {
-              orderIds.push(data.data.id);
+            const d = data.data;
+            if (d.id) {
+              orderIds.push(d.id);
               // Trigger checker WA/TG (non-blocking)
               fetch("/api/otp/check-number", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ orderId: data.data.id }),
+                body: JSON.stringify({ orderId: d.id }),
               }).catch(() => {});
             }
+            // OPTIMISTIC: langsung inject nomor ke list riwayat tanpa nunggu fetch.
+            // Nomor muncul instan bareng saldo berkurang. fetchHistory nanti sinkronkan.
+            setHistoryOrders((prev) => {
+              if (prev.some((o) => o.id === d.id)) return prev;
+              const optimistic: HistoryOrder = {
+                id: d.id,
+                service: service.name,
+                country: selectedNegara!.nama_negara,
+                number: String(d.number || ""),
+                code: null,
+                status: "waiting",
+                price: payload.price,
+                date: new Date().toISOString(),
+                server: payload.server,
+                orderId: d.order_id,
+                waCheck: null,
+                checkedAt: null,
+                resendAt: null,
+              };
+              return [optimistic, ...prev];
+            });
             toast.success(`Order ${i + 1}/${count} berhasil`, {
-              description: `Nomor: ${data.data.number || "..."}`,
+              description: `Nomor: ${d.number || "..."}`,
             });
           } else {
             failCount++;
@@ -613,9 +658,8 @@ export default function BuyPage() {
           });
         })
         .finally(() => {
-          // Tiap order kelar → langsung refresh supaya nomornya muncul seketika
+          // Saldo refresh tiap order kelar (nomor sudah di-inject optimistic).
           fetchUser();
-          fetchHistory(1, true);
         })
     );
 
