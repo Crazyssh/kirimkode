@@ -36,6 +36,8 @@ export default function AuditLogPage() {
   const [emailSearch, setEmailSearch] = useState("");
   // debounced value yang dipakai untuk query
   const [emailQuery, setEmailQuery] = useState("");
+  const [detailSearch, setDetailSearch] = useState("");
+  const [detailQuery, setDetailQuery] = useState("");
 
   // Debounce input email 400ms biar gak query tiap ketik
   useEffect(() => {
@@ -43,12 +45,19 @@ export default function AuditLogPage() {
     return () => clearTimeout(t);
   }, [emailSearch]);
 
+  // Debounce input detail 400ms
+  useEffect(() => {
+    const t = setTimeout(() => setDetailQuery(detailSearch.trim()), 400);
+    return () => clearTimeout(t);
+  }, [detailSearch]);
+
   const fetchLogs = useCallback(async (p = 1) => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(p), limit: "20" });
       if (filter !== "all") params.set("action", filter);
       if (emailQuery) params.set("email", emailQuery);
+      if (detailQuery) params.set("detail", detailQuery);
       const res = await fetch(`/api/admin/audit-log?${params}`);
       if (res.ok) {
         const json = await res.json();
@@ -59,7 +68,7 @@ export default function AuditLogPage() {
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
-  }, [filter, emailQuery]);
+  }, [filter, emailQuery, detailQuery]);
 
   useEffect(() => { fetchLogs(1); }, [fetchLogs]);
 
@@ -112,6 +121,41 @@ export default function AuditLogPage() {
                 <X className="w-4 h-4" />
               </button>
             )}
+          </div>
+          {/* Search by detail + quick filters */}
+          <div className="relative mt-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+            <input
+              type="text"
+              value={detailSearch}
+              onChange={(e) => setDetailSearch(e.target.value)}
+              placeholder='Cari di detail (mis. refunded":true, orderId, server)...'
+              className="w-full pl-9 pr-9 py-2 rounded-lg bg-surface border border-border text-sm focus:outline-none focus:border-primary"
+            />
+            {detailSearch && (
+              <button
+                onClick={() => setDetailSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <div className="flex gap-1.5 flex-wrap mt-2">
+            {[
+              { label: "Refund berhasil", value: '"refunded":true' },
+              { label: "Refund gagal", value: '"refunded":false' },
+            ].map((q) => (
+              <button
+                key={q.value}
+                onClick={() => setDetailSearch(detailSearch === q.value ? "" : q.value)}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                  detailSearch === q.value ? "bg-primary text-background" : "bg-surface-hover text-muted hover:text-foreground"
+                }`}
+              >
+                {q.label}
+              </button>
+            ))}
           </div>
         </CardHeader>
         <CardContent>

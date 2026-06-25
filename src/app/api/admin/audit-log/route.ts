@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
   const action = req.nextUrl.searchParams.get("action");
   const userId = req.nextUrl.searchParams.get("userId");
   const email = req.nextUrl.searchParams.get("email")?.trim();
+  const detail = req.nextUrl.searchParams.get("detail")?.trim();
 
   const where: Record<string, unknown> = {};
   if (action && action !== "all") where.action = action;
@@ -18,6 +19,10 @@ export async function GET(req: NextRequest) {
   // Cari berdasarkan email user (partial, case-insensitive)
   if (email) {
     where.user = { email: { contains: email, mode: "insensitive" } };
+  }
+  // Cari teks di kolom detail (mis. 'refunded":true' / 'refunded":false' / orderId)
+  if (detail) {
+    where.detail = { contains: detail, mode: "insensitive" };
   }
 
   try {
