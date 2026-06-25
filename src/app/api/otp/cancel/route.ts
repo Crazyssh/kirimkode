@@ -64,26 +64,24 @@ export async function POST(req: NextRequest) {
     }
 
     // STEP 2: Cancel di provider.
+    // Untuk Clowatch (api5/8/9/10): tombol cancel baru aktif setelah 3 menit
+    // (getCancelMinMs). Begitu user klik, LANGSUNG refund — cancel ke provider
+    // dikirim best-effort di background, TIDAK memblok refund. (Sebelumnya kalau
+    // provider cancel gagal/lambat, refund di-STOP → saldo user nyangkut.)
     let providerError = "";
-    try {
-      await cancelOrder(server, Number(id));
-    } catch (e) {
-      providerError = (e as Error).message || "Unknown error";
-      console.warn(`[Cancel] Provider cancel error for order ${id} (${server}): ${providerError}`);
-
-      // Clowatch: provider cancel gagal → STOP, jangan refund di web.
-      // (Mencegah: web cancel + refund, tapi Clowatch masih jalan → rugi.)
-      if (isClowatch) {
-        return NextResponse.json(
-          {
-            error: providerError.includes("tunggu") || providerError.includes("TOO_EARLY")
-              ? providerError
-              : "Gagal membatalkan di provider. Order masih aktif, coba lagi sebentar.",
-          },
-          { status: 400 }
-        );
+    if (isClowatch) {
+      // Fire-and-forget: kirim cancel ke Clowatch, jangan tunggu hasilnya.
+      cancelOrder(server, Number(id)).catch((e) => {
+        console.warn(`[Cancel] (bg) Clowatch cancel order ${id} (${server}) gagal:`, (e as Error).message);
+      });
+    } else {
+      try {
+        await cancelOrder(server, Number(id));
+      } catch (e) {
+        providerError = (e as Error).message || "Unknown error";
+        console.warn(`[Cancel] Provider cancel error for order ${id} (${server}): ${providerError}`);
+        // Server non-Clowatch: lanjut refund — provider mungkin sudah cancel sebelumnya
       }
-      // Server non-Clowatch: lanjut refund — provider mungkin sudah cancel sebelumnya
     }
 
     // STEP 3: Refund balance + update status atomically.
