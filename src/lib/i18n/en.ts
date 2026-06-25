@@ -308,7 +308,7 @@ export const en = {
     active: "Active",
     notCreated: "Not created",
     referralProgram: "Referral Program",
-    referralDesc: "Invite friends to sign up with your referral code. Every time your friend deposits, you earn a 5% commission from the deposit amount!",
+    referralDesc: "Invite friends to sign up with your referral code. When your friend makes their first deposit, you earn a 5% commission from that first deposit amount!",
     friendsInvited: "Friends invited:",
     phoneVerification: "WhatsApp Verification",
     phoneNotVerified: "Not verified",

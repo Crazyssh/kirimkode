@@ -3,8 +3,11 @@ import { db } from "@/lib/db";
 const REFERRAL_COMMISSION_PERCENT = 5;
 
 /**
- * Berikan komisi referral ke inviter saat deposit invitee berhasil.
- * Komisi = 5% dari nominal deposit.
+ * Berikan komisi referral ke inviter — HANYA saat deposit PERTAMA invitee berhasil.
+ * Komisi = 5% dari nominal deposit pertama.
+ *
+ * Catatan: fungsi ini dipanggil SETELAH deposit di-mark "paid", jadi deposit
+ * pertama = total deposit paid invitee == 1.
  */
 export async function giveReferralCommission(userId: string, depositAmount: number): Promise<void> {
   try {
@@ -15,6 +18,18 @@ export async function giveReferralCommission(userId: string, depositAmount: numb
 
     if (!user?.referredBy) return;
 
+    // Cuma deposit PERTAMA yang dapat komisi. Kalau invitee sudah punya >1 deposit
+    // paid, berarti ini bukan deposit pertama → skip.
+    const paidCount = await db.deposit.count({
+      where: { userId, status: "paid" },
+    });
+    if (paidCount !== 1) {
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[Referral] Skip: deposit ke-${paidCount} (bukan pertama) oleh ${userId}`);
+      }
+      return;
+    }
+
     const commission = Math.floor((depositAmount * REFERRAL_COMMISSION_PERCENT) / 100);
     if (commission <= 0) return;
 
@@ -24,7 +39,7 @@ export async function giveReferralCommission(userId: string, depositAmount: numb
     });
 
     if (process.env.NODE_ENV === "development") {
-      console.log(`[Referral] Commission Rp ${commission} given to ${user.referredBy} from deposit by ${userId}`);
+      console.log(`[Referral] Commission Rp ${commission} given to ${user.referredBy} from FIRST deposit by ${userId}`);
     }
   } catch (error) {
     if (process.env.NODE_ENV === "development") {

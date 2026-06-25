@@ -308,7 +308,7 @@ export const id = {
     active: "Aktif",
     notCreated: "Belum dibuat",
     referralProgram: "Program Referral",
-    referralDesc: "Ajak teman daftar pakai kode referral kamu. Setiap kali temanmu deposit, kamu dapat komisi 5% dari nominal deposit!",
+    referralDesc: "Ajak teman daftar pakai kode referral kamu. Saat temanmu deposit pertama kali, kamu dapat komisi 5% dari nominal deposit pertamanya!",
     friendsInvited: "Teman yang diundang:",
     phoneVerification: "Verifikasi WhatsApp",
     phoneNotVerified: "Belum diverifikasi",
