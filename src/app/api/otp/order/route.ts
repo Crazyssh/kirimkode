@@ -194,58 +194,88 @@ export async function POST(req: NextRequest) {
       orderPrice = await getServerPrice(server as "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10", Number(negara), layanan);
     }
 
-    // Step 1: Pre-check user balance + status (quick DB read, no transaction needed)
+    // Step 1: Pre-check status + RESERVE saldo (atomic) SEBELUM createOrder.
+    // Reserve-first cegah orphan number di provider: kalau saldo gak cukup,
+    // createOrder gak akan dipanggil. Untuk order parallel (5x), atomic decrement
+    // memastikan cuma sejumlah yang saldonya cukup yang lanjut.
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { balance: true, status: true },
+      select: { status: true },
     });
-
     if (!user) throw new Error("User not found");
     if (user.status === "banned") throw new Error("ACCOUNT_BANNED");
-    if (user.balance < orderPrice) throw new Error("INSUFFICIENT_BALANCE");
 
-    // Step 2: Call provider API (bisa lambat, HARUS di luar transaction)
-    // Bulk order: tanpa timeout, nunggu sampai server respon
-    const data = await createOrder(server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10", Number(negara), layanan, operator, {
-      noTimeout: isBulk,
-      maxPriceUsd: api4MaxPriceUsd,
-      fixedPrice: api4FixedPrice,
+    // api4: cek + decrement stock dulu (race-safe) sebelum reserve saldo
+    if (api4ServiceId) {
+      const stockUpdate = await db.providerService.updateMany({
+        where: { id: api4ServiceId, stock: { gt: 0 } },
+        data: { stock: { decrement: 1 } },
+      });
+      if (stockUpdate.count === 0) throw new Error("STOK_HABIS");
+    }
+
+    // Reserve saldo (atomic conditional decrement)
+    const reserve = await db.user.updateMany({
+      where: { id: userId, balance: { gte: orderPrice } },
+      data: { balance: { decrement: orderPrice } },
     });
+    if (reserve.count === 0) {
+      // Saldo gak cukup → balikin stock api4 yang sudah di-decrement
+      if (api4ServiceId) {
+        await db.providerService.updateMany({
+          where: { id: api4ServiceId },
+          data: { stock: { increment: 1 } },
+        }).catch(() => {});
+      }
+      throw new Error("INSUFFICIENT_BALANCE");
+    }
+
+    // Step 2: Call provider API. Kalau GAGAL → refund saldo + restore stock (rollback reserve).
+    let data;
+    try {
+      data = await createOrder(server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10", Number(negara), layanan, operator, {
+        noTimeout: isBulk,
+        maxPriceUsd: api4MaxPriceUsd,
+        fixedPrice: api4FixedPrice,
+      });
+    } catch (providerErr) {
+      // Provider gagal bikin order → kembalikan saldo + stock yang sudah di-reserve
+      await db.user.update({
+        where: { id: userId },
+        data: { balance: { increment: orderPrice } },
+      }).catch(() => {});
+      if (api4ServiceId) {
+        await db.providerService.updateMany({
+          where: { id: api4ServiceId },
+          data: { stock: { increment: 1 } },
+        }).catch(() => {});
+      }
+      throw providerErr;
+    }
 
     const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
     const number = data?.number ?? data?.data?.number ?? "";
 
     if (!orderId || !number) {
+      // Provider return invalid → refund reserve
+      await db.user.update({
+        where: { id: userId },
+        data: { balance: { increment: orderPrice } },
+      }).catch(() => {});
+      if (api4ServiceId) {
+        await db.providerService.updateMany({
+          where: { id: api4ServiceId },
+          data: { stock: { increment: 1 } },
+        }).catch(() => {});
+      }
       throw new Error(data?.message || "Gagal membuat pesanan, respons tidak valid");
     }
 
-    // Step 3: Atomic deduct + save order (cepat, hanya DB operations)
-    const result = await db.$transaction(async (tx) => {
-      // Atomic conditional decrement — race-safe untuk order parallel (5x).
-      // updateMany dengan where balance >= harga: cuma 1 yang berhasil kalau
-      // saldo pas-pasan, sisanya count=0 → throw INSUFFICIENT_BALANCE.
-      const balanceUpdate = await tx.user.updateMany({
-        where: { id: userId, balance: { gte: orderPrice } },
-        data: { balance: { decrement: orderPrice } },
-      });
-
-      if (balanceUpdate.count === 0) {
-        throw new Error("INSUFFICIENT_BALANCE");
-      }
-
-      // api4: decrement stock manual entry (race-safe pakai update conditional)
-      if (api4ServiceId) {
-        const stockUpdate = await tx.providerService.updateMany({
-          where: { id: api4ServiceId, stock: { gt: 0 } },
-          data: { stock: { decrement: 1 } },
-        });
-        // Kalau gagal decrement (stock keburu habis di tab lain) → throw
-        if (stockUpdate.count === 0) {
-          throw new Error("STOK_HABIS");
-        }
-      }
-
-      const order = await tx.order.create({
+    // Step 3: Simpan order record. Saldo & stock SUDAH di-reserve di Step 1.
+    // Kalau create gagal → refund + (provider) cancel order biar gak orphan.
+    let result;
+    try {
+      const order = await db.order.create({
         data: {
           userId,
           server,
@@ -261,9 +291,30 @@ export async function POST(req: NextRequest) {
           source: "web",
         },
       });
-
-      return { orderId, number: String(number), order };
-    });
+      result = { orderId, number: String(number), order };
+    } catch (txErr) {
+      // Gagal simpan order → refund saldo + restore stock + cancel di provider
+      await db.user.update({
+        where: { id: userId },
+        data: { balance: { increment: orderPrice } },
+      }).catch(() => {});
+      if (api4ServiceId) {
+        await db.providerService.updateMany({
+          where: { id: api4ServiceId },
+          data: { stock: { increment: 1 } },
+        }).catch(() => {});
+      }
+      try {
+        const { cancelOrder } = await import("@/lib/otp");
+        await cancelOrder(
+          server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10",
+          Number(orderId)
+        );
+      } catch (cancelErr) {
+        console.error(`[Order] ORPHAN ALERT: order ${orderId} (${server}) gagal disimpan DAN gagal cancel di provider. Cek manual:`, (cancelErr as Error).message);
+      }
+      throw txErr;
+    }
 
     logAction(session.user.id, "order", JSON.stringify({ orderId: result.orderId, service: layanan, server }));
 
