@@ -721,11 +721,14 @@ export default function BuyPage() {
     } catch { /* silent */ }
   };
 
-  const userFavCountries = (user?.favoriteCountries || "").split(",").filter(Boolean);
+  // Favorite country disimpan pakai NAMA negara (lowercase), bukan ID —
+  // karena ID negara beda-beda per provider (ID 6 = Indonesia di JasaOTP tapi
+  // negara lain di Clowatch). Nama konsisten lintas provider.
+  const userFavCountries = (user?.favoriteCountries || "").split(",").filter(Boolean).map((c) => c.toLowerCase());
 
-  const toggleFavCountry = async (id: number) => {
-    const idStr = String(id);
-    const current = (user?.favoriteCountries || "").split(",").filter(Boolean);
+  const toggleFavCountry = async (name: string) => {
+    const idStr = name.trim().toLowerCase();
+    const current = (user?.favoriteCountries || "").split(",").filter(Boolean).map((c) => c.toLowerCase());
     const updated = current.includes(idStr) ? current.filter((c) => c !== idStr) : [...current, idStr];
     const newFavCountries = updated.join(",");
     try {
@@ -876,8 +879,8 @@ export default function BuyPage() {
                                 .includes(countrySearch.toLowerCase())
                             )
                             .sort((a, b) => {
-                              const aFav = userFavCountries.includes(String(a.id_negara)) ? -1 : 0;
-                              const bFav = userFavCountries.includes(String(b.id_negara)) ? -1 : 0;
+                              const aFav = userFavCountries.includes(a.nama_negara.toLowerCase()) ? -1 : 0;
+                              const bFav = userFavCountries.includes(b.nama_negara.toLowerCase()) ? -1 : 0;
                               return aFav - bFav;
                             })
                             .map((negara) => (
@@ -895,10 +898,10 @@ export default function BuyPage() {
                                   }`}
                               >
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); toggleFavCountry(negara.id_negara); }}
+                                  onClick={(e) => { e.stopPropagation(); toggleFavCountry(negara.nama_negara); }}
                                   className="shrink-0"
                                 >
-                                  <Star className={`w-3 h-3 ${userFavCountries.includes(String(negara.id_negara)) ? "text-accent fill-accent" : "text-muted"}`} />
+                                  <Star className={`w-3 h-3 ${userFavCountries.includes(negara.nama_negara.toLowerCase()) ? "text-accent fill-accent" : "text-muted"}`} />
                                 </button>
                                 {getCountryFlagUrl(negara.nama_negara) && <img src={getCountryFlagUrl(negara.nama_negara)!} alt="" className="w-5 h-4 object-cover rounded-sm" />}
                                 {capitalizeFirst(negara.nama_negara)}
