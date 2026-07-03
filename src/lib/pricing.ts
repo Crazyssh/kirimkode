@@ -234,11 +234,11 @@ export function getOrderTimeoutMs(serverId: string): number {
  *   - Clowatch (api5 Earth, api8 Mercury, api9 Uranus, api10 Eris): 3 menit
  */
 const SERVER_CANCEL_MIN_MS: Record<string, number> = {
-  api5: 3 * 60 * 1000,
+  api5: 4.5 * 60 * 1000,
   api7: 2.5 * 60 * 1000,
-  api8: 3 * 60 * 1000,
-  api9: 3 * 60 * 1000,
-  api10: 3 * 60 * 1000,
+  api8: 4.5 * 60 * 1000,
+  api9: 4.5 * 60 * 1000,
+  api10: 4.5 * 60 * 1000,
 };
 
 export const DEFAULT_CANCEL_MIN_MS = 3 * 60 * 1000;
