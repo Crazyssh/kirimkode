@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getCancelMinMsFor } from "@/lib/pricing";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -38,8 +39,9 @@ export async function GET(req: NextRequest) {
     db.order.count({ where }),
   ]);
 
-  return NextResponse.json({
-    data: orders.map((o) => ({
+  // Hitung cancelMinMs per order (aturan per-layanan admin, fallback per-server).
+  const data = await Promise.all(
+    orders.map(async (o) => ({
       id: o.id,
       service: o.serviceName,
       country: o.country,
@@ -50,11 +52,16 @@ export async function GET(req: NextRequest) {
       date: o.createdAt.toISOString(),
       server: o.server,
       orderId: o.orderId,
+      cancelMinMs: await getCancelMinMsFor(o.server, o.service),
       waCheck: o.waCheck ? JSON.parse(o.waCheck) : null,
       tgCheck: o.tgCheck ? JSON.parse(o.tgCheck) : null,
       checkedAt: o.checkedAt?.toISOString() ?? null,
       resendAt: o.resendAt?.toISOString() ?? null,
-    })),
+    }))
+  );
+
+  return NextResponse.json({
+    data,
     pagination: {
       page,
       limit,

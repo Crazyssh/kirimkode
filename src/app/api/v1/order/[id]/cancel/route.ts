@@ -3,7 +3,7 @@ import { apiMessage, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { cancelOrder } from "@/lib/otp";
 import { findOrderByAnyId } from "@/lib/order-lookup";
-import { getCancelMinMs } from "@/lib/pricing";
+import { getCancelMinMsFor } from "@/lib/pricing";
 
 export const POST = withApiAuthParams(async (_req, user, params) => {
   const { id } = params;
@@ -21,11 +21,8 @@ export const POST = withApiAuthParams(async (_req, user, params) => {
   }
   const order = lookup.order;
 
-  // Cancel rule per server (centralized di lib/pricing.ts):
-  //   api5 (Earth), api7 (Mars V2), api8 (Mercury): 2 menit 30 detik
-  //   api9 (Uranus): 10 detik
-  //   default: 3 menit
-  const cancelMinMs = getCancelMinMs(order.server);
+  // Cancel rule: per-LAYANAN (admin-configurable) dulu, fallback per-server.
+  const cancelMinMs = await getCancelMinMsFor(order.server, order.service);
   const cancelMinSec = cancelMinMs / 1000;
   const diffMs = Date.now() - new Date(order.createdAt).getTime();
   if (diffMs < cancelMinMs) {

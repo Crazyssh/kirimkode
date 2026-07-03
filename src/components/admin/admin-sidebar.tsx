@@ -25,6 +25,7 @@ import {
   Package,
   Eye,
   Scale,
+  Timer,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -35,6 +36,7 @@ const menuItems = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/deposits", label: "Deposits", icon: Wallet },
   { href: "/admin/pricing", label: "Harga OTP", icon: DollarSign },
+  { href: "/admin/cancel-rules", label: "Waktu Cancel", icon: Timer },
   { href: "/admin/api4-stock", label: "Neptune Stock", icon: Package },
   { href: "/admin/server-visibility", label: "Server Visibility", icon: Eye },
   { href: "/admin/vouchers", label: "Voucher", icon: Ticket },

@@ -74,6 +74,7 @@ interface HistoryOrder {
   date: string;
   server?: string;
   orderId?: number;
+  cancelMinMs?: number;
   waCheck?: WaCheckData | null;
   checkedAt?: string | null;
   resendAt?: string | null;
@@ -1360,17 +1361,18 @@ export default function BuyPage() {
                             <td className="py-3">
                               {(o.status === "waiting" || o.status === "success") && (() => {
                                 const orderAge = Date.now() - new Date(o.date).getTime();
-                                // Cancel rule per server:
-                                //   api7 (Mars V2): 2 menit 30 detik
-                                //   Clowatch (api5/api8/api9/api10): 4,5 menit
-                                //   default: 3 menit
+                                // Waktu cancel dari backend (aturan admin per-layanan,
+                                // fallback per-server). Kalau belum ada (optimistic order
+                                // yang belum sync), pakai fallback per-server.
                                 const isClowatch = ["api5", "api8", "api9", "api10"].includes(o.server || "");
                                 const cancelMinMs =
-                                  o.server === "api7"
-                                    ? 2.5 * 60 * 1000
-                                    : isClowatch
-                                      ? 4.5 * 60 * 1000
-                                      : 3 * 60 * 1000;
+                                  typeof o.cancelMinMs === "number"
+                                    ? o.cancelMinMs
+                                    : o.server === "api7"
+                                      ? 2.5 * 60 * 1000
+                                      : isClowatch
+                                        ? 4.5 * 60 * 1000
+                                        : 3 * 60 * 1000;
                                 // Timeout nomor: semua server 20 menit.
                                 const numberTimeoutMs = 20 * 60 * 1000;
 

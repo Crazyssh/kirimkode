@@ -244,3 +244,53 @@ export const DEFAULT_CANCEL_MIN_MS = 3 * 60 * 1000;
 export function getCancelMinMs(serverId: string): number {
   return SERVER_CANCEL_MIN_MS[serverId] ?? DEFAULT_CANCEL_MIN_MS;
 }
+
+// ==================== CANCEL RULES PER-LAYANAN (admin-configurable) ====================
+// Disimpan di SiteSetting key "cancel_rules" sebagai JSON: { "<serviceCode>": <menit> }
+// Contoh: { "wa": 4.5, "tg": 2 }. Kalau layanan tidak ada di sini, fallback ke
+// aturan per-server (getCancelMinMs).
+
+export const CANCEL_RULES_KEY = "cancel_rules";
+
+let cancelRulesCache: Record<string, number> | null = null;
+let cancelRulesCacheTime = 0;
+const CANCEL_RULES_TTL = 60_000; // 1 menit
+
+/** Ambil map aturan cancel per-layanan (menit) dari SiteSetting, dengan cache. */
+export async function getCancelRules(): Promise<Record<string, number>> {
+  const now = Date.now();
+  if (cancelRulesCache && now - cancelRulesCacheTime < CANCEL_RULES_TTL) {
+    return cancelRulesCache;
+  }
+  try {
+    const row = await db.siteSetting.findUnique({ where: { key: CANCEL_RULES_KEY } });
+    const parsed = row?.value ? JSON.parse(row.value) : {};
+    cancelRulesCache = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    cancelRulesCache = {};
+  }
+  cancelRulesCacheTime = now;
+  return cancelRulesCache ?? {};
+}
+
+/** Invalidate cache (dipanggil setelah admin update). */
+export function clearCancelRulesCache() {
+  cancelRulesCache = null;
+  cancelRulesCacheTime = 0;
+}
+
+/**
+ * Waktu minimal (ms) sebelum order bisa di-cancel — cek aturan per-LAYANAN dulu,
+ * fallback ke aturan per-server. serviceCode composite (api4 "wa#abc") di-strip.
+ */
+export async function getCancelMinMsFor(serverId: string, serviceCode?: string): Promise<number> {
+  if (serviceCode) {
+    const rules = await getCancelRules();
+    const code = serviceCode.split("#")[0].toLowerCase();
+    const mins = rules[code] ?? rules[serviceCode.toLowerCase()];
+    if (typeof mins === "number" && mins >= 0) {
+      return Math.round(mins * 60 * 1000);
+    }
+  }
+  return getCancelMinMs(serverId);
+}
