@@ -212,12 +212,10 @@ export function applyServerExtraMarkup(price: number, serverId: string): number 
  * Timeout nomor (umur max order) per-server, dalam ms.
  * Default 20 menit — provider kasih waktu 20 menit OTP masuk, lewat itu auto-cancel + refund.
  *
- * Override untuk server yang provider-nya lebih ketat:
- *   - api8 (Mercury): 4 menit 30 detik
+ * Semua server pakai default 20 menit (termasuk Mercury/api8) supaya window
+ * cancel manual (mulai menit 4,5) tetap kepakai sebelum auto-timeout.
  */
-const SERVER_TIMEOUT_MS: Record<string, number> = {
-  api8: 4.5 * 60 * 1000, // Mercury — 4 menit 30 detik
-};
+const SERVER_TIMEOUT_MS: Record<string, number> = {};
 
 export const DEFAULT_ORDER_TIMEOUT_MS = 20 * 60 * 1000; // 20 menit
 

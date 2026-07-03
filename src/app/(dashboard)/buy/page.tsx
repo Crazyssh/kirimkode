@@ -1371,12 +1371,8 @@ export default function BuyPage() {
                                     : isClowatch
                                       ? 4.5 * 60 * 1000
                                       : 3 * 60 * 1000;
-                                // Timeout nomor per server:
-                                //   api8 (Mercury): 4.5 menit
-                                //   default: 20 menit
-                                const numberTimeoutMs = o.server === "api8"
-                                  ? 4.5 * 60 * 1000
-                                  : 20 * 60 * 1000;
+                                // Timeout nomor: semua server 20 menit.
+                                const numberTimeoutMs = 20 * 60 * 1000;
 
                                 const isResending = !!o.resendAt;
                                 // Resend: api4 + udah dapet OTP + belum timeout + lagi gak resend
