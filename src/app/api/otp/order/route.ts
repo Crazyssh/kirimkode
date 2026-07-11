@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
+import * as provider4 from "@/lib/provider4";
 import { applyPricing, applyServerExtraMarkup, applyErisPricing, applyMercuryPricing } from "@/lib/pricing";
 import { logAction } from "@/lib/audit";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
@@ -31,68 +32,6 @@ async function refundBalance(userId: string, amount: number, reason: string): Pr
   // Semua attempt gagal — log CRITICAL untuk refund manual
   console.error(`[Order] CRITICAL REFUND_LOST: user=${userId} amount=${amount} reason=${reason} — SALDO HILANG, REFUND MANUAL DIPERLUKAN`);
   return false;
-}
-
-/**
- * Restore stock api4 (+1) dengan retry. Best-effort, tapi log kalau gagal.
- */
-async function restoreApi4Stock(serviceId: string): Promise<void> {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      await db.providerService.updateMany({
-        where: { id: serviceId },
-        data: { stock: { increment: 1 } },
-      });
-      return;
-    } catch (err) {
-      console.error(`[Order] Restore stock gagal (attempt ${attempt}/3) service=${serviceId}:`, (err as Error).message);
-      if (attempt < 3) await new Promise((r) => setTimeout(r, 300 * attempt));
-    }
-  }
-  console.error(`[Order] CRITICAL STOCK_LOST: service=${serviceId} — stock tidak ter-restore`);
-}
-
-/**
- * Ambil entry api4 dari DB — manual stock by admin.
- * Throws "STOK_HABIS" kalau stock = 0, "LAYANAN_NOT_FOUND" kalau gak ada.
- */
-async function getApi4Entry(negara: number, layanan: string): Promise<{
-  serviceId: string;
-  price: number;
-  stock: number;
-  maxPriceUsd: number | null;
-  fixedPrice: boolean;
-}> {
-  const country = await db.providerCountry.findUnique({
-    where: {
-      serverId_externalId: { serverId: "api4", externalId: negara },
-    },
-    select: { id: true },
-  });
-
-  if (!country) throw new Error("LAYANAN_NOT_FOUND");
-
-  const service = await db.providerService.findUnique({
-    where: {
-      serverId_countryId_code: {
-        serverId: "api4",
-        countryId: country.id,
-        code: layanan,
-      },
-    },
-    select: { id: true, price: true, stock: true, maxPriceUsd: true, fixedPrice: true },
-  });
-
-  if (!service) throw new Error("LAYANAN_NOT_FOUND");
-  if (service.stock <= 0) throw new Error("STOK_HABIS");
-
-  return {
-    serviceId: service.id,
-    price: service.price,
-    stock: service.stock,
-    maxPriceUsd: service.maxPriceUsd,
-    fixedPrice: service.fixedPrice,
-  };
 }
 
 /**
@@ -220,19 +159,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Untuk api4: ambil entry dari DB (price + maxPriceUsd + stock + serviceId)
-    // Untuk api1/api2/api3: ambil harga dari server (DB atau API)
+    // Untuk api4 (Neptune): ambil entry LIVE dari /offers (banding). Harga + maxPrice
+    // dihitung server-side dari composite code — TIDAK percaya harga client.
+    // maxPrice = capUsd band, fixedPrice=false → dapat nomor termurah ≤ cap (margin ≥ markup).
+    // Stok realtime dari provider, jadi TIDAK ada decrement/restore stok DB.
     let orderPrice: number;
-    let api4ServiceId: string | null = null;
     let api4MaxPriceUsd: number | null = null;
-    let api4FixedPrice: boolean = true;
+    const api4FixedPrice: boolean = false;
 
     if (server === "api4") {
-      const entry = await getApi4Entry(Number(negara), layanan);
-      orderPrice = entry.price;
-      api4ServiceId = entry.serviceId;
-      api4MaxPriceUsd = entry.maxPriceUsd;
-      api4FixedPrice = entry.fixedPrice;
+      const entry = await provider4.getLiveEntry(Number(negara), layanan);
+      orderPrice = entry.priceIdr;
+      api4MaxPriceUsd = entry.capUsd;
     } else {
       // Harga WAJIB dari server, bukan dari client
       orderPrice = await getServerPrice(server as "api1" | "api2" | "api3" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10", Number(negara), layanan);
@@ -251,34 +189,18 @@ export async function POST(req: NextRequest) {
     // kalau jelas-jelas saldo gak cukup). Potong final tetap atomic setelah dapat nomor.
     if (user.balance < orderPrice) throw new Error("INSUFFICIENT_BALANCE");
 
-    // api4: cek + decrement stock dulu (race-safe) sebelum panggil provider.
-    if (api4ServiceId) {
-      const stockUpdate = await db.providerService.updateMany({
-        where: { id: api4ServiceId, stock: { gt: 0 } },
-        data: { stock: { decrement: 1 } },
-      });
-      if (stockUpdate.count === 0) throw new Error("STOK_HABIS");
-    }
-
-    // Step 1: Call provider API untuk dapat nomor. Kalau GAGAL → restore stock api4.
-    // Saldo BELUM dipotong di tahap ini.
+    // Step 1: Call provider API untuk dapat nomor. Saldo BELUM dipotong di tahap ini.
     let data;
-    try {
-      data = await createOrder(server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10", Number(negara), layanan, operator, {
-        noTimeout: isBulk,
-        maxPriceUsd: api4MaxPriceUsd,
-        fixedPrice: api4FixedPrice,
-      });
-    } catch (providerErr) {
-      if (api4ServiceId) await restoreApi4Stock(api4ServiceId);
-      throw providerErr;
-    }
+    data = await createOrder(server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10", Number(negara), layanan, operator, {
+      noTimeout: isBulk,
+      maxPriceUsd: api4MaxPriceUsd,
+      fixedPrice: api4FixedPrice,
+    });
 
     const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
     const number = data?.number ?? data?.data?.number ?? "";
 
     if (!orderId || !number) {
-      if (api4ServiceId) await restoreApi4Stock(api4ServiceId);
       throw new Error(data?.message || "Gagal membuat pesanan, respons tidak valid");
     }
 
@@ -301,7 +223,6 @@ export async function POST(req: NextRequest) {
       } catch (cancelErr) {
         console.error(`[Order] Saldo kurang setelah dapat nomor, tapi gagal cancel ${orderId} (${server}):`, (cancelErr as Error).message);
       }
-      if (api4ServiceId) await restoreApi4Stock(api4ServiceId);
       throw new Error("INSUFFICIENT_BALANCE");
     }
 
@@ -327,9 +248,8 @@ export async function POST(req: NextRequest) {
       });
       result = { orderId, number: String(number), order };
     } catch (txErr) {
-      // Gagal simpan order → refund saldo (yg sudah dipotong) + restore stock + cancel di provider
+      // Gagal simpan order → refund saldo (yg sudah dipotong) + cancel di provider biar gak orphan
       await refundBalance(userId, orderPrice, `gagal simpan order record (${server}, orderId=${orderId})`);
-      if (api4ServiceId) await restoreApi4Stock(api4ServiceId);
       try {
         const { cancelOrder } = await import("@/lib/otp");
         await cancelOrder(

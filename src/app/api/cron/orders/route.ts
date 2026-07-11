@@ -82,25 +82,7 @@ async function refundOrder(
       data: { balance: { increment: price } },
     });
 
-    // api4: restore stock entry yang sesuai (+1)
-    if (meta?.server === "api4" && meta.service && typeof meta.countryId === "number") {
-      const country = await tx.providerCountry.findUnique({
-        where: {
-          serverId_externalId: { serverId: "api4", externalId: meta.countryId },
-        },
-        select: { id: true },
-      });
-      if (country) {
-        await tx.providerService.updateMany({
-          where: {
-            serverId: "api4",
-            countryId: country.id,
-            code: meta.service, // composite code (e.g. "wa" atau "wa#abc")
-          },
-          data: { stock: { increment: 1 } },
-        });
-      }
-    }
+    // api4 (Neptune): stok realtime dari /offers, TIDAK ada stok DB yang perlu di-restore.
 
     return true;
   });

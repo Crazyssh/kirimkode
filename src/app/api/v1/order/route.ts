@@ -2,6 +2,7 @@ import { withApiAuth } from "@/lib/api-auth";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { db } from "@/lib/db";
 import { createOrder, getLayanan } from "@/lib/otp";
+import * as provider4 from "@/lib/provider4";
 import { applyPricing, applyServerExtraMarkup, applyErisPricing, applyMercuryPricing, getOrderTimeoutMs } from "@/lib/pricing";
 
 type PublicServer = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10";
@@ -67,12 +68,17 @@ export const POST = withApiAuth(async (req, user) => {
       );
     }
 
-    // Harga WAJIB dari server, bukan dari client
-    const orderPrice = await getServerPrice(
-      server as PublicServer,
-      Number(country),
-      service
-    );
+    // Harga WAJIB dari server, bukan dari client.
+    // api4 (Neptune): entry live dari /offers → dapat harga + capUsd (buat maxPrice).
+    let orderPrice: number;
+    let api4MaxPriceUsd: number | null = null;
+    if (server === "api4") {
+      const entry = await provider4.getLiveEntry(Number(country), service);
+      orderPrice = entry.priceIdr;
+      api4MaxPriceUsd = entry.capUsd;
+    } else {
+      orderPrice = await getServerPrice(server as PublicServer, Number(country), service);
+    }
 
     // Atomic balance check + deduct + order creation
     const result = await db.$transaction(async (tx) => {
@@ -89,7 +95,8 @@ export const POST = withApiAuth(async (req, user) => {
         server as PublicServer,
         Number(country),
         service,
-        operator
+        operator,
+        { maxPriceUsd: api4MaxPriceUsd, fixedPrice: false }
       );
       const orderId = data?.order_id ?? data?.data?.order_id ?? data?.id;
       const number = data?.number ?? data?.data?.number ?? "";

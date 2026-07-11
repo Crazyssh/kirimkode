@@ -27,39 +27,11 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // api4: baca dari database (manual entries by admin)
+    // api4 (Neptune): LIVE dari HeroSMS /offers (banding 0.01 USD + markup).
+    // Harga sudah final di adapter → skip applyPricing.
     if (server === "api4") {
-      const country = await db.providerCountry.findUnique({
-        where: {
-          serverId_externalId: {
-            serverId: "api4",
-            externalId: negaraId,
-          },
-        },
-        select: { id: true },
-      });
-
-      const negaraKey = String(negaraId);
-      if (!country) {
-        return NextResponse.json({ [negaraKey]: {} });
-      }
-
-      const services = await db.providerService.findMany({
-        where: { serverId: "api4", countryId: country.id },
-        select: { code: true, name: true, price: true, stock: true },
-        orderBy: [{ name: "asc" }, { price: "asc" }],
-      });
-
-      const serviceData: Record<string, { harga: number; stok: number; layanan: string }> = {};
-      for (const svc of services) {
-        serviceData[svc.code] = {
-          harga: svc.price,
-          stok: svc.stock,
-          layanan: svc.name,
-        };
-      }
-
-      return NextResponse.json({ [negaraKey]: serviceData }, {
+      const data = await getLayanan("api4", negaraId);
+      return NextResponse.json(data, {
         headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" },
       });
     }

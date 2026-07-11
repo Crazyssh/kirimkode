@@ -134,7 +134,7 @@ sudo -u postgres psql -d kirimkode < /root/kirimkode-backup-XXX.sql
 | `api1` | Mars | JasaOTP V1 | api.jasaotp.id/v1 | Apply pricing rule |
 | `api2` | Jupiter | JasaOTP V2 | api.jasaotp.id/v2 | Apply pricing rule |
 | `api3` | Saturn | HeroSMS V1 | - | **Final price** (skip pricing rule) |
-| `api4` | Neptune | HeroSMS V2 | - | Manual stock + maxPriceUsd |
+| `api4` | Neptune | HeroSMS V2 | /api/v1/activations/offers | **Live /offers** (banding 0.01 USD) + markup 1.35 (final price) |
 | `api5` | Earth (Beta) | Clowatch | api.clowatch.com/api/v1 | Apply pricing rule |
 | `api6` | Venus (Beta) | 5sim.net | api.5sim.net | **Final price** (USD→IDR + markup 1.15) |
 | `api7` | Mars V2 | Happy Pixel | - | Apply pricing rule (share rule dengan Mars/api1) |
@@ -379,7 +379,7 @@ Halaman penting:
 - `/admin/settings` — Toggle gateway (Paymenku/BAYAR.GG/Manual QRIS), tombol "Paksa Refresh Semua User"
 - `/admin/server` — Server stats (CPU, RAM, DB stats, top tables)
 - `/admin/audit-log` — Riwayat aksi admin
-- `/admin/api4-stock` — Manual stock entry untuk Neptune
+- ~~`/admin/api4-stock`~~ — DEPRECATED: Neptune sekarang full-auto dari `/offers`, halaman ini nonaktif (dihapus dari sidebar)
 - `/admin/checker` — WhatsApp/Telegram number checker
 - `/admin/broadcast` — Broadcast announcement
 
@@ -442,7 +442,8 @@ Berguna setelah update visibilitas server / pricing / fitur baru.
 - **Naming server baru**: Pakai nama planet (Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune)
 - **Pricing rule sharing**: Mars V2 (api7) share PriceRule dengan Mars (api1) by serviceCode+countryId
 - **Mercury (api8)** share rule dengan Earth (api5) + flat markup
-- **Final price providers**: api3 (Saturn), api6 (Venus), api9 (Uranus), api10 (Eris) — skip applyPricing
+- **Final price providers**: api3 (Saturn), api4 (Neptune), api6 (Venus), api9 (Uranus), api10 (Eris) — skip applyPricing
+- **Neptune (api4) full-auto**: layanan & stok LIVE dari HeroSMS `/api/v1/activations/offers` (auth header `Authorization: ApiKey <key>`). Harga di-band per 0.01 USD (ambil harga tertinggi tiap band sebagai cap), harga jual = cap × kurs × 1.35. Beli → `getNumberV2` dengan `maxPrice=cap` tanpa `fixedPrice` (dapat nomor termurah ≤ cap, margin ≥ 35%). TIDAK ada stok manual DB lagi — halaman `/admin/api4-stock` sudah nonaktif (dihapus dari sidebar).
 
 ---
 

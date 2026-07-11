@@ -95,27 +95,7 @@ export async function POST(
         select: { id: true, email: true, name: true, balance: true },
       });
 
-      // api4 (Neptune): restore stock entry juga (+1)
-      // Karena order success → user dapat OTP → stock sudah decrement.
-      // Kalau refund, kita anggap "stock balik" supaya bisa dijual lagi.
-      if (order.server === "api4" && order.service && order.countryId) {
-        const country = await tx.providerCountry.findUnique({
-          where: {
-            serverId_externalId: { serverId: "api4", externalId: order.countryId },
-          },
-          select: { id: true },
-        });
-        if (country) {
-          await tx.providerService.updateMany({
-            where: {
-              serverId: "api4",
-              countryId: country.id,
-              code: order.service,
-            },
-            data: { stock: { increment: 1 } },
-          });
-        }
-      }
+      // api4 (Neptune): stok realtime dari /offers, TIDAK ada stok DB yang perlu di-restore.
 
       return updatedUser;
     });
