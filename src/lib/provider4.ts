@@ -2,7 +2,7 @@
  * Provider 4 Adapter — HeroSMS via getNumberV2 endpoint.
  * Sama seperti provider3, kecuali:
  *   - createOrder pakai action=getNumberV2 (response JSON, bukan text)
- *   - PRICE_MARKUP 1.15 (target ~12% untung bersih setelah fee topup HeroSMS 2.5% + $0.2)
+ *   - PRICE_MARKUP 1.35 (samain dengan Saturn/api3)
  *   - API key terpisah (PROVIDER4_API_KEY)
  * Endpoint lain (balance/countries/prices/status/cancel) tetap V1 — HeroSMS belum
  * menyediakan V2 untuk itu.
@@ -16,8 +16,8 @@ const BASE_URL =
   "https://hero-sms.com/stubs/handler_api.php";
 const API_KEY = process.env.PROVIDER4_API_KEY || "";
 
-// Markup 15% di atas harga provider → ~12% untung bersih setelah fee topup HeroSMS (2.5% + $0.2).
-export const PRICE_MARKUP = 1.15;
+// Markup 35% di atas harga provider (samain dengan Saturn/api3).
+export const PRICE_MARKUP = 1.35;
 
 // Re-export getUsdToIdr untuk admin pages yang masih akses via getKurs()
 export async function getKurs(): Promise<number> {
