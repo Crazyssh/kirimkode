@@ -19,28 +19,11 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // api4: baca dari database (manual entries by admin)
-    // Gak fallback ke API — kalau admin belum tambah, list kosong
+    // api4 (Neptune): LIVE dari HeroSMS getCountries (semua negara), bukan DB.
     if (server === "api4") {
-      const countries = await db.providerCountry.findMany({
-        where: {
-          serverId: "api4",
-          services: { some: { serverId: "api4" } }, // hanya negara yang punya minimal 1 layanan
-        },
-        select: { externalId: true, name: true },
-        orderBy: { name: "asc" },
-      });
-
-      return NextResponse.json({
-        success: true,
-        data: countries.map((c) => ({
-          id_negara: c.externalId,
-          nama_negara: c.name,
-        })),
-      }, {
-        headers: {
-          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
-        },
+      const data = await getNegara("api4");
+      return NextResponse.json(data, {
+        headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
       });
     }
 
