@@ -21,6 +21,7 @@ export async function GET() {
         image: true,
         phone: true,
         phoneVerified: true,
+        emailVerified: true,
         balance: true,
         role: true,
         status: true,
@@ -31,6 +32,9 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    // emailVerified di DB bertipe DateTime? — kirim sebagai boolean ke client.
+    const emailVerified = !!user.emailVerified;
 
     // Fetch new fields separately to avoid crash if they don't exist yet
     let extras = { webhookUrl: null as string | null, favorites: "", favoriteCountries: "", theme: "dark" };
@@ -51,7 +55,7 @@ export async function GET() {
       // New fields might not exist yet in DB - use defaults
     }
 
-    return NextResponse.json({ data: { ...user, ...extras } }, {
+    return NextResponse.json({ data: { ...user, emailVerified, ...extras } }, {
       headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
     });
   } catch (err) {

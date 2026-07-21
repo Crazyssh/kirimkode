@@ -7,6 +7,7 @@ interface UserData {
   image: string | null;
   phone: string | null;
   phoneVerified: boolean;
+  emailVerified: boolean;
   balance: number;
   role: string;
   apiKey: string | null;

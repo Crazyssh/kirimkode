@@ -23,6 +23,8 @@ import {
   ShieldCheck,
   Send,
   RotateCcw,
+  Mail,
+  MailCheck,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -39,6 +41,10 @@ export default function SettingsPage() {
   const [referralCode, setReferralCode] = useState("");
   const [referralCount, setReferralCount] = useState(0);
   const [copiedRef, setCopiedRef] = useState(false);
+
+  // Email verification states
+  const [emailVerifySending, setEmailVerifySending] = useState(false);
+  const [emailVerifySent, setEmailVerifySent] = useState(false);
 
   // Phone OTP states
   const [otpStep, setOtpStep] = useState<"idle" | "sent" | "verifying">("idle");
@@ -225,6 +231,29 @@ export default function SettingsPage() {
     setPhone("");
   };
 
+  const handleSendVerificationEmail = async () => {
+    setEmailVerifySending(true);
+    try {
+      const res = await fetch("/api/user/verify-email/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast.success(data.message || t("settings.emailVerifyCheckInbox"));
+        setEmailVerifySent(true);
+      } else {
+        // Termasuk ALREADY_VERIFIED (400) & RATE_LIMITED (429).
+        toast.error(data?.error?.message || t("resetPassword.tryAgain"));
+        if (data?.error?.code === "ALREADY_VERIFIED") fetchUser();
+      }
+    } catch {
+      toast.error(t("auth.networkError"));
+    } finally {
+      setEmailVerifySending(false);
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
@@ -353,6 +382,56 @@ export default function SettingsPage() {
                 </div>
                 <span className="text-[10px] text-muted">Format: 628xxxxxxxxxx</span>
               </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Email Verification */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <MailCheck className="w-4 h-4 text-primary" />
+            {t("settings.emailVerification")}
+            {user?.emailVerified ? (
+              <Badge variant="success" className="ml-auto">{t("settings.emailVerified")}</Badge>
+            ) : (
+              <Badge variant="warning" className="ml-auto">{t("settings.emailNotVerified")}</Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {user?.emailVerified ? (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-success/10 border border-success/30">
+              <CheckCircle className="w-5 h-5 text-success shrink-0" />
+              <div>
+                <p className="text-sm font-medium">{user.email}</p>
+                <p className="text-xs text-muted">{t("settings.emailVerified")}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-xs text-muted">{t("settings.emailVerifyDesc")}</p>
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-background/50 border border-border">
+                <Mail className="w-4 h-4 text-muted shrink-0" />
+                <span className="text-sm">{user?.email || ""}</span>
+              </div>
+              {emailVerifySent && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/30 text-sm">
+                  <Send className="w-4 h-4 text-primary shrink-0" />
+                  <span>{t("settings.emailVerifyCheckInbox")}</span>
+                </div>
+              )}
+              <Button onClick={handleSendVerificationEmail} disabled={emailVerifySending}>
+                {emailVerifySending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                {emailVerifySent
+                  ? t("settings.resendVerificationEmail")
+                  : t("settings.sendVerificationEmail")}
+              </Button>
             </div>
           )}
         </CardContent>
