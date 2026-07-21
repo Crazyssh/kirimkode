@@ -108,6 +108,19 @@ export const en = {
     invalidInput: "Invalid input. Please check the data you entered.",
     // Req 12.2: email delivery failure — ask the user to try again.
     tryAgain: "Something went wrong while processing your request. Please try again shortly.",
+    // UI labels for the forgot/reset password pages.
+    forgotTitle: "Forgot Password",
+    forgotDesc: "Enter your account email. We'll send a link to reset your password.",
+    sendResetLink: "Send Reset Link",
+    backToLogin: "Back to sign in",
+    resetTitle: "Reset Password",
+    resetDesc: "Enter your new password.",
+    newPassword: "New Password",
+    confirmPassword: "Confirm New Password",
+    passwordMismatch: "Password confirmation does not match.",
+    updatePassword: "Save New Password",
+    missingToken: "Reset token not found. Please open the link from your email again.",
+    goToLogin: "Sign in now",
   },
   landing: {
     badge: "#1 Virtual Number Platform in Indonesia",

@@ -108,6 +108,19 @@ export const id = {
     invalidInput: "Input tidak valid. Silakan periksa data yang Anda masukkan.",
     // Req 12.2: kegagalan pengiriman email — minta user mencoba lagi.
     tryAgain: "Terjadi kendala saat memproses permintaan. Silakan coba lagi beberapa saat lagi.",
+    // Label UI halaman lupa/reset password.
+    forgotTitle: "Lupa Password",
+    forgotDesc: "Masukkan email akun Anda. Kami akan mengirim tautan untuk mengatur ulang password.",
+    sendResetLink: "Kirim Tautan Reset",
+    backToLogin: "Kembali ke halaman masuk",
+    resetTitle: "Atur Ulang Password",
+    resetDesc: "Masukkan password baru Anda.",
+    newPassword: "Password Baru",
+    confirmPassword: "Konfirmasi Password Baru",
+    passwordMismatch: "Konfirmasi password tidak cocok.",
+    updatePassword: "Simpan Password Baru",
+    missingToken: "Token reset tidak ditemukan. Silakan buka tautan dari email Anda kembali.",
+    goToLogin: "Masuk sekarang",
   },
   landing: {
     badge: "Platform #1 Nomor Virtual Indonesia",

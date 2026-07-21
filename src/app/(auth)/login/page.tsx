@@ -127,9 +127,9 @@ function LoginForm() {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm text-muted">{t("auth.password")}</label>
-              <a href="#" className="text-xs text-primary hover:underline">
+              <Link href="/forgot-password" className="text-xs text-primary hover:underline">
                 {t("auth.forgotPassword")}
-              </a>
+              </Link>
             </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
