@@ -4,16 +4,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useState, useEffect, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useLanguageStore } from "@/store/language";
 
 type Status = "verifying" | "success" | "error";
 
+const REDIRECT_SECONDS = 5;
+
 function VerifyEmailInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { t } = useLanguageStore();
   const [status, setStatus] = useState<Status>("verifying");
   const [message, setMessage] = useState("");
+  const [countdown, setCountdown] = useState(REDIRECT_SECONDS);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -51,6 +55,17 @@ function VerifyEmailInner() {
     })();
   }, [searchParams, t]);
 
+  // Auto-redirect ke dashboard setelah sukses (hitung mundur REDIRECT_SECONDS).
+  useEffect(() => {
+    if (status !== "success") return;
+    if (countdown <= 0) {
+      router.push("/dashboard");
+      return;
+    }
+    const timer = setTimeout(() => setCountdown((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [status, countdown, router]);
+
   return (
     <Card>
       <CardContent>
@@ -71,6 +86,9 @@ function VerifyEmailInner() {
             <div>
               <p className="font-semibold">{t("emailVerify.successTitle")}</p>
               <p className="text-sm text-muted mt-1">{message}</p>
+              <p className="text-xs text-primary mt-2">
+                {t("emailVerify.redirecting", { seconds: countdown })}
+              </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2 w-full mt-2">
               <Link

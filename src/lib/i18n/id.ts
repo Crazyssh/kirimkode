@@ -450,6 +450,7 @@ export const id = {
     goToDashboard: "Ke Dashboard",
     goToSettings: "Ke Pengaturan",
     goToLogin: "Ke Halaman Masuk",
+    redirecting: "Mengalihkan ke dashboard dalam {seconds} detik...",
   },
   emailMarketing: {
     optOutTokenRequired: "Token berlangganan wajib diisi.",

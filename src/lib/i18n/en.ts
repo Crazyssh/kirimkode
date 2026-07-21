@@ -450,6 +450,7 @@ export const en = {
     goToDashboard: "Go to Dashboard",
     goToSettings: "Go to Settings",
     goToLogin: "Go to Sign In",
+    redirecting: "Redirecting to dashboard in {seconds} seconds...",
   },
   emailMarketing: {
     optOutTokenRequired: "Subscription token is required.",
