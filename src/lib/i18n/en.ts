@@ -451,6 +451,9 @@ export const en = {
     goToSettings: "Go to Settings",
     goToLogin: "Go to Sign In",
     redirecting: "Redirecting to dashboard in {seconds} seconds...",
+    bannerTitle: "Email not verified",
+    bannerDesc: "Verify your email to secure your account and unlock all features.",
+    bannerButton: "Send Verification Email",
   },
   emailMarketing: {
     optOutTokenRequired: "Subscription token is required.",

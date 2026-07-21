@@ -451,6 +451,9 @@ export const id = {
     goToSettings: "Ke Pengaturan",
     goToLogin: "Ke Halaman Masuk",
     redirecting: "Mengalihkan ke dashboard dalam {seconds} detik...",
+    bannerTitle: "Email belum terverifikasi",
+    bannerDesc: "Verifikasi email Anda untuk mengamankan akun dan membuka semua fitur.",
+    bannerButton: "Kirim Email Verifikasi",
   },
   emailMarketing: {
     optOutTokenRequired: "Token berlangganan wajib diisi.",
