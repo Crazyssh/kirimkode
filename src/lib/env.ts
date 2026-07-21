@@ -54,6 +54,15 @@ const envSchema = z.object({
 
     // ShadowOTP
     SHADOW_API_KEY: z.string().optional(),
+
+    // Email / SMTP (provider-agnostic, lihat scripts/test-smtp.mjs)
+    // Semua optional supaya app tetap jalan tanpa email (Req 12.3, 14.2).
+    EMAIL_HOST: z.string().optional(),
+    EMAIL_PORT: z.string().optional(),
+    EMAIL_USERNAME: z.string().optional(),
+    EMAIL_PASSWORD: z.string().optional(),
+    EMAIL_FROM: z.string().optional(),
+    EMAIL_FROM_NAME: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

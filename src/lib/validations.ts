@@ -11,6 +11,21 @@ export const registerSchema = z.object({
     referralCode: z.string().optional().nullable(),
 });
 
+// Reset password: permintaan tautan reset (public, anti-enumerasi).
+export const resetPasswordRequestSchema = z.object({
+    email: z.string().email("Email tidak valid"),
+    locale: z.enum(["id", "en"]).optional(),
+});
+
+// Reset password: konfirmasi token + password baru.
+// Catatan: panjang password TIDAK divalidasi di sini agar service dapat
+// mengembalikan kode WEAK_PASSWORD (Req 7.5) yang dipetakan ke pesan i18n.
+export const resetPasswordConfirmSchema = z.object({
+    token: z.string().min(1, "Token wajib diisi"),
+    password: z.string().min(1, "Password wajib diisi"),
+    locale: z.enum(["id", "en"]).optional(),
+});
+
 // ==================== OTP ====================
 
 export const otpOrderSchema = z.object({

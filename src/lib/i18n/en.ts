@@ -92,6 +92,23 @@ export const en = {
     networkError: "A network error occurred",
     registerFailed: "Registration failed",
   },
+  resetPassword: {
+    // Req 6.4/6.5: generic anti-enumeration response — identical for registered,
+    // unregistered, and OAuth-only emails.
+    requestGeneric: "If the email is registered, we have sent a password reset link. Please check your inbox.",
+    // Req 7.1: password successfully set.
+    passwordUpdated: "Password updated successfully. Please sign in with your new password.",
+    // Req 7.4: token not found / already used.
+    invalidToken: "The password reset link is invalid or has already been used.",
+    // Req 7.3: token expired.
+    expiredToken: "The password reset link has expired. Please request a new one.",
+    // Req 7.5: new password does not meet the 8-character minimum length.
+    weakPassword: "Password must be at least 8 characters.",
+    // Invalid input (email format / required fields).
+    invalidInput: "Invalid input. Please check the data you entered.",
+    // Req 12.2: email delivery failure — ask the user to try again.
+    tryAgain: "Something went wrong while processing your request. Please try again shortly.",
+  },
   landing: {
     badge: "#1 Virtual Number Platform in Indonesia",
     heroTitle: "Account Verification",
@@ -389,5 +406,34 @@ export const en = {
     publishedOn: "Published on",
     views: "views",
     noPosts: "No articles yet",
+  },
+  emailGate: {
+    apiKeyVerificationRequired:
+      "Email verification is required to generate or regenerate an API key.",
+    apiKeyVerificationHint:
+      "Start verification by sending a request to POST /api/user/verify-email/request.",
+  },
+  emailVerify: {
+    requestSent: "Verification email sent. Please check your inbox.",
+    alreadyVerified: "Your email is already verified.",
+    rateLimited: "Too many verification requests. Please try again in {minutes} minute(s).",
+    unauthorized: "You must be signed in to perform this action.",
+    tokenRequired: "Verification token is required.",
+    verified: "Your email has been verified successfully.",
+    invalidToken: "The verification token is invalid.",
+    expiredToken: "The verification token has expired.",
+    tooManyRequests: "Too many requests. Please try again later.",
+  },
+  emailMarketing: {
+    optOutTokenRequired: "Subscription token is required.",
+    optOutInvalidToken: "The subscription link is invalid.",
+    optedOut: "You have been unsubscribed from marketing emails.",
+    resubscribed: "You have been resubscribed to marketing emails.",
+    broadcastSendForbidden: "You do not have access to send broadcasts.",
+    broadcastSendNotFound: "Broadcast not found.",
+    broadcastCreateForbidden: "You do not have access to manage broadcasts.",
+    broadcastInvalidBody: "The request format is invalid.",
+    broadcastMissingFields: "Broadcast subject and body are required.",
+    broadcastCreated: "Broadcast created successfully.",
   },
 } as const;

@@ -44,12 +44,22 @@ model User {
   telegramOtp      String?            // 6-digit OTP untuk verifikasi link
   telegramOtpExp   DateTime?          // waktu expired OTP
 
+  // Email service (verifikasi, reset password, marketing)
+  locale          String    @default("id") // preferensi bahasa email: "id" | "en"
+  marketingOptOut Boolean   @default(false) // status Opt_Out marketing
+  optOutToken     String?   @unique         // token stabil untuk tautan opt-out/resubscribe
+
   accounts      Account[]
   sessions      Session[]
   orders        Order[]
   deposits      Deposit[]
   auditLogs     AuditLog[]
   voucherUsages VoucherUsage[]
+
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  broadcasts              Broadcast[]          // broadcast yang dibuat (admin)
+  broadcastRecipients     BroadcastRecipient[]
 
   @@map("users")
 }
@@ -92,6 +102,81 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verification_tokens")
+}
+
+// ==================== EMAIL SERVICE ====================
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique // SHA-256 dari token acak 32 byte (>=128-bit entropi)
+  expiresAt DateTime          // createdAt + 24 jam
+  usedAt    DateTime?         // non-null = terpakai/di-invalidasi
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, usedAt]) // untuk hitung rate limit & invalidasi cepat
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique // SHA-256 dari token acak 32 byte (>=128-bit entropi)
+  expiresAt DateTime          // createdAt + 60 menit
+  usedAt    DateTime?         // non-null = terpakai/di-invalidasi
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, usedAt])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model Broadcast {
+  id          String    @id @default(cuid())
+  subject     String                        // wajib non-kosong
+  body        String                        // wajib non-kosong
+  segmentType String    @default("all")     // "all" | "subset"
+  segmentData String    @default("")        // JSON userIds untuk subset
+  status      String    @default("draft")   // draft | sending | sent
+  createdBy   String                        // userId admin
+  totalCount  Int       @default(0)         // ringkasan
+  sentCount   Int       @default(0)
+  failedCount Int       @default(0)
+  createdAt   DateTime  @default(now())
+  sentAt      DateTime?
+
+  creator    User                 @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  recipients BroadcastRecipient[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("broadcasts")
+}
+
+model BroadcastRecipient {
+  id          String    @id @default(cuid())
+  broadcastId String
+  userId      String
+  email       String                        // snapshot alamat saat kirim
+  status      String    @default("pending") // pending | sent | failed
+  failReason  String?                        // alasan gagal
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([broadcastId, userId])
+  @@index([broadcastId])
+  @@index([broadcastId, status])
+  @@map("broadcast_recipients")
 }
 
 // ==================== BUSINESS ====================

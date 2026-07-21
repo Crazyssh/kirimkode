@@ -92,6 +92,23 @@ export const id = {
     networkError: "Terjadi kesalahan jaringan",
     registerFailed: "Registrasi gagal",
   },
+  resetPassword: {
+    // Req 6.4/6.5: respons generik anti-enumerasi — identik untuk email
+    // terdaftar, tidak terdaftar, maupun OAuth-only.
+    requestGeneric: "Jika email terdaftar, kami telah mengirim tautan reset password. Silakan periksa kotak masuk Anda.",
+    // Req 7.1: berhasil menetapkan password baru.
+    passwordUpdated: "Password berhasil diperbarui. Silakan masuk dengan password baru Anda.",
+    // Req 7.4: token tidak ditemukan / sudah dipakai.
+    invalidToken: "Tautan reset password tidak valid atau sudah digunakan.",
+    // Req 7.3: token kedaluwarsa.
+    expiredToken: "Tautan reset password sudah kedaluwarsa. Silakan minta tautan baru.",
+    // Req 7.5: password baru tidak memenuhi panjang minimal 8 karakter.
+    weakPassword: "Password minimal 8 karakter.",
+    // Input tidak valid (format email / field wajib).
+    invalidInput: "Input tidak valid. Silakan periksa data yang Anda masukkan.",
+    // Req 12.2: kegagalan pengiriman email — minta user mencoba lagi.
+    tryAgain: "Terjadi kendala saat memproses permintaan. Silakan coba lagi beberapa saat lagi.",
+  },
   landing: {
     badge: "Platform #1 Nomor Virtual Indonesia",
     heroTitle: "Verifikasi Akun",
@@ -389,5 +406,34 @@ export const id = {
     publishedOn: "Diterbitkan pada",
     views: "dilihat",
     noPosts: "Belum ada artikel",
+  },
+  emailGate: {
+    apiKeyVerificationRequired:
+      "Verifikasi email diperlukan untuk membuat atau memperbarui API key.",
+    apiKeyVerificationHint:
+      "Mulai verifikasi dengan mengirim permintaan ke POST /api/user/verify-email/request.",
+  },
+  emailVerify: {
+    requestSent: "Email verifikasi telah dikirim. Silakan cek kotak masuk Anda.",
+    alreadyVerified: "Email Anda sudah terverifikasi.",
+    rateLimited: "Terlalu banyak permintaan verifikasi. Coba lagi dalam {minutes} menit.",
+    unauthorized: "Anda harus masuk untuk melakukan aksi ini.",
+    tokenRequired: "Token verifikasi wajib diisi.",
+    verified: "Email Anda berhasil diverifikasi.",
+    invalidToken: "Token verifikasi tidak valid.",
+    expiredToken: "Token verifikasi telah kedaluwarsa.",
+    tooManyRequests: "Terlalu banyak permintaan. Coba lagi nanti.",
+  },
+  emailMarketing: {
+    optOutTokenRequired: "Token berlangganan wajib diisi.",
+    optOutInvalidToken: "Tautan berlangganan tidak valid.",
+    optedOut: "Anda telah berhenti berlangganan email marketing.",
+    resubscribed: "Anda telah berlangganan kembali email marketing.",
+    broadcastSendForbidden: "Anda tidak memiliki akses untuk mengirim broadcast.",
+    broadcastSendNotFound: "Broadcast tidak ditemukan.",
+    broadcastCreateForbidden: "Anda tidak memiliki akses untuk mengelola broadcast.",
+    broadcastInvalidBody: "Format permintaan tidak valid.",
+    broadcastMissingFields: "Subjek dan isi broadcast wajib diisi.",
+    broadcastCreated: "Broadcast berhasil dibuat.",
   },
 } as const;

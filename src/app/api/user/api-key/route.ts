@@ -3,6 +3,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { logAction } from "@/lib/audit";
+import { apiError } from "@/lib/api-response";
+import { isEmailVerified } from "@/lib/email/verification";
+import { id } from "@/lib/i18n/id";
+import { en } from "@/lib/i18n/en";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -26,11 +30,24 @@ export async function POST(req: NextRequest) {
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },
-    select: { password: true },
+    select: { password: true, locale: true },
   });
 
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  // Gate verifikasi email (Req 5): generate/regenerate API key hanya diizinkan
+  // untuk user yang emailnya sudah terverifikasi. Jika belum, tolak dengan
+  // HTTP 403 beserta petunjuk cara memulai verifikasi (Req 5.2, 5.3).
+  if (!(await isEmailVerified(session.user.id))) {
+    // Locale: "en" jika dan hanya jika preferensi user tepat "en", selain itu "id".
+    const t = user.locale === "en" ? en.emailGate : id.emailGate;
+    return apiError(
+      `${t.apiKeyVerificationRequired} ${t.apiKeyVerificationHint}`,
+      403,
+      "EMAIL_VERIFICATION_REQUIRED"
+    );
   }
 
   // User credentials wajib konfirmasi password sebelum regenerate
