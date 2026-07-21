@@ -344,9 +344,28 @@ export async function getLiveEntry(
   };
 }
 
+/**
+ * Daftar operator per negara dari HeroSMS (action=getOperators).
+ * Response: { status, countryOperators: { "<countryId>": ["op1", ...] } }.
+ * "any" selalu jadi opsi pertama agar user bisa memilih operator otomatis.
+ * Fallback ke ["any"] bila API gagal / negara tidak punya daftar operator.
+ */
 export async function getOperator(negara: number) {
   const negaraKey = String(negara);
-  return { data: { [negaraKey]: ["any"] } };
+  try {
+    const data = await fetchProviderJson({ action: "getOperators" });
+    const map = (data as { countryOperators?: Record<string, unknown> })?.countryOperators;
+    const raw =
+      map && typeof map === "object"
+        ? (map as Record<string, unknown>)[negaraKey]
+        : null;
+    const ops = Array.isArray(raw)
+      ? raw.filter((o): o is string => typeof o === "string")
+      : [];
+    return { data: { [negaraKey]: ["any", ...ops] } };
+  } catch {
+    return { data: { [negaraKey]: ["any"] } };
+  }
 }
 
 /**
