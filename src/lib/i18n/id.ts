@@ -443,6 +443,13 @@ export const id = {
     invalidToken: "Token verifikasi tidak valid.",
     expiredToken: "Token verifikasi telah kedaluwarsa.",
     tooManyRequests: "Terlalu banyak permintaan. Coba lagi nanti.",
+    pageTitle: "Verifikasi Email",
+    verifying: "Sedang memverifikasi email Anda...",
+    successTitle: "Email Terverifikasi",
+    failTitle: "Verifikasi Gagal",
+    goToDashboard: "Ke Dashboard",
+    goToSettings: "Ke Pengaturan",
+    goToLogin: "Ke Halaman Masuk",
   },
   emailMarketing: {
     optOutTokenRequired: "Token berlangganan wajib diisi.",

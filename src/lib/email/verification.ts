@@ -102,7 +102,7 @@ export async function requestVerification(
 
   // Req 1.3: kirim email verifikasi. Non-blocking — kegagalan tidak membatalkan
   // penerbitan token; user dapat kirim ulang.
-  const verifyUrl = `${APP_URL}/api/user/verify-email/confirm?token=${raw}`;
+  const verifyUrl = `${APP_URL}/verify-email?token=${raw}`;
   await deliverEmail({
     to: user.email,
     kind: "verify",

@@ -443,6 +443,13 @@ export const en = {
     invalidToken: "The verification token is invalid.",
     expiredToken: "The verification token has expired.",
     tooManyRequests: "Too many requests. Please try again later.",
+    pageTitle: "Email Verification",
+    verifying: "Verifying your email...",
+    successTitle: "Email Verified",
+    failTitle: "Verification Failed",
+    goToDashboard: "Go to Dashboard",
+    goToSettings: "Go to Settings",
+    goToLogin: "Go to Sign In",
   },
   emailMarketing: {
     optOutTokenRequired: "Subscription token is required.",
