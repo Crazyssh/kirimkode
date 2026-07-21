@@ -24,10 +24,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data);
     }
 
-    // api4 (Neptune / HeroSMS): operator LIVE dari getOperators, "any" + daftar operator.
+    // api4 (Neptune / HeroSMS): tidak pakai operator selection, default "any".
+    // Stok Neptune berbasis /offers agregat semua operator, jadi memilih operator
+    // spesifik bisa menyesatkan (stok tampil tidak sesuai operator).
     if (server === "api4") {
-      const data = await getOperator(server, negaraId);
-      return NextResponse.json(data);
+      return NextResponse.json({ data: { [String(negaraId)]: ["any"] } });
     }
 
     // api5 (Earth): Clowatch v1 support operator selection via /operators
