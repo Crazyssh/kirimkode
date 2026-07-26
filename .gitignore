@@ -45,3 +45,6 @@ next-env.d.ts
 # database (jangan commit ke git - production DB terpisah)
 dev.db
 dev.db-journal
+
+# Partner Platform: repo git terpisah (kirimkode-partner/.git)
+kirimkode-partner/

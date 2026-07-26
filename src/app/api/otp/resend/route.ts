@@ -9,10 +9,11 @@ import { logAction } from "@/lib/audit";
  * POST /api/otp/resend
  * Body: { id: string }  // order.id (UUID), bukan provider activationId
  *
- * Minta SMS baru ke HeroSMS (setStatus=3). Cuma support api4 (Neptune).
- * Gratis — user gak dipotong saldo lagi (sesuai HeroSMS standard).
- * Order status balik ke "waiting" sambil tunggu SMS baru.
- * Code lama tetep tersimpan di DB (gak di-clear).
+ * Minta SMS baru. Didukung oleh api4 (Neptune, via HeroSMS setStatus=3) dan
+ * partner (Pluto, tanpa panggilan upstream — lihat alasannya di bawah).
+ * Gratis untuk keduanya — user gak dipotong saldo lagi.
+ * Status order tetap "success"; `resendAt` menandai sedang menunggu SMS baru.
+ * Code lama tetep tersimpan di DB (gak di-clear) sampai kode baru menggantinya.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -47,10 +48,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Order tidak ditemukan" }, { status: 404 });
     }
 
-    // Cuma api4 yang support resend
-    if (order.server !== "api4") {
+    // Neptune (api4) and Pluto (partner) support a second code. Everything else
+    // has no such concept, so it is refused before any provider call.
+    const RESEND_CAPABLE = ["api4", "partner"];
+    if (!RESEND_CAPABLE.includes(order.server)) {
       return NextResponse.json(
-        { error: "Server ini tidak mendukung resend SMS. Cuma Neptune yang support." },
+        { error: "Server ini tidak mendukung resend SMS." },
         { status: 400 }
       );
     }
@@ -82,23 +85,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Panggil HeroSMS setStatus=3
-    try {
-      await requestRetry(order.server as "api4", order.orderId);
-    } catch (err) {
-      const msg = (err as Error).message || "";
-      // Translate error HeroSMS umum
-      if (msg.includes("BAD_STATUS") || msg.includes("STATUS_CANCEL") || msg.includes("STATUS_FINISH")) {
+    // Pluto needs no upstream call at all. Its listening window is already open
+    // from the moment the first OTP arrived: the supplier keeps holding the number
+    // until the buyer completes the order or the window expires, and any further
+    // SMS on that number is matched to this same order and refreshes its code. So
+    // "ask for a new SMS" here means only "start waiting again" — the buyer taps
+    // resend inside WhatsApp itself, and the code lands through the normal path.
+    //
+    // Skipping the remote call is also what keeps it free: no second reserve, no
+    // second earning, no second charge.
+    if (order.server !== "partner") {
+      // Panggil HeroSMS setStatus=3
+      try {
+        await requestRetry(order.server as "api4", order.orderId);
+      } catch (err) {
+        const msg = (err as Error).message || "";
+        // Translate error HeroSMS umum
+        if (msg.includes("BAD_STATUS") || msg.includes("STATUS_CANCEL") || msg.includes("STATUS_FINISH")) {
+          return NextResponse.json(
+            { error: "Order sudah selesai/dibatalkan di HeroSMS. Tidak bisa resend." },
+            { status: 400 }
+          );
+        }
+        console.error("Resend error:", msg);
         return NextResponse.json(
-          { error: "Order sudah selesai/dibatalkan di HeroSMS. Tidak bisa resend." },
-          { status: 400 }
+          { error: "Gagal request SMS baru ke provider. Coba lagi." },
+          { status: 500 }
         );
       }
-      console.error("Resend error:", msg);
-      return NextResponse.json(
-        { error: "Gagal request SMS baru ke provider. Coba lagi." },
-        { status: 500 }
-      );
     }
 
     // Status TETAP "success" — user udah dapat OTP pertama, jadi order memang berhasil.

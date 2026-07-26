@@ -28,6 +28,7 @@ import {
   Download,
   Star,
   RefreshCw,
+  CheckCircle2,
 } from "lucide-react";
 
 interface ApiNegara {
@@ -100,6 +101,7 @@ export default function BuyPage() {
   const [historySearch, setHistorySearch] = useState("");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [finishingId, setFinishingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleCopyText = (text: string, id: string) => {
@@ -461,6 +463,31 @@ export default function BuyPage() {
       toast.error("Gagal membatalkan pesanan. Coba lagi.");
     }
     finally { setCancellingId(null); }
+  };
+
+  // Pluto only: close the listening window early so the supplier can resell the
+  // number. Optional — the supplier sweeps expired windows on its own — so a
+  // failure to release is reported as done rather than as an error.
+  const handleFinishOrder = async (order: HistoryOrder) => {
+    setFinishingId(order.id);
+    try {
+      const res = await fetch("/api/otp/finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: order.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || "Pesanan diselesaikan");
+      } else {
+        toast.error(data.error || "Gagal menyelesaikan pesanan");
+      }
+      fetchHistory(historyPage);
+    } catch {
+      toast.error("Gagal menyelesaikan pesanan. Coba lagi.");
+    } finally {
+      setFinishingId(null);
+    }
   };
 
   const handleResendSms = async (order: HistoryOrder) => {
@@ -1377,9 +1404,17 @@ export default function BuyPage() {
                                 const numberTimeoutMs = 20 * 60 * 1000;
 
                                 const isResending = !!o.resendAt;
-                                // Resend: api4 + udah dapet OTP + belum timeout + lagi gak resend
+                                // Resend: api4 (HeroSMS retry) atau partner (listening window)
+                                // + udah dapet OTP + belum timeout + lagi gak resend.
                                 const canResend =
-                                  o.server === "api4" && !!o.code && orderAge < numberTimeoutMs && !isResending;
+                                  (o.server === "api4" || o.server === "partner") &&
+                                  !!o.code && orderAge < numberTimeoutMs && !isResending;
+                                // "Selesai" cuma untuk partner: nomornya ditahan supplier
+                                // selama window masih terbuka, jadi menutupnya lebih awal
+                                // mengembalikan nomor itu untuk dijual lagi. Opsional —
+                                // supplier menyapu window kedaluwarsa sendiri.
+                                const canFinish =
+                                  o.server === "partner" && !!o.code && orderAge < numberTimeoutMs;
 
                                 // Cancel: cuma muncul saat status waiting (OTP pertama belum masuk)
                                 // + udah lewat batas waktu cancel server. Order success tidak punya tombol cancel.
@@ -1389,8 +1424,8 @@ export default function BuyPage() {
                                 const minsLeft = Math.floor(secsLeft / 60);
                                 const secsRem = secsLeft % 60;
 
-                                // Order success tanpa kemampuan resend dan tidak lagi resend → no action
-                                if (o.status === "success" && !canResend && !isResending) return null;
+                                // Order success tanpa kemampuan resend/selesai dan tidak lagi resend → no action
+                                if (o.status === "success" && !canResend && !canFinish && !isResending) return null;
 
                                 return (
                                   <div className="flex items-center gap-1.5">
@@ -1414,6 +1449,22 @@ export default function BuyPage() {
                                           <RefreshCw className="w-3.5 h-3.5" />
                                         )}
                                         SMS Lagi
+                                      </Button>
+                                    )}
+                                    {canFinish && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleFinishOrder(o)}
+                                        disabled={finishingId === o.id}
+                                        title="Selesai — lepas nomor ini supaya bisa dipakai lagi"
+                                      >
+                                        {finishingId === o.id ? (
+                                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                          <CheckCircle2 className="w-3.5 h-3.5" />
+                                        )}
+                                        Selesai
                                       </Button>
                                     )}
                                     {isWaiting && (

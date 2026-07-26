@@ -200,6 +200,13 @@ model Order {
   checkedAt   DateTime? // kapan nomor dicek di WA/TG
   resendAt    DateTime? // resend mode: kapan user request SMS baru. status tetap "success"; cron polling sampai SMS baru masuk atau timeout.
   source      String   @default("web") // web | api — origin order
+
+  // Partner Platform (Pluto) integration — opaque cross-boundary references only.
+  // ID order Partner berupa UUID; disimpan sebagai string agar orderId Int tidak dipaksa menampung UUID.
+  // Tidak ada foreign key/query ke database Partner (kirimkode_partner).
+  providerOrderRef   String? // referensi order pada Partner Platform (UUID), null untuk provider non-partner
+  providerRequestRef String? // referensi request/reserve pada Partner Platform (idempotency), null untuk provider non-partner
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -213,6 +220,7 @@ model Order {
   @@index([orderId])
   @@index([server])
   @@index([resendAt])
+  @@index([providerOrderRef])
   @@map("orders")
 }
 
@@ -425,6 +433,57 @@ model ProviderOperator {
   @@unique([serverId, countryId, operator])
   @@index([serverId, countryId])
   @@map("provider_operators")
+}
+
+// ==================== PARTNER PLATFORM (PLUTO) SAGA ====================
+
+// Tabel operasi/kompensasi additive untuk saga debit-reserve-confirm-compensate.
+// Main DB tetap pemilik buyer, saldo, order, debit, dan refund. Tabel ini hanya menyimpan
+// state saga + referensi opaque ke Partner Platform. TIDAK ADA foreign key atau query
+// ke database Partner (kirimkode_partner); identitas lintas batas hanya opaque UUID string.
+model PartnerDispatch {
+  id          String @id @default(cuid())
+
+  // Unique purchase key — menjamin debit/reserve/kompensasi tepat sekali per pembelian buyer.
+  purchaseKey String @unique
+
+  // Key idempotency yang dikirim ke Partner reserve (dispatch.reserveKey pada design).
+  reserveKey  String
+
+  // Status saga: pending | confirmed | compensating | compensated | unknown
+  // (String + default mengikuti konvensi status existing pada schema Main).
+  status      String @default("pending")
+
+  // Buyer Main (pemilik saldo/order). Disimpan sebagai id string internal Main.
+  userId      String?
+
+  // Order buyer Main (Order.id cuid) setelah link tersimpan; null bila belum terhubung.
+  orderId     String?
+
+  // Referensi opaque pseudonymous UUID yang dipertukarkan dengan Partner Platform.
+  buyerOrderRef   String? // referensi order buyer yang dikirim ke Partner
+  buyerAccountRef String? // referensi akun buyer (pseudonymous) yang dikirim ke Partner
+
+  // Referensi balik dari Partner Platform (UUID) — opaque, bukan foreign key.
+  providerOrderRef   String? // order Partner hasil reserve
+  providerRequestRef String? // request/reserve Partner
+
+  amount        Int      @default(0)     // nominal debit buyer (IDR)
+  debitApplied  Boolean  @default(false) // saldo buyer sudah didebit
+  refundApplied Boolean  @default(false) // saldo buyer sudah direfund (kompensasi)
+  attempts      Int      @default(0)     // jumlah percobaan dispatch/rekonsiliasi
+  lastError     String?                  // pesan error stabil terakhir (redacted-safe)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([userId])
+  @@index([orderId])
+  @@index([reserveKey])
+  @@index([providerOrderRef])
+  @@index([createdAt])
+  @@map("partner_dispatches")
 }
 
 // ==================== SITE SETTINGS ====================

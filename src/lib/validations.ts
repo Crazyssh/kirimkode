@@ -28,8 +28,13 @@ export const resetPasswordConfirmSchema = z.object({
 
 // ==================== OTP ====================
 
+// `partner` (Pluto) is accepted here so the route can reach its own branch, but
+// accepting the value is NOT the same as offering it: the route still requires
+// the server to be visible AND the `partner_supply_enabled` flag plus the buyer
+// allowlist to admit the caller. It is absent from DEFAULT_VISIBLE_SERVERS, so a
+// deployment that changes nothing keeps behaving exactly as before.
 export const otpOrderSchema = z.object({
-    server: z.enum(["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10", "unified"], { message: "Server tidak valid" }),
+    server: z.enum(["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10", "unified", "partner"], { message: "Server tidak valid" }),
     negara: z.union([z.number(), z.string()]).transform(Number),
     layanan: z.string().min(1, "Layanan wajib diisi"),
     operator: z.string().default("any"),

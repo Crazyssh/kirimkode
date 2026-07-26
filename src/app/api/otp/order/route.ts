@@ -8,6 +8,7 @@ import { logAction } from "@/lib/audit";
 import { checkRouteRateLimit } from "@/lib/rate-limit";
 import { otpOrderSchema, validateBody } from "@/lib/validations";
 import { getEffectiveVisibleServers, getUnifiedProviders } from "@/lib/site-settings";
+import { orderFromPartner } from "@/lib/partner-order";
 
 /**
  * Refund saldo (rollback reserve) dengan retry + log jelas.
@@ -157,6 +158,29 @@ export async function POST(req: NextRequest) {
         { error: "Server tidak tersedia. Silakan pilih server lain." },
         { status: 403 }
       );
+    }
+
+    // === Pluto (Partner Platform) ===
+    // Handled entirely by its own saga and returned early, so the api1..api10
+    // charge-after path below is left byte-for-byte untouched. Pluto inverts the
+    // order of operations on purpose: it debits FIRST and compensates on failure,
+    // because a Partner reserve is a remote money-bearing effect that must never
+    // be left dangling if our own debit then fails.
+    //
+    // Three independent gates must all admit the caller, so an unchanged
+    // deployment behaves exactly as before:
+    //   1. `partner` is absent from DEFAULT_VISIBLE_SERVERS (checked above),
+    //   2. the `partner_supply_enabled` setting must be on,
+    //   3. the buyer must be on the allowlist (private beta).
+    if (server === "partner") {
+      return await orderFromPartner({
+        userId,
+        negara: Number(negara),
+        layanan,
+        operator,
+        serviceName,
+        countryName,
+      });
     }
 
     // Untuk api4 (Neptune): ambil entry LIVE dari /offers (banding). Harga + maxPrice

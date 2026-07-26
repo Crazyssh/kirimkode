@@ -32,6 +32,7 @@
   ],
   "exclude": [
     "node_modules",
+    "kirimkode-partner",
     "vitest.config.ts",
     "vitest.setup.ts",
     "**/*.test.ts",

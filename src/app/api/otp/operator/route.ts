@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as providerPartner from "@/lib/provider-partner";
 import { getOperator } from "@/lib/otp";
 import { db } from "@/lib/db";
 import { getUnifiedOperator } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified" | "partner";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10", "unified", "partner"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -27,6 +28,14 @@ export async function GET(req: NextRequest) {
     // api4 (Neptune / HeroSMS): tidak pakai operator selection, default "any".
     // Stok Neptune berbasis /offers agregat semua operator, jadi memilih operator
     // spesifik bisa menyesatkan (stok tampil tidak sesuai operator).
+    // Pluto (partner): pemilihan operator tidak diekspos (selalu "any").
+    if (server === "partner") {
+      const data = await providerPartner.getOperator(Number(negara));
+      return NextResponse.json(data, {
+        headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
+      });
+    }
+
     if (server === "api4") {
       return NextResponse.json({ data: { [String(negaraId)]: ["any"] } });
     }

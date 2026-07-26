@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { fetchPartnerOtp } from "@/lib/partner-order";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { checkSms } from "@/lib/otp";
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     const orders = await db.order.findMany({
         where: { id: { in: orderIds }, userId },
-        select: { id: true, server: true, orderId: true, status: true, code: true, number: true, service: true, resendAt: true },
+        select: { id: true, server: true, orderId: true, providerOrderRef: true, status: true, code: true, number: true, service: true, resendAt: true },
     });
 
     if (orders.length === 0) {
@@ -168,7 +169,7 @@ export async function GET(req: NextRequest) {
                 // Get fresh order data
                 const freshOrders = await db.order.findMany({
                     where: { id: { in: orderIds }, userId },
-                    select: { id: true, server: true, orderId: true, status: true, code: true, number: true, service: true, resendAt: true },
+                    select: { id: true, server: true, orderId: true, providerOrderRef: true, status: true, code: true, number: true, service: true, resendAt: true },
                 });
 
                 let hasActiveOrders = false;
@@ -195,7 +196,15 @@ export async function GET(req: NextRequest) {
 
                     // Poll provider (untuk semua server, termasuk api7 sebagai safety net
                     // kalau SSE upstream sempat putus)
-                    if (order.server && order.orderId) {
+                    // Pluto is addressed by an opaque UUID rather than a numeric
+                    // activation id, so it has its own fetch; everything after this
+                    // point (novelty check, push) is shared.
+                    if (order.server === "partner") {
+                        const otp = await fetchPartnerOtp(order.providerOrderRef);
+                        if (otp && otp !== order.code && otp !== knownCodes[order.id]) {
+                            await handleOtpReceived(order, otp, isResending);
+                        }
+                    } else if (order.server && order.orderId) {
                         try {
                             const data = await checkSms(order.server as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10", order.orderId);
                             const otp = extractOtp(data as Record<string, unknown>);

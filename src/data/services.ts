@@ -1,5 +1,5 @@
 export interface OTPServer {
-  id: "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified";
+  id: "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified" | "partner";
   name: string;
   icon: string;
   color: string;
@@ -94,6 +94,20 @@ export const servers: OTPServer[] = [
     icon: "\u2728",
     color: "from-fuchsia-500 to-purple-600",
     description: "Server harga final, lokal IDR",
+    status: "online",
+  },
+  // Pluto \u2014 supply dari Partner Platform (private beta).
+  //
+  // Listing di sini TIDAK membuatnya tampil: halaman buy memfilter dengan
+  // `visible_servers`, dan `partner` sengaja absen dari DEFAULT_VISIBLE_SERVERS.
+  // Jadi selain admin menambahkannya, buyer juga harus lolos flag
+  // `partner_supply_enabled` + allowlist di sisi route.
+  {
+    id: "partner",
+    name: "Pluto (Private Beta)",
+    icon: "\ud83e\ude90",
+    color: "from-indigo-500 to-violet-600",
+    description: "Supply mitra, bisa minta kode ulang",
     status: "online",
   },
 ];

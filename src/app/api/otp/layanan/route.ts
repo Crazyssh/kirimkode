@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as providerPartner from "@/lib/provider-partner";
 import { getLayanan } from "@/lib/otp";
 import { applyPricing, applyServerExtraMarkup, applyErisPricing, applyMercuryPricing } from "@/lib/pricing";
 import { db } from "@/lib/db";
 import { getUnifiedLayanan } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified" | "partner";
   const negara = req.nextUrl.searchParams.get("negara");
 
-  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10", "unified", "partner"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -29,6 +30,14 @@ export async function GET(req: NextRequest) {
 
     // api4 (Neptune): LIVE dari HeroSMS /offers (banding 0.01 USD + markup).
     // Harga sudah final di adapter → skip applyPricing.
+    // Pluto (partner): harga + stok realtime dari inventory Partner Platform.
+    if (server === "partner") {
+      const data = await providerPartner.getLayanan(Number(negara));
+      return NextResponse.json(data, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+
     if (server === "api4") {
       const data = await getLayanan("api4", negaraId);
       return NextResponse.json(data, {

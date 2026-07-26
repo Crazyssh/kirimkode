@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { fetchPartnerOtp, releaseExpiredPartnerOrder } from "@/lib/partner-order";
 import { db } from "@/lib/db";
 import { checkSms, cancelOrder, type ServerId } from "@/lib/otp";
 import { extractOtp } from "@/lib/otp-extract";
@@ -138,7 +139,13 @@ export async function GET(req: NextRequest) {
     if (isResendMode) {
       // Timeout per server (default 20 menit) → stop polling, status tetap success
       if (isExpired) {
-        try { await cancelOrder(serverId, order.orderId); } catch { /* may already be expired */ }
+        if (serverId === "partner") {
+          // Already succeeded (a code was delivered), so the listening window is
+          // what expired — release the hold, never time a success out.
+          await releaseExpiredPartnerOrder({ providerOrderRef: order.providerOrderRef, hasCode: true });
+        } else {
+          try { await cancelOrder(serverId, order.orderId); } catch { /* may already be expired */ }
+        }
         await db.order.update({
           where: { id: order.id },
           data: { resendAt: null },
@@ -150,7 +157,12 @@ export async function GET(req: NextRequest) {
 
       // Polling provider untuk SMS baru
       try {
-        const data = await checkSms(serverId, order.orderId);
+        // Pluto is addressed by an opaque UUID, not a numeric activation id, and
+        // its listening window means no upstream "retry" was ever needed — the
+        // refreshed code simply appears on the same order.
+        const data = serverId === "partner"
+          ? { code: await fetchPartnerOtp(order.providerOrderRef) }
+          : await checkSms(serverId, order.orderId);
         polled++;
 
         if (isProviderExpired(data)) {
@@ -216,9 +228,17 @@ export async function GET(req: NextRequest) {
 
     // === 1. Local timeout: order > timeout per-server ===
     if (isExpired) {
-      try {
-        await cancelOrder(serverId, order.orderId);
-      } catch { /* provider cancel may fail if already expired */ }
+      if (serverId === "partner") {
+        await releaseExpiredPartnerOrder({
+          providerOrderRef: order.providerOrderRef,
+          hasCode: false,
+          observedAtIso: new Date(nowMs).toISOString(),
+        });
+      } else {
+        try {
+          await cancelOrder(serverId, order.orderId);
+        } catch { /* provider cancel may fail if already expired */ }
+      }
 
       const refunded = await refundOrder(order.id, order.userId, order.price, "timeout", {
         server: order.server,
@@ -234,7 +254,9 @@ export async function GET(req: NextRequest) {
 
     // === 2. Poll OTP dari provider ===
     try {
-      const data = await checkSms(serverId, order.orderId);
+      const data = serverId === "partner"
+        ? { code: await fetchPartnerOtp(order.providerOrderRef) }
+        : await checkSms(serverId, order.orderId);
       polled++;
 
       // === 2a. Cek apakah provider sudah cancel/expire order ini ===

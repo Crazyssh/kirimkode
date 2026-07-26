@@ -6,6 +6,7 @@ import * as provider7 from "@/lib/provider7";
 import * as provider8 from "@/lib/provider8";
 import * as provider9 from "@/lib/provider9";
 import * as provider10 from "@/lib/provider10";
+import * as providerPartner from "@/lib/provider-partner";
 
 const API_URLS = {
   api1: process.env.JASAOTP_API1_URL || "https://api.jasaotp.id/v1",
@@ -14,7 +15,12 @@ const API_URLS = {
 
 const API_KEY = process.env.JASAOTP_API_KEY || "";
 
-export type ServerId = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified";
+// `partner` = Pluto (Private Beta), a supply source served by the separate
+// Partner Platform via the Internal API v1 client (see provider-partner.ts).
+// It is registered here so the dispatcher recognises the id, but its order
+// lifecycle uses UUID refs through the saga, not the numeric order functions.
+// Pluto is intentionally excluded from `unified`/Bimasakti.
+export type ServerId = "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified" | "partner";
 
 type JasaOtpServerId = "api1" | "api2";
 
@@ -147,6 +153,7 @@ async function fetchApi(
 
 export async function getBalance(server: ServerId) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
+  if (server === "partner") return providerPartner.getBalance();
   if (server === "api3") return provider3.getBalance();
   if (server === "api4") return provider4.getBalance();
   if (server === "api5") return provider5.getBalance();
@@ -160,6 +167,7 @@ export async function getBalance(server: ServerId) {
 
 export async function getNegara(server: ServerId) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
+  if (server === "partner") return providerPartner.getNegara();
   if (server === "api3") return provider3.getNegara();
   if (server === "api4") return provider4.getNegara();
   if (server === "api5") return provider5.getNegara();
@@ -173,6 +181,7 @@ export async function getNegara(server: ServerId) {
 
 export async function getOperator(server: ServerId, negara: number) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
+  if (server === "partner") return providerPartner.getOperator(negara);
   if (server === "api3") return provider3.getOperator(negara);
   if (server === "api4") return provider4.getOperator(negara);
   if (server === "api5") return provider5.getOperator(negara);
@@ -186,6 +195,7 @@ export async function getOperator(server: ServerId, negara: number) {
 
 export async function getLayanan(server: ServerId, negara: number) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
+  if (server === "partner") return providerPartner.getLayanan(negara);
   if (server === "api3") return provider3.getLayanan(negara);
   if (server === "api4") return provider4.getLayanan(negara);
   if (server === "api5") return provider5.getLayanan(negara);
@@ -205,6 +215,7 @@ export async function createOrder(
   opts?: { noTimeout?: boolean; maxPriceUsd?: number | null; fixedPrice?: boolean }
 ) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
+  if (server === "partner") throw new Error("Use provider-partner reserve saga for partner (Pluto) orders");
   if (server === "api3") return provider3.createOrder(negara, layanan, operator);
   if (server === "api4") {
     // api4 layanan code bisa composite "wa#abc" — strip suffix sebelum panggil HeroSMS
@@ -230,6 +241,7 @@ export async function createOrder(
 
 export async function checkSms(server: ServerId, orderId: number) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
+  if (server === "partner") throw new Error("Use provider-partner getOrderStatus for partner (Pluto) orders");
   if (server === "api3") return provider3.checkSms(orderId);
   if (server === "api4") return provider4.checkSms(orderId);
   if (server === "api5") return provider5.checkSms(orderId);
@@ -255,6 +267,7 @@ export async function requestRetry(server: ServerId, orderId: number) {
 
 export async function cancelOrder(server: ServerId, orderId: number) {
   if (server === "unified") throw new Error("Use unified-provider for unified server");
+  if (server === "partner") throw new Error("Use provider-partner cancelPartnerOrder for partner (Pluto) orders");
   if (server === "api3") return provider3.cancelOrder(orderId);
   if (server === "api4") return provider4.cancelOrder(orderId);
   if (server === "api5") return provider5.cancelOrder(orderId);

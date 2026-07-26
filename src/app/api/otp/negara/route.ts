@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import * as providerPartner from "@/lib/provider-partner";
 import { getNegara } from "@/lib/otp";
 import { db } from "@/lib/db";
 import { getUnifiedNegara } from "@/lib/unified-provider";
 
 export async function GET(req: NextRequest) {
-  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified";
+  const server = req.nextUrl.searchParams.get("server") as "api1" | "api2" | "api3" | "api4" | "api5" | "api6" | "api7" | "api8" | "api9" | "api10" | "unified" | "partner";
 
-  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10", "unified"].includes(server)) {
+  if (!server || !["api1", "api2", "api3", "api4", "api5", "api6", "api7", "api8", "api9", "api10", "unified", "partner"].includes(server)) {
     return NextResponse.json({ error: "Server parameter required" }, { status: 400 });
   }
 
@@ -16,6 +17,14 @@ export async function GET(req: NextRequest) {
       const data = await getUnifiedNegara();
       return NextResponse.json(data, {
         headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
+      });
+    }
+
+    // Pluto (partner): dimensi katalog dilayani Partner Platform, bukan DB kita.
+    if (server === "partner") {
+      const data = await providerPartner.getNegara();
+      return NextResponse.json(data, {
+        headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
       });
     }
 
